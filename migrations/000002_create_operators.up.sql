@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS operators (
+    id   BIGSERIAL    PRIMARY KEY,
+    name VARCHAR(50)  NOT NULL
+);
