@@ -21,7 +21,7 @@ func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var operators []domain.Operator
 	for rows.Next() {

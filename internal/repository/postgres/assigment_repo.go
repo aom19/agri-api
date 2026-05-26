@@ -42,7 +42,7 @@ func (repo *AssignmentRepo) GetAll() ([]domain.Assigment, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var assigments []domain.Assigment
 	for rows.Next() {

@@ -59,7 +59,9 @@ func main() {
 	server.Use(gin.Logger(), gin.Recovery())
 
 	// Dezactivează avertismentele legate de proxy-uri de încredere
-	server.SetTrustedProxies(nil)
+	if err := server.SetTrustedProxies(nil); err != nil {
+		log.Fatalf("SetTrustedProxies: %v", err)
+	}
 
 	// Înregistrează toate rutele API
 	httpdelivery.SetupRoutes(server, httpdelivery.AppDeps{
@@ -74,7 +76,7 @@ func main() {
 	log.Infof("Server running on %s", addr)
 
 	// Pornește serverul HTTP
-	server.Run(addr)
-
-	_ = sqlDB
+	if err := server.Run(addr); err != nil {
+		log.Fatalf("server.Run: %v", err)
+	}
 }

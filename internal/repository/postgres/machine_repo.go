@@ -21,7 +21,7 @@ func (machineRepo *MachineRepo) GetAll() ([]domain.Machine, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var machines []domain.Machine
 	for rows.Next() {

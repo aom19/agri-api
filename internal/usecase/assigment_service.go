@@ -36,9 +36,8 @@ func (assigmentService *AssigmentService) GetAssigmentByID(id int64) (*domain.As
 func (assigmentService *AssigmentService) CreateAssigment(assigment *domain.Assigment) (*domain.Assigment, error) {
 
 	var result *domain.Assigment
-	var opErr error
 
-	opErr = assigmentService.store.WithTx(func(tx *sql.Tx) error {
+	opErr := assigmentService.store.WithTx(func(tx *sql.Tx) error {
 		// Verifică dacă mașina există și este disponibilă
 		machine, err := assigmentService.store.MachineRepo.GetByID(assigment.MachineID)
 		if err != nil {

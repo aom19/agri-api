@@ -30,13 +30,13 @@ func (s *Store) WithTx(fn func(tx *sql.Tx) error) error {
 
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
 	err = fn(tx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 
