@@ -1,0 +1,26 @@
+# Binar compilat de air
+tmp/
+
+# Variabile de mediu (conțin credențiale)
+.env
+
+# Binar compilat manual
+agri-api
+*.exe
+
+# Dependențe vendor (dacă se folosesc)
+vendor/
+
+# Fișiere IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fișiere sistem
+.DS_Store
+Thumbs.db
+
+# Loguri
+*.log
+
