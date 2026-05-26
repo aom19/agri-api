@@ -6,6 +6,7 @@ tmp/
 
 # Binar compilat manual
 agri-api
+api
 *.exe
 
 # Dependențe vendor (dacă se folosesc)
