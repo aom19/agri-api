@@ -7,6 +7,9 @@ import (
 	"agri-api/internal/logger"
 	"agri-api/internal/usecase"
 
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,8 +25,10 @@ type AppDeps struct {
 	Blacklist         *auth.Blacklist
 }
 
-// SetupRoutes înregistrează toate rutele HTTP ale aplicației sub prefixul /api
+// SetupRoutes inregistreaza toate rutele HTTP ale aplicatiei sub prefixul /api
 func SetupRoutes(r *gin.Engine, deps AppDeps) {
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	authHandler := handlers.NewAuthHandler(deps.AuthService)
 	authGroup := r.Group("/api/auth")

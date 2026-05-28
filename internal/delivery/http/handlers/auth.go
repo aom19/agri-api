@@ -15,6 +15,16 @@ func NewAuthHandler(authService *usecase.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
+// Login autentifică un utilizator
+// @Summary      Login
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body body object{email=string,password=string} true "Credențiale"
+// @Success      200 {object} object{access_token=string,refresh_token=string}
+// @Failure      400 {object} object{errors=object}
+// @Failure      401 {object} object{error=string}
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -34,6 +44,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 }
 
+// Refresh rotează refresh token-ul și emite un access token nou
+// @Summary      Refresh token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        Authorization header string false "Bearer <access_token_vechi>"
+// @Param        body body object{refresh_token=string} true "Refresh token"
+// @Success      200 {object} object{access_token=string,refresh_token=string}
+// @Failure      400 {object} object{errors=object}
+// @Failure      401 {object} object{error=string}
+// @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -57,6 +78,17 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"access_token": newAccess, "refresh_token": newRefresh})
 }
 
+// Logout revocă sesiunea curentă
+// @Summary      Logout
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object{refresh_token=string} true "Refresh token"
+// @Success      200 {object} object{message=string}
+// @Failure      400 {object} object{errors=object}
+// @Failure      500 {object} object{error=string}
+// @Router       /logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -79,6 +111,15 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
 }
 
+// Register înregistrează un utilizator nou
+// @Summary      Register
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body body object{email=string,password=string,role=string} true "Date utilizator"
+// @Success      201 {object} object{access_token=string,refresh_token=string}
+// @Failure      400 {object} object{error=string}
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -98,6 +139,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"access_token": access, "refresh_token": refresh})
 }
 
+// ForgotPassword inițiază resetarea parolei
+// @Summary      Forgot password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body body object{email=string} true "Email utilizator"
+// @Success      200 {object} object{message=string,reset_token=string}
+// @Failure      400 {object} object{errors=object}
+// @Router       /auth/forgot-password [post]
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
@@ -121,6 +171,16 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// ResetPassword resetează parola cu token-ul primit
+// @Summary      Reset password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        token path string true "Token de resetare"
+// @Param        body body object{password=string,confirm_password=string} true "Parola nouă"
+// @Success      200 {object} object{message=string}
+// @Failure      400 {object} object{error=string}
+// @Router       /auth/reset-password/{token} [post]
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	token := c.Param("token")
 	if token == "" {

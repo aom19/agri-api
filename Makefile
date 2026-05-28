@@ -4,7 +4,7 @@ export
 DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 MIGRATE=migrate -path ./migrations -database "$(DB_URL)"
 
-.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint
+.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger
 
 ## Pornește serverul cu live-reload
 run:
@@ -33,3 +33,7 @@ fmt:
 ## Rulează linter-ul
 lint:
 	golangci-lint run ./...
+
+## Generează documentația Swagger
+swagger:
+	swag init -g cmd/api/main.go --output docs

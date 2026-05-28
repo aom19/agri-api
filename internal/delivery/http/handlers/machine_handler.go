@@ -32,7 +32,16 @@ type UpdateMachineRequest struct {
 	Status      string `json:"status" `
 }
 
-// Create procesează POST /api/machines și creează o mașină nouă
+// Create creează o mașină nouă
+// @Summary      Creare mașină
+// @Tags         machines
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body CreateMachineRequest true "Date mașină"
+// @Success      201 {object} domain.Machine
+// @Failure      400 {object} object{error=string}
+// @Router       /machines [post]
 func (h *MachineHandler) Create(c *gin.Context) {
 	var req CreateMachineRequest
 
@@ -52,7 +61,13 @@ func (h *MachineHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, machine)
 }
 
-// GetAll procesează GET /api/machines și returnează toate mașinile
+// GetAll returnează toate mașinile
+// @Summary      Listare mașini
+// @Tags         machines
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {array} domain.Machine
+// @Router       /machines [get]
 func (h *MachineHandler) GetAll(c *gin.Context) {
 	machines, err := h.service.GetMachines()
 
@@ -64,7 +79,15 @@ func (h *MachineHandler) GetAll(c *gin.Context) {
 	c.JSON(http.StatusOK, machines)
 }
 
-// GetByID procesează GET /api/machines/:id și returnează o mașină după ID
+// GetByID returnează o mașină după ID
+// @Summary      Obținere mașină
+// @Tags         machines
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID mașină"
+// @Success      200 {object} domain.Machine
+// @Failure      404 {object} object{error=string}
+// @Router       /machines/{id} [get]
 func (h *MachineHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	machineID, err := strconv.ParseInt(id, 10, 64)
@@ -84,7 +107,18 @@ func (h *MachineHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, machine)
 }
 
-// Update procesează PATCH /api/machines/:id și actualizează datele mașinii
+// Update actualizează o mașină
+// @Summary      Actualizare mașină
+// @Tags         machines
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID mașină"
+// @Param        body body UpdateMachineRequest true "Date actualizare"
+// @Success      200 {object} domain.Machine
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /machines/{id} [patch]
 func (h *MachineHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	machineID, err := strconv.ParseInt(id, 10, 64)
@@ -117,6 +151,15 @@ func (h *MachineHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedMachine)
 }
 
+// Delete șterge o mașină
+// @Summary      Ștergere mașină
+// @Tags         machines
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID mașină"
+// @Success      200 {object} object{message=string}
+// @Failure      500 {object} object{error=string}
+// @Router       /machines/{id} [delete]
 func (h *MachineHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	machineID, err := strconv.ParseInt(id, 10, 64)

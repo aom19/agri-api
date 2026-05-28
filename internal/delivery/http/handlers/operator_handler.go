@@ -30,7 +30,16 @@ func NewOperatorHandler(service *usecase.OperatorService) *OperatorHandler {
 	return &OperatorHandler{service: service}
 }
 
-// Create procesează POST /api/operators și creează un operator nou
+// Create creează un operator nou
+// @Summary      Creare operator
+// @Tags         operators
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body CreateOperatorRequest true "Date operator"
+// @Success      201 {object} domain.Operator
+// @Failure      400 {object} object{error=string}
+// @Router       /operators [post]
 func (h *OperatorHandler) Create(c *gin.Context) {
 	var req CreateOperatorRequest
 
@@ -49,7 +58,13 @@ func (h *OperatorHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, operator)
 }
 
-// GetAll procesează GET /api/operators și returnează toți operatorii
+// GetAll returnează toți operatorii
+// @Summary      Listare operatori
+// @Tags         operators
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {array} domain.Operator
+// @Router       /operators [get]
 func (h *OperatorHandler) GetAll(c *gin.Context) {
 	operators, err := h.service.GetOperators()
 
@@ -61,7 +76,15 @@ func (h *OperatorHandler) GetAll(c *gin.Context) {
 	c.JSON(http.StatusOK, operators)
 }
 
-// GetByID procesează GET /api/operators/:id și returnează operatorul cu ID-ul specificat
+// GetByID returnează un operator după ID
+// @Summary      Obținere operator
+// @Tags         operators
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID operator"
+// @Success      200 {object} domain.Operator
+// @Failure      404 {object} object{error=string}
+// @Router       /operators/{id} [get]
 func (h *OperatorHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	operatorID, err := strconv.ParseInt(id, 10, 64)
@@ -81,7 +104,17 @@ func (h *OperatorHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, operator)
 }
 
-// Update procesează PUT /api/operators/:id și actualizează operatorul cu ID-ul specificat
+// Update actualizează un operator
+// @Summary      Actualizare operator
+// @Tags         operators
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID operator"
+// @Param        body body UpdateOperatorRequest true "Date actualizare"
+// @Success      200 {object} domain.Operator
+// @Failure      400 {object} object{error=string}
+// @Router       /operators/{id} [patch]
 func (h *OperatorHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	operatorID, err := strconv.ParseInt(id, 10, 64)
@@ -106,7 +139,15 @@ func (h *OperatorHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, operator)
 }
 
-// Delete procesează DELETE /api/operators/:id și șterge operatorul cu ID-ul specificat
+// Delete șterge un operator
+// @Summary      Ștergere operator
+// @Tags         operators
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID operator"
+// @Success      204
+// @Failure      400 {object} object{error=string}
+// @Router       /operators/{id} [delete]
 func (h *OperatorHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	operatorID, err := strconv.ParseInt(id, 10, 64)

@@ -14,8 +14,20 @@ import (
 	"agri-api/internal/store"
 	"agri-api/internal/usecase"
 
+	_ "agri-api/docs"
+
 	"github.com/gin-gonic/gin"
 )
+
+// @title           Agri API
+// @version         1.0
+// @description     API REST pentru managementul mașinilor agricole, operatorilor și asignărilor.
+// @host            localhost:8080
+// @BasePath        /api
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Introdu token-ul cu prefixul "Bearer ": **Bearer &lt;token&gt;**
 
 func main() {
 

@@ -1,0 +1,940 @@
+basePath: /api
+definitions:
+  domain.Assigment:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: integer
+      machine_id:
+        type: integer
+      operator_id:
+        type: integer
+      start_date:
+        type: string
+      status:
+        $ref: '#/definitions/domain.AssigmentStatus'
+      updatedAt:
+        type: string
+    type: object
+  domain.AssigmentStatus:
+    enum:
+    - active
+    - closed
+    type: string
+    x-enum-varnames:
+    - AssigmentStatusActive
+    - AssigmentStatusClosed
+  domain.Machine:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/domain.MachineStatus'
+      type:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  domain.MachineStatus:
+    enum:
+    - active
+    - available
+    - inactive
+    - in_service
+    - in_use
+    type: string
+    x-enum-varnames:
+    - MachineStatusActive
+    - MachineStatusAvailable
+    - MachineStatusInactive
+    - MachineStatusInService
+    - MachineStatusInUse
+  domain.Operator:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/domain.OperatorStatus'
+      updatedAt:
+        type: string
+    type: object
+  domain.OperatorStatus:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - OperatorStatusActive
+    - OperatorStatusInactive
+  dto.AssigmentResponse:
+    properties:
+      end_date:
+        type: string
+      id:
+        type: integer
+      machine_id:
+        type: integer
+      machine_name:
+        type: string
+      operator_id:
+        type: integer
+      operator_name:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.PaginatedAssignmentsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.AssigmentResponse'
+        type: array
+      meta:
+        $ref: '#/definitions/dto.PaginationMeta'
+    type: object
+  dto.PaginationMeta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  handlers.CreateAssigmentRequest:
+    properties:
+      end_date:
+        type: string
+      machine_id:
+        type: integer
+      operator_id:
+        type: integer
+      start_date:
+        type: string
+      status:
+        $ref: '#/definitions/domain.AssigmentStatus'
+    required:
+    - end_date
+    - machine_id
+    - operator_id
+    - start_date
+    - status
+    type: object
+  handlers.CreateMachineRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  handlers.CreateOperatorRequest:
+    properties:
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/domain.OperatorStatus'
+    required:
+    - name
+    type: object
+  handlers.UpdateMachineRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    required:
+    - name
+    type: object
+  handlers.UpdateOperatorRequest:
+    properties:
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/domain.OperatorStatus'
+    required:
+    - name
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API REST pentru managementul mașinilor agricole, operatorilor și asignărilor.
+  title: Agri API
+  version: "1.0"
+paths:
+  /assignments:
+    get:
+      parameters:
+      - default: 1
+        description: Numar pagina
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Rezultate per pagina
+        in: query
+        name: limit
+        type: integer
+      - description: Filtru status
+        in: query
+        name: status
+        type: string
+      - description: Filtru operator
+        in: query
+        name: operator_id
+        type: integer
+      - description: Filtru masina
+        in: query
+        name: machine_id
+        type: integer
+      - default: start_date
+        description: Camp sortare
+        in: query
+        name: sort_by
+        type: string
+      - default: asc
+        description: Ordine
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedAssignmentsResponse'
+      security:
+      - BearerAuth: []
+      summary: Listare asignari
+      tags:
+      - assignments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Date asignare
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateAssigmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Assigment'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Creare asignare
+      tags:
+      - assignments
+  /assignments/{id}:
+    delete:
+      parameters:
+      - description: ID asignare
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Stergere asignare
+      tags:
+      - assignments
+    get:
+      parameters:
+      - description: ID asignare
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Assigment'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtinere asignare
+      tags:
+      - assignments
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID asignare
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Date actualizare
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateAssigmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Assigment'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizare asignare
+      tags:
+      - assignments
+  /assignments/{id}/close:
+    patch:
+      parameters:
+      - description: ID asignare
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Inchidere asignare
+      tags:
+      - assignments
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email utilizator
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              reset_token:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              errors:
+                type: object
+            type: object
+      summary: Forgot password
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credențiale
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              access_token:
+                type: string
+              refresh_token:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              errors:
+                type: object
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Login
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Bearer <access_token_vechi>
+        in: header
+        name: Authorization
+        type: string
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              access_token:
+                type: string
+              refresh_token:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              errors:
+                type: object
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Refresh token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Date utilizator
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+            role:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              access_token:
+                type: string
+              refresh_token:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Register
+      tags:
+      - auth
+  /auth/reset-password/{token}:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Token de resetare
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: Parola nouă
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            confirm_password:
+              type: string
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Reset password
+      tags:
+      - auth
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+      summary: Health check
+      tags:
+      - system
+  /logout:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              errors:
+                type: object
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /machines:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Machine'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listare mașini
+      tags:
+      - machines
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Date mașină
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateMachineRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Machine'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Creare mașină
+      tags:
+      - machines
+  /machines/{id}:
+    delete:
+      parameters:
+      - description: ID mașină
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ștergere mașină
+      tags:
+      - machines
+    get:
+      parameters:
+      - description: ID mașină
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Machine'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obținere mașină
+      tags:
+      - machines
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID mașină
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Date actualizare
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateMachineRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Machine'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizare mașină
+      tags:
+      - machines
+  /operators:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Operator'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listare operatori
+      tags:
+      - operators
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Date operator
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateOperatorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Operator'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Creare operator
+      tags:
+      - operators
+  /operators/{id}:
+    delete:
+      parameters:
+      - description: ID operator
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ștergere operator
+      tags:
+      - operators
+    get:
+      parameters:
+      - description: ID operator
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Operator'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obținere operator
+      tags:
+      - operators
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID operator
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Date actualizare
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateOperatorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Operator'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizare operator
+      tags:
+      - operators
+securityDefinitions:
+  BearerAuth:
+    description: 'Introdu token-ul cu prefixul "Bearer ": **Bearer &lt;token&gt;**'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
