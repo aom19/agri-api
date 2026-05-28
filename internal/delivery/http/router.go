@@ -19,6 +19,7 @@ type AppDeps struct {
 	AssignmentService *usecase.AssigmentService
 	AuthService       *usecase.AuthService
 	JWTService        *auth.JWTService
+	Blacklist         *auth.Blacklist
 }
 
 // SetupRoutes înregistrează toate rutele HTTP ale aplicației sub prefixul /api
@@ -29,12 +30,13 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	authGroup.POST("/register", authHandler.Register)
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/refresh", authHandler.Refresh)
-	authGroup.POST("/logout", authHandler.Logout)
 	authGroup.POST("/forgot-password", authHandler.ForgotPassword)
 	authGroup.POST("/reset-password", authHandler.ResetPassword)
 
 	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware(deps.JWTService))
+	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist))
+
+	api.POST("/auth/logout", authHandler.Logout)
 
 	// Rută de verificare a stării serviciului
 	api.GET("/health", func(c *gin.Context) {

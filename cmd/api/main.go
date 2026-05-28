@@ -9,6 +9,7 @@ import (
 	"agri-api/internal/db"
 	httpdelivery "agri-api/internal/delivery/http"
 	"agri-api/internal/logger"
+	redisclient "agri-api/internal/redis"
 	"agri-api/internal/repository/postgres"
 	"agri-api/internal/store"
 	"agri-api/internal/usecase"
@@ -66,7 +67,16 @@ func main() {
 	}
 	jwtService := auth.NewJWTService(cfg.JWTSecret, accessTTL, refreshTTL)
 	refreshRepo := auth.NewRepo(sqlDB)
-	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo)
+
+	// 5. Inițializează Redis și blacklist-ul pentru access tokens
+	rdb, err := redisclient.New(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if err != nil {
+		log.Fatalf("Redis connection failed: %v", err)
+	}
+	log.Info("Redis connected successfully")
+	blacklist := auth.NewBlacklist(rdb)
+
+	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist)
 
 	// Configurează serverul HTTP Gin fără middleware implicit
 	server := gin.New()
@@ -86,6 +96,7 @@ func main() {
 		AssignmentService: assigmentService,
 		AuthService:       authService,
 		JWTService:        jwtService,
+		Blacklist:         blacklist,
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)

@@ -21,34 +21,61 @@ func GenerateRefreshToken() string {
 	return uuid.NewString()
 }
 
-func (r *Repo) StoreRefreshToken(userID int64, refreshToken string, expiresAt time.Time) error {
-	// Implement logic to store refresh token in the database
-	query := `INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)`
-	_, err := r.db.Exec(query, userID, refreshToken, expiresAt)
+func (r *Repo) StoreRefreshToken(userID int64, refreshToken, accessJTI string, expiresAt time.Time) error {
+	query := `INSERT INTO refresh_tokens (user_id, token, access_jti, expires_at) VALUES ($1, $2, $3, $4)`
+	_, err := r.db.Exec(query, userID, refreshToken, accessJTI, expiresAt)
 	return err
 }
 
-func (r *Repo) ValidateRefreshToken(refreshToken string) (int64, error) {
+// ValidateRefreshToken returnează (userID, accessJTI, error)
+func (r *Repo) ValidateRefreshToken(refreshToken string) (int64, string, error) {
 	var userID int64
 	var expiresAt time.Time
 	var revoked bool
+	var accessJTI sql.NullString
 
-	err := r.db.QueryRow(`SELECT user_id, expires_at, revoked FROM refresh_tokens WHERE token = $1`, refreshToken).Scan(&userID, &expiresAt, &revoked)
+	err := r.db.QueryRow(`SELECT user_id, expires_at, revoked, access_jti FROM refresh_tokens WHERE token = $1`, refreshToken).Scan(&userID, &expiresAt, &revoked, &accessJTI)
 	if err != nil {
-		return 0, errors.New("invalid or expired refresh token")
+		return 0, "", errors.New("invalid or expired refresh token")
 	}
 	if revoked {
-		return 0, errors.New("refresh token has been revoked")
+		return 0, "", errors.New("refresh token has been revoked")
 	}
 	if time.Now().After(expiresAt) {
-		return 0, errors.New("refresh token has expired")
+		return 0, "", errors.New("refresh token has expired")
 	}
-	return userID, nil
+	return userID, accessJTI.String, nil
 }
 
 func (r *Repo) RevokeRefreshToken(refreshToken string) error {
 	_, err := r.db.Exec(`UPDATE refresh_tokens SET revoked = TRUE WHERE token = $1`, refreshToken)
 	return err
+}
+
+// RevokeAllUserSessions revocă toate sesiunile active ale unui user și returnează access JTI-urile lor
+func (r *Repo) RevokeAllUserSessions(userID int64) ([]string, error) {
+	rows, err := r.db.Query(
+		`UPDATE refresh_tokens SET revoked = TRUE
+		 WHERE user_id = $1 AND revoked = FALSE AND expires_at > NOW()
+		 RETURNING access_jti`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jtis []string
+	for rows.Next() {
+		var jti sql.NullString
+		if err := rows.Scan(&jti); err != nil {
+			continue
+		}
+		if jti.Valid && jti.String != "" {
+			jtis = append(jtis, jti.String)
+		}
+	}
+	return jtis, nil
 }
 
 func (r *Repo) StoreResetToken(userID int64, token string, expiresAt time.Time) error {

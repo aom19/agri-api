@@ -43,7 +43,13 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	newAccess, newRefresh, err := h.authService.Refresh(req.RefreshToken)
+	// Extrage access token-ul vechi din header pentru blacklisting
+	oldAccessToken := ""
+	if authHeader := c.GetHeader("Authorization"); len(authHeader) > 7 {
+		oldAccessToken = authHeader[7:]
+	}
+
+	newAccess, newRefresh, err := h.authService.Refresh(req.RefreshToken, oldAccessToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
 		return
@@ -60,7 +66,13 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Logout(req.RefreshToken); err != nil {
+	// Extrage access token-ul din header pentru blacklisting
+	accessToken := ""
+	if authHeader := c.GetHeader("Authorization"); len(authHeader) > 7 {
+		accessToken = authHeader[7:]
+	}
+
+	if err := h.authService.Logout(req.RefreshToken, accessToken); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not logout"})
 		return
 	}

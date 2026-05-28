@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware(jwt *auth.JWTService) gin.HandlerFunc {
+func AuthMiddleware(jwt *auth.JWTService, blacklist *auth.Blacklist) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
@@ -21,6 +21,15 @@ func AuthMiddleware(jwt *auth.JWTService) gin.HandlerFunc {
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
+		}
+
+		// Verifică blacklist-ul Redis
+		if jti, ok := claims["jti"].(string); ok && jti != "" {
+			revoked, err := blacklist.IsBlacklisted(c.Request.Context(), jti)
+			if err != nil || revoked {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
+				return
+			}
 		}
 
 		c.Set("user_id", claims["user_id"])

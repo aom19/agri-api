@@ -4,6 +4,7 @@ import (
 	"agri-api/internal/auth"
 	"agri-api/internal/domain"
 	"agri-api/internal/store"
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -14,13 +15,15 @@ type AuthService struct {
 	store       *store.Store
 	jwtService  *auth.JWTService
 	refreshRepo *auth.Repo
+	blacklist   *auth.Blacklist
 }
 
-func NewAuthService(s *store.Store, jwt *auth.JWTService, refreshRepo *auth.Repo) *AuthService {
+func NewAuthService(s *store.Store, jwt *auth.JWTService, refreshRepo *auth.Repo, blacklist *auth.Blacklist) *AuthService {
 	return &AuthService{
 		store:       s,
 		jwtService:  jwt,
 		refreshRepo: refreshRepo,
+		blacklist:   blacklist,
 	}
 }
 
@@ -33,22 +36,30 @@ func (service *AuthService) Login(email, password string) (string, string, error
 		return "", "", errors.New("invalid credentials")
 	}
 
+	// Revocă toate sesiunile active și blacklistează access token-urile lor
+	oldJTIs, _ := service.refreshRepo.RevokeAllUserSessions(user.ID)
+	for _, jti := range oldJTIs {
+		_ = service.blacklist.Add(context.Background(), jti, service.jwtService.AccessTokenTTL())
+	}
+
 	access, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.Role)
 	if err != nil {
 		return "", "", err
 	}
+
+	accessJTI, _, _ := service.jwtService.ExtractJTIAndTTL(access)
 	refresh := auth.GenerateRefreshToken()
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	if err := service.refreshRepo.StoreRefreshToken(user.ID, refresh, expiresAt); err != nil {
+	if err := service.refreshRepo.StoreRefreshToken(user.ID, refresh, accessJTI, expiresAt); err != nil {
 		return "", "", err
 	}
 
 	return access, refresh, nil
 }
 
-func (service *AuthService) Refresh(refreshToken string) (string, string, error) {
-	userID, err := service.refreshRepo.ValidateRefreshToken(refreshToken)
+func (service *AuthService) Refresh(refreshToken, oldAccessToken string) (string, string, error) {
+	userID, oldJTI, err := service.refreshRepo.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		return "", "", err
 	}
@@ -66,21 +77,41 @@ func (service *AuthService) Refresh(refreshToken string) (string, string, error)
 		return "", "", err
 	}
 
+	// Blacklist access token-ul vechi — JTI din DB (nu depinde de client)
+	if oldJTI != "" {
+		if _, ttl, err := service.jwtService.ExtractJTIAndTTL(oldAccessToken); err == nil && ttl > 0 {
+			_ = service.blacklist.Add(context.Background(), oldJTI, ttl)
+		} else {
+			// fallback: TTL complet dacă nu putem calcula ce a rămas
+			_ = service.blacklist.Add(context.Background(), oldJTI, service.jwtService.AccessTokenTTL())
+		}
+	}
+
 	newAccess, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.Role)
 	if err != nil {
 		return "", "", err
 	}
 
+	newJTI, _, _ := service.jwtService.ExtractJTIAndTTL(newAccess)
 	newRefresh := auth.GenerateRefreshToken()
-	if err := service.refreshRepo.StoreRefreshToken(user.ID, newRefresh, time.Now().Add(7*24*time.Hour)); err != nil {
+	if err := service.refreshRepo.StoreRefreshToken(user.ID, newRefresh, newJTI, time.Now().Add(7*24*time.Hour)); err != nil {
 		return "", "", err
 	}
 
 	return newAccess, newRefresh, nil
 }
 
-func (service *AuthService) Logout(refreshToken string) error {
-	return service.refreshRepo.RevokeRefreshToken(refreshToken)
+func (service *AuthService) Logout(refreshToken, accessToken string) error {
+	if err := service.refreshRepo.RevokeRefreshToken(refreshToken); err != nil {
+		return err
+	}
+	// Blacklist access token-ul în Redis
+	if accessToken != "" {
+		if jti, ttl, err := service.jwtService.ExtractJTIAndTTL(accessToken); err == nil {
+			_ = service.blacklist.Add(context.Background(), jti, ttl)
+		}
+	}
+	return nil
 }
 
 func (service *AuthService) Register(email, password, role string) (string, string, error) {
@@ -109,8 +140,9 @@ func (service *AuthService) Register(email, password, role string) (string, stri
 	if err != nil {
 		return "", "", err
 	}
+	accessJTI, _, _ := service.jwtService.ExtractJTIAndTTL(access)
 	refresh := auth.GenerateRefreshToken()
-	if err := service.refreshRepo.StoreRefreshToken(user.ID, refresh, time.Now().Add(7*24*time.Hour)); err != nil {
+	if err := service.refreshRepo.StoreRefreshToken(user.ID, refresh, accessJTI, time.Now().Add(7*24*time.Hour)); err != nil {
 		return "", "", err
 	}
 
