@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"agri-api/internal/domain"
+	"agri-api/internal/dto"
 	"agri-api/internal/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -51,14 +53,46 @@ func (h *AssigmentHandler) Create(c *gin.Context) {
 }
 
 func (h *AssigmentHandler) GetAll(c *gin.Context) {
-	assigments, err := h.service.GetAssigments()
+	// Extrage parametrii de paginare și filtrare din query string
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	// Validare pentru pagina și limită
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	//safe
+	if limit > 100 {
+		limit = 100
+	}
+	log.Printf("Received request for GetAll with page=%d, limit=%d", page, limit)
 
+	status := c.Query("status")
+	operatorID := c.Query("operator_id")
+	machineID := c.Query("machine_id")
+	sortBy := c.DefaultQuery("sort_by", "start_date")
+	order := c.DefaultQuery("order", "asc")
+
+	query := dto.PaginationQuery{
+		Page:       page,
+		Limit:      limit,
+		Status:     status,
+		OperatorID: operatorID,
+		MachineID:  machineID,
+		SortBy:     sortBy,
+		Order:      order,
+	}
+
+	result, err := h.service.GetAll(query)
 	if err != nil {
-		// return  empty array instead of error
-		c.JSON(http.StatusOK, []domain.Assigment{})
+		c.JSON(500, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
-	c.JSON(http.StatusOK, assigments)
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *AssigmentHandler) GetByID(c *gin.Context) {

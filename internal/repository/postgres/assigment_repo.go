@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"agri-api/internal/domain"
+	"agri-api/internal/dto"
 	"database/sql"
 	"errors"
 )
@@ -19,21 +20,19 @@ func NewAssignmentRepo(db *sql.DB) *AssignmentRepo {
 func (repo *AssignmentRepo) Create(tx *sql.Tx, assigment *domain.Assigment) error {
 	query := `
 		INSERT INTO assignments (
-			id, machine_id, operator_id, start_date, end_date, status
+			machine_id, operator_id, start_date, end_date, status
 		)
-		VALUES ($1,$2,$3,$4,$5,$6)
+		VALUES ($1,$2,$3,$4,$5)
+		RETURNING id
 	`
 
-	_, err := tx.Exec(query,
-		assigment.ID,
+	return tx.QueryRow(query,
 		assigment.MachineID,
 		assigment.OperatorID,
 		assigment.StartDate,
 		assigment.EndDate,
 		assigment.Status,
-	)
-
-	return err
+	).Scan(&assigment.ID)
 }
 
 func (repo *AssignmentRepo) GetAll() ([]domain.Assigment, error) {
@@ -54,6 +53,46 @@ func (repo *AssignmentRepo) GetAll() ([]domain.Assigment, error) {
 	}
 
 	return assigments, nil
+}
+
+func (repo *AssignmentRepo) GetAllWithPagination(query dto.PaginationQuery) (*dto.PaginatedAssignmentsResponse, error) {
+	// offset - calculat pe baza paginii și limită pentru a sări peste înregistrările anterioare
+	offset := (query.Page - 1) * query.Limit
+
+	sqlQuery := `SELECT a.id, a.machine_id, m.name, a.operator_id, o.name, a.start_date, a.end_date, a.status FROM assignments a JOIN machines m ON a.machine_id = m.id JOIN operators o ON a.operator_id = o.id ORDER BY a.start_date LIMIT $1 OFFSET $2`
+
+	rows, err := repo.db.Query(sqlQuery, query.Limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var assigments []dto.AssigmentResponse
+	for rows.Next() {
+		var a dto.AssigmentResponse
+		if err := rows.Scan(&a.ID, &a.MachineID, &a.MachineName, &a.OperatorID, &a.OperatorName, &a.StartDate, &a.EndDate, &a.Status); err != nil {
+			return nil, err
+		}
+		assigments = append(assigments, a)
+	}
+
+	var total int
+	err = repo.db.QueryRow(`SELECT COUNT(*) FROM assignments`).Scan(&total)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &dto.PaginatedAssignmentsResponse{
+		Data: assigments,
+		Meta: dto.PaginationMeta{
+			Page:       query.Page,
+			Limit:      query.Limit,
+			Total:      total,
+			TotalPages: (total + query.Limit - 1) / query.Limit,
+		},
+	}
+
+	return response, nil
 }
 
 func (repo *AssignmentRepo) GetByID(id int64) (*domain.Assigment, error) {

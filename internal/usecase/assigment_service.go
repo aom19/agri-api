@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"agri-api/internal/domain"
+	"agri-api/internal/dto"
 	"agri-api/internal/store"
 	"database/sql"
 	"errors"
@@ -22,6 +23,9 @@ func NewAssigmentService(s *store.Store) *AssigmentService {
 // GetAssigments returnează lista completă a asignmenturilor
 func (assigmentService *AssigmentService) GetAssigments() ([]domain.Assigment, error) {
 	return assigmentService.store.AssigmentRepo.GetAll()
+}
+func (assigmentService *AssigmentService) GetAll(query dto.PaginationQuery) (*dto.PaginatedAssignmentsResponse, error) {
+	return assigmentService.store.AssigmentRepo.GetAllWithPagination(query)
 }
 
 // GetAssigmentByID returnează un asignment după ID sau eroare dacă nu există
