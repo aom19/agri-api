@@ -63,7 +63,7 @@ func (r *Repo) RevokeAllUserSessions(userID int64) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var jtis []string
 	for rows.Next() {
