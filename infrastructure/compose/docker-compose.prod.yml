@@ -1,0 +1,97 @@
+# docker-compose.prod.yml
+# Stack producție: securizat, optimizat, fără porturi expuse la DB/Redis
+# Folosire: docker compose -f infrastructure/compose/docker-compose.prod.yml up -d
+#
+# Diferente față de dev:
+#   - GIN_MODE=release
+#   - porturile DB și Redis NU sunt expuse în exterior (rețea internă Docker)
+#   - resource limits pentru fiecare serviciu
+#   - variabilele de mediu se setează extern (CI/CD, secrets manager, .env.prod)
+
+name: agri-api-prod
+
+services:
+  migrate:
+    image: migrate/migrate:v4.18.1
+    container_name: agri_migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../../migrations:/migrations
+    command: ["-path=/migrations", "-database=postgres://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}", "up"]
+    restart: on-failure
+
+  app:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    image: agri-api:latest
+    container_name: agri_app
+    restart: always
+    environment:
+      - GIN_MODE=release
+      - APP_ENV=production
+      - DB_HOST=db
+      - REDIS_ADDR=redis:6379
+      # Restul variabilelor (DB_USER, DB_PASSWORD, JWT_SECRET etc.)
+      # se injectează din sistemul CI/CD sau dintr-un .env.prod
+    env_file:
+      - ../../.env.prod
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+
+  db:
+    image: postgres:16
+    container_name: agri_postgres
+    restart: always
+    env_file:
+      - ../../.env.prod
+    # Fără "ports:" — DB accesibil doar din rețeaua internă Docker
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: agri_redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD} --save 60 1 --loglevel warning
+    # Fără "ports:" — Redis accesibil doar din rețeaua internă Docker
+    volumes:
+      - redisdata_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+volumes:
+  pgdata_prod:
+  redisdata_prod:

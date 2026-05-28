@@ -4,7 +4,8 @@ export
 DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 MIGRATE=migrate -path ./migrations -database "$(DB_URL)"
 
-.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger
+.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger \
+        docker-infra docker-dev docker-prod docker-build
 
 ## Pornește serverul cu live-reload
 run:
@@ -37,3 +38,25 @@ lint:
 ## Generează documentația Swagger
 swagger:
 	swag init -g cmd/api/main.go --output docs
+
+## ─── Docker ───────────────────────────────────────────────────────────────────
+
+## Pornește doar infrastructura locală (postgres + redis) — pentru dev cu air
+docker-infra:
+	docker compose up -d
+
+## Oprește infrastructura locală
+docker-infra-down:
+	docker compose down
+
+## Stack complet dev (app + infra) cu build
+docker-dev:
+	docker compose -f infrastructure/compose/docker-compose.dev.yml up --build
+
+## Stack producție (detached)
+docker-prod:
+	docker compose -f infrastructure/compose/docker-compose.prod.yml up -d --build
+
+## Construiește imaginea Docker a aplicației
+docker-build:
+	docker build -t agri-api:latest .
