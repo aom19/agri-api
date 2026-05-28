@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type AssignmentRepo struct {
@@ -85,9 +86,30 @@ func (repo *AssignmentRepo) GetAllWithPagination(query dto.PaginationQuery) (*dt
 		filterArgs = append(filterArgs, query.MachineID)
 		argIndex++
 	}
+	// Validare pentru sortare - doar anumite câmpuri sunt permise pentru sortare
+	allowedSortFields := map[string]string{
+		"id":            "a.id",
+		"start_date":    "a.start_date",
+		"end_date":      "a.end_date",
+		"status":        "a.status",
+		"machine_name":  "m.name",
+		"operator_name": "o.name",
+	}
+
+	sortField, ok := allowedSortFields[query.SortBy]
+	// Dacă câmpul de sortare nu este valid, se folosește un câmp implicit pentru sortare (de exemplu, data de început)
+	if !ok {
+		sortField = "a.start_date"
+	}
+	// Validare pentru ordinea de sortare - doar "ASC" sau "DESC" sunt permise
+	order := "ASC"
+	// Dacă ordinea de sortare este specificată și este "DESC", se setează ordinea la "DESC"
+	if strings.ToUpper(query.Order) == "DESC" {
+		order = "DESC"
+	}
 
 	offset := (query.Page - 1) * query.Limit
-	baseQuery += fmt.Sprintf(` ORDER BY a.start_date LIMIT $%d OFFSET $%d`, argIndex, argIndex+1)
+	baseQuery += fmt.Sprintf(` ORDER BY %s %s LIMIT $%d OFFSET $%d`, sortField, order, argIndex, argIndex+1)
 	pageArgs := append(filterArgs, query.Limit, offset)
 
 	rows, err := repo.db.Query(baseQuery, pageArgs...)
