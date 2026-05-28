@@ -60,5 +60,11 @@ func (operatorService *OperatorService) UpdateOperator(id int64, operator *domai
 }
 
 func (operatorService *OperatorService) DeleteOperator(id int64) error {
+	if found, err := operatorService.operatorRepo.GetByID(id); err != nil {
+		return err
+	} else if found == nil {
+		return errors.New("operator not found")
+	}
+
 	return operatorService.operatorRepo.Delete(id)
 }

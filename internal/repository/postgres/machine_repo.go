@@ -17,7 +17,7 @@ func NewMachineRepo(db *sql.DB) *MachineRepo {
 
 // GetAll returnează toate mașinile din baza de date
 func (machineRepo *MachineRepo) GetAll() ([]domain.Machine, error) {
-	rows, err := machineRepo.db.Query("SELECT id, name, type, status, description FROM machines")
+	rows, err := machineRepo.db.Query("SELECT id, name, type, status, description FROM machines WHERE deleted_at IS NULL")
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (machineRepo *MachineRepo) GetAll() ([]domain.Machine, error) {
 // GetByID returnează o mașină după ID; returnează nil, nil dacă nu există
 func (machineRepo *MachineRepo) GetByID(id int64) (*domain.Machine, error) {
 	var m domain.Machine
-	err := machineRepo.db.QueryRow("SELECT id, name, type, status, description FROM machines WHERE id = $1", id).Scan(&m.ID, &m.Name, &m.Type, &m.Status, &m.Description)
+	err := machineRepo.db.QueryRow("SELECT id, name, type, status, description FROM machines WHERE id = $1 AND deleted_at IS NULL", id).Scan(&m.ID, &m.Name, &m.Type, &m.Status, &m.Description)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -58,17 +58,17 @@ func (machineRepo *MachineRepo) Create(machine *domain.Machine) error {
 
 // Update modifică datele unei mașini existente identificate prin ID
 func (machineRepo *MachineRepo) Update(id int64, machine *domain.Machine) error {
-	_, err := machineRepo.db.Exec("UPDATE machines SET name = $1, type = $2, status = $3, description = $4 WHERE id = $5", machine.Name, machine.Type, machine.Status, machine.Description, id)
+	_, err := machineRepo.db.Exec("UPDATE machines SET name = $1, type = $2, status = $3, description = $4 WHERE id = $5 AND deleted_at IS NULL", machine.Name, machine.Type, machine.Status, machine.Description, id)
 	return err
 }
 
 func (machineRepo *MachineRepo) Delete(id int64) error {
-	_, err := machineRepo.db.Exec("DELETE FROM machines WHERE id = $1", id)
+	_, err := machineRepo.db.Exec("UPDATE machines SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL", id)
 	return err
 }
 
 func (machineRepo *MachineRepo) UpdateStatus(tx *sql.Tx, id int64, status domain.MachineStatus) error {
-	query := `UPDATE machines SET status = $1 WHERE id = $2`
+	query := `UPDATE machines SET status = $1 WHERE id = $2 AND deleted_at IS NULL`
 	_, err := tx.Exec(query, status, id)
 	return err
 }

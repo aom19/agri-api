@@ -38,7 +38,7 @@ func (repo *AssignmentRepo) Create(tx *sql.Tx, assigment *domain.Assigment) erro
 }
 
 func (repo *AssignmentRepo) GetAll() ([]domain.Assigment, error) {
-	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments`
+	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments WHERE deleted_at IS NULL`
 	rows, err := repo.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -60,8 +60,8 @@ func (repo *AssignmentRepo) GetAll() ([]domain.Assigment, error) {
 func (repo *AssignmentRepo) GetAllWithPagination(query dto.PaginationQuery) (*dto.PaginatedAssignmentsResponse, error) {
 	// offset - calculat pe baza paginii și limită pentru a sări peste înregistrările anterioare
 
-	baseQuery := `SELECT a.id, a.machine_id, m.name, a.operator_id, o.name, a.start_date, a.end_date, a.status FROM assignments a JOIN machines m ON a.machine_id = m.id JOIN operators o ON a.operator_id = o.id WHERE 1=1`
-	countQuery := `SELECT COUNT(*) FROM assignments a WHERE 1=1`
+	baseQuery := `SELECT a.id, a.machine_id, m.name, a.operator_id, o.name, a.start_date, a.end_date, a.status FROM assignments a JOIN machines m ON a.machine_id = m.id JOIN operators o ON a.operator_id = o.id WHERE 1=1 AND a.deleted_at IS NULL`
+	countQuery := `SELECT COUNT(*) FROM assignments a WHERE 1=1 AND a.deleted_at IS NULL`
 	var filterArgs []interface{}
 	argIndex := 1
 
@@ -148,7 +148,7 @@ func (repo *AssignmentRepo) GetAllWithPagination(query dto.PaginationQuery) (*dt
 }
 
 func (repo *AssignmentRepo) GetByID(id int64) (*domain.Assigment, error) {
-	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments WHERE id = $1`
+	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments WHERE id = $1 AND deleted_at IS NULL`
 	row := repo.db.QueryRow(query, id)
 
 	var a domain.Assigment
@@ -163,19 +163,19 @@ func (repo *AssignmentRepo) GetByID(id int64) (*domain.Assigment, error) {
 }
 
 func (repo *AssignmentRepo) Update(id int64, assigment *domain.Assigment) error {
-	query := `UPDATE assignments SET machine_id = $1, operator_id = $2, start_date = $3, end_date = $4, status = $5 WHERE id = $6`
+	query := `UPDATE assignments SET machine_id = $1, operator_id = $2, start_date = $3, end_date = $4, status = $5, updated_at = NOW() WHERE id = $6 AND deleted_at IS NULL`
 	_, err := repo.db.Exec(query, assigment.MachineID, assigment.OperatorID, assigment.StartDate, assigment.EndDate, assigment.Status, id)
 	return err
 }
 
 func (repo *AssignmentRepo) Delete(id int64) error {
-	query := `DELETE FROM assignments WHERE id = $1`
+	query := `UPDATE assignments SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 	_, err := repo.db.Exec(query, id)
 	return err
 }
 
 func (repo *AssignmentRepo) GetActiveByMachine(machineID int64) (*domain.Assigment, error) {
-	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments WHERE machine_id = $1 AND status = 'active'`
+	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments WHERE machine_id = $1 AND status = 'active' AND deleted_at IS NULL`
 	var a domain.Assigment
 	err := repo.db.QueryRow(query, machineID).Scan(&a.ID, &a.MachineID, &a.OperatorID, &a.StartDate, &a.EndDate, &a.Status)
 	if err == sql.ErrNoRows {
@@ -187,7 +187,7 @@ func (repo *AssignmentRepo) GetActiveByMachine(machineID int64) (*domain.Assigme
 }
 
 func (repo *AssignmentRepo) GetActiveByOperator(operatorID int64) (*domain.Assigment, error) {
-	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments WHERE operator_id = $1 AND status = 'active'`
+	query := `SELECT id, machine_id, operator_id, start_date, end_date, status FROM assignments WHERE operator_id = $1 AND status = 'active' AND deleted_at IS NULL`
 	var a domain.Assigment
 
 	err := repo.db.QueryRow(query, operatorID).Scan(

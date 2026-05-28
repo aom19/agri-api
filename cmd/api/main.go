@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"time"
 
+	"agri-api/internal/auth"
 	"agri-api/internal/config"
 	"agri-api/internal/db"
 	httpdelivery "agri-api/internal/delivery/http"
@@ -53,6 +55,19 @@ func main() {
 	appStore := store.NewInitialiedStore(sqlDB)
 	assigmentService := usecase.NewAssigmentService(appStore)
 
+	// 4. Inițializează serviciile de autentificare
+	accessTTL, err := time.ParseDuration(cfg.AccessTokenTTL)
+	if err != nil {
+		accessTTL = 15 * time.Minute
+	}
+	refreshTTL, err := time.ParseDuration(cfg.RefreshTokenTTL)
+	if err != nil {
+		refreshTTL = 7 * 24 * time.Hour
+	}
+	jwtService := auth.NewJWTService(cfg.JWTSecret, accessTTL, refreshTTL)
+	refreshRepo := auth.NewRepo(sqlDB)
+	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo)
+
 	// Configurează serverul HTTP Gin fără middleware implicit
 	server := gin.New()
 	// Adaugă middleware pentru logarea request-urilor și recuperare din panic
@@ -69,6 +84,8 @@ func main() {
 		MachineService:    machineService,
 		OperatorService:   operatorService,
 		AssignmentService: assigmentService,
+		AuthService:       authService,
+		JWTService:        jwtService,
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
@@ -80,3 +97,4 @@ func main() {
 		log.Fatalf("server.Run: %v", err)
 	}
 }
+

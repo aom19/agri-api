@@ -16,4 +16,6 @@ type Machine struct {
 	Type        string        `json:"type"`
 	Status      MachineStatus `json:"status"`
 	Description string        `json:"description,omitempty"`
+
+	Auditfields
 }

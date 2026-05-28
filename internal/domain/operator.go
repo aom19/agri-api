@@ -11,4 +11,6 @@ type Operator struct {
 	ID     int64          `json:"id"`
 	Name   string         `json:"name"`
 	Status OperatorStatus `json:"status"`
+
+	Auditfields
 }

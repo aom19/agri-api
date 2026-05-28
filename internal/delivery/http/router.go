@@ -1,7 +1,9 @@
 package http
 
 import (
+	"agri-api/internal/auth"
 	"agri-api/internal/delivery/http/handlers"
+	"agri-api/internal/delivery/http/middleware"
 	"agri-api/internal/logger"
 	"agri-api/internal/usecase"
 
@@ -15,11 +17,24 @@ type AppDeps struct {
 	MachineService    *usecase.MachineService
 	OperatorService   *usecase.OperatorService
 	AssignmentService *usecase.AssigmentService
+	AuthService       *usecase.AuthService
+	JWTService        *auth.JWTService
 }
 
 // SetupRoutes înregistrează toate rutele HTTP ale aplicației sub prefixul /api
 func SetupRoutes(r *gin.Engine, deps AppDeps) {
+
+	authHandler := handlers.NewAuthHandler(deps.AuthService)
+	authGroup := r.Group("/api/auth")
+	authGroup.POST("/register", authHandler.Register)
+	authGroup.POST("/login", authHandler.Login)
+	authGroup.POST("/refresh", authHandler.Refresh)
+	authGroup.POST("/logout", authHandler.Logout)
+	authGroup.POST("/forgot-password", authHandler.ForgotPassword)
+	authGroup.POST("/reset-password", authHandler.ResetPassword)
+
 	api := r.Group("/api")
+	api.Use(middleware.AuthMiddleware(deps.JWTService))
 
 	// Rută de verificare a stării serviciului
 	api.GET("/health", func(c *gin.Context) {
@@ -51,5 +66,4 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/assignments/:id", assignmentHandler.Update)
 	api.DELETE("/assignments/:id", assignmentHandler.Delete)
 	api.PATCH("/assignments/:id/close", assignmentHandler.Close)
-
 }

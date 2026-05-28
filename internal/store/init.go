@@ -12,5 +12,6 @@ func NewInitialiedStore(db *sql.DB) *Store {
 		MachineRepo:   postgres.NewMachineRepo(db),
 		OperatorRepo:  postgres.NewOperatorRepo(db),
 		AssigmentRepo: postgres.NewAssignmentRepo(db),
+		UserRepo:      postgres.NewUserRepo(db),
 	}
 }

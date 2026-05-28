@@ -11,6 +11,7 @@ type Store struct {
 	MachineRepo   repository.MachineRepository
 	OperatorRepo  repository.OperatorRepository
 	AssigmentRepo repository.AssigmentRepository
+	UserRepo      repository.UserRepository
 }
 
 // NewStore creează o nouă instanță a Store-ului și inițializează repository-urile
