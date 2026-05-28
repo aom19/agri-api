@@ -5,7 +5,7 @@ DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?ssl
 MIGRATE=migrate -path ./migrations -database "$(DB_URL)"
 
 .PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger \
-        docker-infra docker-dev docker-prod docker-build
+        docker-infra docker-dev docker-prod docker-build seed
 
 ## Pornește serverul cu live-reload
 run:
@@ -60,3 +60,9 @@ docker-prod:
 ## Construiește imaginea Docker a aplicației
 docker-build:
 	docker build -t agri-api:latest .
+
+## ─── Seed ────────────────────────────────────────────────────────────────────
+
+## Populează baza de date cu date de test (rulează manual, nu la migrate-up)
+seed:
+	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) < seeds/seed.sql
