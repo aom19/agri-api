@@ -122,16 +122,27 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 }
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	token := c.Param("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token is required"})
+		return
+	}
+
 	var req struct {
-		Token       string `json:"token" binding:"required"`
-		NewPassword string `json:"new_password" binding:"required,min=8"`
+		Password        string `json:"password" binding:"required,min=8"`
+		ConfirmPassword string `json:"confirm_password" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 
-	if err := h.authService.ResetPassword(req.Token, req.NewPassword); err != nil {
+	if req.Password != req.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"errors": gin.H{"confirm_password": "passwords do not match"}})
+		return
+	}
+
+	if err := h.authService.ResetPassword(token, req.Password); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

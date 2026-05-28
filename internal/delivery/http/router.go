@@ -31,7 +31,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/refresh", authHandler.Refresh)
 	authGroup.POST("/forgot-password", authHandler.ForgotPassword)
-	authGroup.POST("/reset-password", authHandler.ResetPassword)
+	authGroup.POST("/reset-password/:token", authHandler.ResetPassword)
 
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist))
