@@ -5,6 +5,7 @@ import (
 	"agri-api/internal/dto"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 type AssignmentRepo struct {
@@ -57,14 +58,43 @@ func (repo *AssignmentRepo) GetAll() ([]domain.Assigment, error) {
 
 func (repo *AssignmentRepo) GetAllWithPagination(query dto.PaginationQuery) (*dto.PaginatedAssignmentsResponse, error) {
 	// offset - calculat pe baza paginii și limită pentru a sări peste înregistrările anterioare
+
+	baseQuery := `SELECT a.id, a.machine_id, m.name, a.operator_id, o.name, a.start_date, a.end_date, a.status FROM assignments a JOIN machines m ON a.machine_id = m.id JOIN operators o ON a.operator_id = o.id WHERE 1=1`
+	countQuery := `SELECT COUNT(*) FROM assignments a WHERE 1=1`
+	var filterArgs []interface{}
+	argIndex := 1
+
+	if query.Status != "" {
+		cond := fmt.Sprintf(` AND a.status = $%d`, argIndex)
+		baseQuery += cond
+		countQuery += cond
+		filterArgs = append(filterArgs, query.Status)
+		argIndex++
+	}
+	if query.OperatorID != "" {
+		cond := fmt.Sprintf(` AND a.operator_id = $%d`, argIndex)
+		baseQuery += cond
+		countQuery += cond
+		filterArgs = append(filterArgs, query.OperatorID)
+		argIndex++
+	}
+	if query.MachineID != "" {
+		cond := fmt.Sprintf(` AND a.machine_id = $%d`, argIndex)
+		baseQuery += cond
+		countQuery += cond
+		filterArgs = append(filterArgs, query.MachineID)
+		argIndex++
+	}
+
 	offset := (query.Page - 1) * query.Limit
+	baseQuery += fmt.Sprintf(` ORDER BY a.start_date LIMIT $%d OFFSET $%d`, argIndex, argIndex+1)
+	pageArgs := append(filterArgs, query.Limit, offset)
 
-	sqlQuery := `SELECT a.id, a.machine_id, m.name, a.operator_id, o.name, a.start_date, a.end_date, a.status FROM assignments a JOIN machines m ON a.machine_id = m.id JOIN operators o ON a.operator_id = o.id ORDER BY a.start_date LIMIT $1 OFFSET $2`
-
-	rows, err := repo.db.Query(sqlQuery, query.Limit, offset)
+	rows, err := repo.db.Query(baseQuery, pageArgs...)
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	var assigments []dto.AssigmentResponse
@@ -77,7 +107,7 @@ func (repo *AssignmentRepo) GetAllWithPagination(query dto.PaginationQuery) (*dt
 	}
 
 	var total int
-	err = repo.db.QueryRow(`SELECT COUNT(*) FROM assignments`).Scan(&total)
+	err = repo.db.QueryRow(countQuery, filterArgs...).Scan(&total)
 	if err != nil {
 		return nil, err
 	}
