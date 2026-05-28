@@ -47,26 +47,36 @@ func (service *AuthService) Login(email, password string) (string, string, error
 	return access, refresh, nil
 }
 
-func (service *AuthService) Refresh(refreshToken string) (string, error) {
+func (service *AuthService) Refresh(refreshToken string) (string, string, error) {
 	userID, err := service.refreshRepo.ValidateRefreshToken(refreshToken)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	user, err := service.store.UserRepo.GetByID(userID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if user == nil {
-		return "", errors.New("user not found")
+		return "", "", errors.New("user not found")
+	}
+
+	// Revocă refresh token-ul vechi (rotație)
+	if err := service.refreshRepo.RevokeRefreshToken(refreshToken); err != nil {
+		return "", "", err
 	}
 
 	newAccess, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.Role)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return newAccess, nil
+	newRefresh := auth.GenerateRefreshToken()
+	if err := service.refreshRepo.StoreRefreshToken(user.ID, newRefresh, time.Now().Add(7*24*time.Hour)); err != nil {
+		return "", "", err
+	}
+
+	return newAccess, newRefresh, nil
 }
 
 func (service *AuthService) Logout(refreshToken string) error {

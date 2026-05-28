@@ -20,9 +20,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
-	//validăm inputul și returnăm erori dacă este invalid email sau parolă lipsă sau parola nu respectă cerințele minime de securitate
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 
@@ -40,16 +39,16 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 
-	newAccess, err := h.authService.Refresh(req.RefreshToken)
+	newAccess, newRefresh, err := h.authService.Refresh(req.RefreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"access_token": newAccess})
+	c.JSON(http.StatusOK, gin.H{"access_token": newAccess, "refresh_token": newRefresh})
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
@@ -57,7 +56,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 
@@ -75,7 +74,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Role     string `json:"role"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 
@@ -92,7 +91,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 		Email string `json:"email" binding:"required,email"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 
@@ -116,7 +115,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		NewPassword string `json:"new_password" binding:"required,min=8"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 

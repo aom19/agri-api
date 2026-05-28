@@ -34,8 +34,14 @@ func (r *Repo) ValidateRefreshToken(refreshToken string) (int64, error) {
 	var revoked bool
 
 	err := r.db.QueryRow(`SELECT user_id, expires_at, revoked FROM refresh_tokens WHERE token = $1`, refreshToken).Scan(&userID, &expiresAt, &revoked)
-	if err != nil || revoked {
+	if err != nil {
 		return 0, errors.New("invalid or expired refresh token")
+	}
+	if revoked {
+		return 0, errors.New("refresh token has been revoked")
+	}
+	if time.Now().After(expiresAt) {
+		return 0, errors.New("refresh token has expired")
 	}
 	return userID, nil
 }
