@@ -51,13 +51,19 @@ func (r *UserRepo) UpdatePassword(id int64, passwordHash string) error {
 
 func (r *UserRepo) GetProfile(userID int64) (*domain.UserProfile, error) {
 	query := `
-		SELECT user_id, COALESCE(first_name,''), COALESCE(last_name,''),
-		       date_of_birth, COALESCE(profile_photo,''), created_at, updated_at
-		FROM user_profiles WHERE user_id = $1`
+		SELECT u.id, u.email, u.role,
+		       COALESCE(p.first_name,''), COALESCE(p.last_name,''),
+		       p.date_of_birth, COALESCE(p.profile_photo,''),
+		       COALESCE(p.created_at, NOW()), COALESCE(p.updated_at, NOW())
+		FROM users u
+		LEFT JOIN user_profiles p ON p.user_id = u.id
+		WHERE u.id = $1 AND u.deleted_at IS NULL`
 	var p domain.UserProfile
 	err := r.db.QueryRow(query, userID).Scan(
-		&p.UserID, &p.FirstName, &p.LastName,
-		&p.DateOfBirth, &p.ProfilePhoto, &p.CreatedAt, &p.UpdatedAt,
+		&p.UserID, &p.Email, &p.Role,
+		&p.FirstName, &p.LastName,
+		&p.DateOfBirth, &p.ProfilePhoto,
+		&p.CreatedAt, &p.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return &domain.UserProfile{UserID: userID}, nil
