@@ -95,6 +95,18 @@ func main() {
 	// Adaugă middleware pentru logarea request-urilor și recuperare din panic
 	server.Use(gin.Logger(), gin.Recovery())
 
+	// CORS middleware — TREBUIE să fie înainte de rute
+	server.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", cfg.ClientOrigin)
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
 	// Dezactivează avertismentele legate de proxy-uri de încredere
 	if err := server.SetTrustedProxies(nil); err != nil {
 		log.Fatalf("SetTrustedProxies: %v", err)

@@ -37,7 +37,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	access, refresh, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email sau parolă incorectă"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"access_token": access, "refresh_token": refresh})
@@ -72,7 +72,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 	newAccess, newRefresh, err := h.authService.Refresh(req.RefreshToken, oldAccessToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token de refresh invalid sau expirat"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"access_token": newAccess, "refresh_token": newRefresh})
@@ -105,10 +105,10 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	if err := h.authService.Logout(req.RefreshToken, accessToken); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not logout"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Nu s-a putut efectua deconectarea"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Deconectat cu succes"})
 }
 
 // Register înregistrează un utilizator nou
@@ -133,7 +133,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	access, refresh, err := h.authService.Register(req.Email, req.Password, req.Role)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Înregistrare eșuată: " + err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"access_token": access, "refresh_token": refresh})
@@ -159,11 +159,11 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	token, err := h.authService.ForgotPassword(req.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not process request"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Nu s-a putut procesa cererea"})
 		return
 	}
 	// Răspuns generic indiferent dacă email-ul există (securitate)
-	resp := gin.H{"message": "if the email exists, a reset link was sent"}
+	resp := gin.H{"message": "Dacă adresa există în sistem, vei primi un email cu instrucțiuni de resetare"}
 	if token != "" {
 		// TODO: în producție trimite token-ul pe email, nu în răspuns
 		resp["reset_token"] = token
@@ -184,7 +184,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	token := c.Param("token")
 	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "token is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token-ul de resetare este obligatoriu"})
 		return
 	}
 
@@ -198,13 +198,13 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	}
 
 	if req.Password != req.ConfirmPassword {
-		c.JSON(http.StatusBadRequest, gin.H{"errors": gin.H{"confirm_password": "passwords do not match"}})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": gin.H{"confirm_password": "Parolele nu coincid"}})
 		return
 	}
 
 	if err := h.authService.ResetPassword(token, req.Password); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Linkul de resetare este invalid sau a expirat"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "password reset successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Parola a fost schimbată cu succes"})
 }

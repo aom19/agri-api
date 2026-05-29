@@ -12,8 +12,9 @@ type Config struct {
 	AppName string
 	AppEnv  string
 
-	ServerHost string
-	ServerPort string
+	ServerHost   string
+	ServerPort   string
+	ClientOrigin string
 
 	DBHost     string
 	DBPort     string
@@ -44,6 +45,7 @@ func LoadConfig() *Config {
 		AppEnv:          getEnv("APP_ENV", "development"),
 		ServerHost:      getEnv("SERVER_HOST", "0.0.0.0"),
 		ServerPort:      getEnv("SERVER_PORT", "8080"),
+		ClientOrigin:    getEnv("CLIENT_ORIGIN", "http://localhost:3000"),
 		DBHost:          getEnv("DB_HOST", "localhost"),
 		DBPort:          getEnv("DB_PORT", "5432"),
 		DBUser:          getEnv("DB_USER", "agri"),
