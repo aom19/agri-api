@@ -51,7 +51,7 @@ agri-api/
 │   │           ├── assigment_handler.go
 │   │           └── validation.go # Mesaje de eroare prietenoase pentru validator
 │   ├── domain/                  # Modele de date pure
-│   │   ├── user.go
+│   │   ├── user.go              # User, UserProfile
 │   │   ├── machine.go
 │   │   ├── operator.go
 │   │   └── assigment.go
@@ -63,10 +63,13 @@ agri-api/
 │   ├── store/                   # Agregator de repository-uri
 │   └── usecase/                 # Logica de business
 │       ├── auth_service.go
+│       ├── profile_service.go   # GetProfile, UpdateProfile, UploadPhoto
 │       ├── machine_service.go
 │       ├── operator_service.go
 │       └── assigment_service.go
 ├── migrations/                  # Fișiere SQL versionare (up + down)
+├── uploads/
+│   └── avatars/                 # Poze de profil încărcate (excluse din git)
 ├── .env                         # Variabile de mediu (nu se comite)
 ├── .env.example                 # Exemplu de configurație
 ├── docker-compose.yml           # PostgreSQL + Redis în Docker
@@ -105,6 +108,8 @@ REDIS_ADDR=localhost:6379
 REDIS_PASSWORD=agri123
 REDIS_DB=0
 
+PUBLIC_URL=http://localhost:8080
+
 LOG_LEVEL=debug
 ```
 
@@ -139,6 +144,26 @@ make run
 ---
 
 ## Endpoints
+
+### Profil utilizator (protejate)
+
+| Metodă | Rută | Descriere |
+|---|---|---|
+| GET | `/api/profile` | Obținere profil utilizator autentificat (incl. email, rol, foto) |
+| PATCH | `/api/profile` | Actualizare first_name, last_name, date_of_birth |
+| POST | `/api/profile/photo` | Încărcare poză de profil (multipart/form-data, câmp `photo`, max 5MB, jpg/png/webp) |
+
+**Fișiere statice:** poza de profil e servită la `/uploads/avatars/<filename>`.
+
+### Profil utilizator (protejate)
+
+| Metodă | Rută | Descriere |
+|---|---|---|
+| GET | `/api/profile` | Obținere profil utilizator autentificat (incl. email, rol, foto) |
+| PATCH | `/api/profile` | Actualizare first_name, last_name, date_of_birth |
+| POST | `/api/profile/photo` | Încărcare poză de profil (multipart/form-data, câmp `photo`, max 5MB, jpg/png/webp) |
+
+**Fișiere statice:** poza de profil e servită la `/uploads/avatars/<filename>`.
 
 ### Autentificare (publice)
 
