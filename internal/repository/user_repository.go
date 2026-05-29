@@ -7,4 +7,6 @@ type UserRepository interface {
 	GetByID(id int64) (*domain.User, error)
 	Create(user *domain.User) error
 	UpdatePassword(id int64, passwordHash string) error
+	GetProfile(userID int64) (*domain.UserProfile, error)
+	UpsertProfile(profile *domain.UserProfile) error
 }

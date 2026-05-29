@@ -90,6 +90,10 @@ func main() {
 
 	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist)
 
+	// 6. Profile service
+	uploadDir := "uploads/avatars"
+	profileService := usecase.NewProfileService(appStore, uploadDir, cfg.PublicURL)
+
 	// Configurează serverul HTTP Gin fără middleware implicit
 	server := gin.New()
 	// Adaugă middleware pentru logarea request-urilor și recuperare din panic
@@ -119,6 +123,8 @@ func main() {
 		OperatorService:   operatorService,
 		AssignmentService: assigmentService,
 		AuthService:       authService,
+		ProfileService:    profileService,
+		UploadDir:         uploadDir,
 		JWTService:        jwtService,
 		Blacklist:         blacklist,
 	})

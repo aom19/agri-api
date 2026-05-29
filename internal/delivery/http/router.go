@@ -21,6 +21,8 @@ type AppDeps struct {
 	OperatorService   *usecase.OperatorService
 	AssignmentService *usecase.AssigmentService
 	AuthService       *usecase.AuthService
+	ProfileService    *usecase.ProfileService
+	UploadDir         string
 	JWTService        *auth.JWTService
 	Blacklist         *auth.Blacklist
 }
@@ -29,6 +31,9 @@ type AppDeps struct {
 func SetupRoutes(r *gin.Engine, deps AppDeps) {
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// Servire fișiere statice pentru avatare
+	r.Static("/uploads", "uploads")
 
 	authHandler := handlers.NewAuthHandler(deps.AuthService)
 	authGroup := r.Group("/api/auth")
@@ -42,6 +47,12 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist))
 
 	api.POST("/auth/logout", authHandler.Logout)
+
+	// Rutele pentru profil utilizator
+	profileHandler := handlers.NewProfileHandler(deps.ProfileService)
+	api.GET("/profile", profileHandler.GetProfile)
+	api.PATCH("/profile", profileHandler.UpdateProfile)
+	api.POST("/profile/photo", profileHandler.UploadPhoto)
 
 	// Rută de verificare a stării serviciului
 	api.GET("/health", func(c *gin.Context) {

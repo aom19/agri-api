@@ -48,3 +48,36 @@ func (r *UserRepo) UpdatePassword(id int64, passwordHash string) error {
 	_, err := r.db.Exec(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, passwordHash, id)
 	return err
 }
+
+func (r *UserRepo) GetProfile(userID int64) (*domain.UserProfile, error) {
+	query := `
+		SELECT user_id, COALESCE(first_name,''), COALESCE(last_name,''),
+		       date_of_birth, COALESCE(profile_photo,''), created_at, updated_at
+		FROM user_profiles WHERE user_id = $1`
+	var p domain.UserProfile
+	err := r.db.QueryRow(query, userID).Scan(
+		&p.UserID, &p.FirstName, &p.LastName,
+		&p.DateOfBirth, &p.ProfilePhoto, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return &domain.UserProfile{UserID: userID}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *UserRepo) UpsertProfile(p *domain.UserProfile) error {
+	query := `
+		INSERT INTO user_profiles (user_id, first_name, last_name, date_of_birth, profile_photo, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+		ON CONFLICT (user_id) DO UPDATE SET
+			first_name    = EXCLUDED.first_name,
+			last_name     = EXCLUDED.last_name,
+			date_of_birth = EXCLUDED.date_of_birth,
+			profile_photo = EXCLUDED.profile_photo,
+			updated_at    = NOW()`
+	_, err := r.db.Exec(query, p.UserID, p.FirstName, p.LastName, p.DateOfBirth, p.ProfilePhoto)
+	return err
+}

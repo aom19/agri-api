@@ -22,6 +22,9 @@ vendor/
 .DS_Store
 Thumbs.db
 
-# Loguri
-*.log
+# Fișiere încărcate de utilizatori (păstrează structura de directoare)
+uploads/*
+!uploads/avatars/
+uploads/avatars/*
+!uploads/avatars/.gitkeep
 

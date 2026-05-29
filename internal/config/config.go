@@ -32,6 +32,8 @@ type Config struct {
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
+
+	PublicURL string
 }
 
 func LoadConfig() *Config {
@@ -59,6 +61,7 @@ func LoadConfig() *Config {
 		RedisAddr:       getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
 		RedisDB:         getEnvInt("REDIS_DB", 0),
+		PublicURL:       getEnv("PUBLIC_URL", "http://localhost:8080"),
 	}
 }
 
