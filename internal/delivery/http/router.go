@@ -50,6 +50,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 
 	api.POST("/auth/logout", authHandler.Logout)
 
+
 	profileHandler := handlers.NewProfileHandler(deps.ProfileService)
 	api.GET("/profile", profileHandler.GetProfile)
 	api.PATCH("/profile", profileHandler.UpdateProfile)
@@ -95,6 +96,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/roles/:id/permissions", perm("roles:read"), rbacHandler.GetRolePermissions)
 	api.PUT("/roles/:id/permissions", perm("roles:write"), rbacHandler.SetRolePermissions)
 	api.GET("/permissions", perm("roles:read"), rbacHandler.GetAllPermissions)
+	api.GET("/auth/me/permissions", rbacHandler.GetMyPermissions)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────
 	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)

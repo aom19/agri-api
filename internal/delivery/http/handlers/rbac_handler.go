@@ -152,6 +152,29 @@ func (h *RBACHandler) GetAllPermissions(c *gin.Context) {
 	c.JSON(http.StatusOK, perms)
 }
 
+// ─── My permissions ─────────────────────────────────────────────────────────
+
+// GetMyPermissions returnează permisiunile rolului utilizatorului autentificat.
+// Nu necesită nicio permisiune specială — doar un token valid.
+func (h *RBACHandler) GetMyPermissions(c *gin.Context) {
+	roleIDRaw, exists := c.Get("role_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing role in context"})
+		return
+	}
+	roleIDFloat, ok := roleIDRaw.(float64)
+	if !ok || roleIDFloat <= 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "invalid role in token"})
+		return
+	}
+	perms, err := h.service.GetRolePermissions(int64(roleIDFloat))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, perms)
+}
+
 // ─── Assign role to user ──────────────────────────────────────────────────────
 
 func (h *RBACHandler) AssignRoleToUser(c *gin.Context) {
