@@ -19,11 +19,13 @@ func NewRBACHandler(service *usecase.RBACService) *RBACHandler {
 // ─── Roles ────────────────────────────────────────────────────────────────────
 
 type createRoleRequest struct {
+	Code        string `json:"code"        binding:"required"`
 	Name        string `json:"name"        binding:"required"`
 	Description string `json:"description"`
 }
 
 type updateRoleRequest struct {
+	Code        string `json:"code"        binding:"required"`
 	Name        string `json:"name"        binding:"required"`
 	Description string `json:"description"`
 }
@@ -65,7 +67,7 @@ func (h *RBACHandler) CreateRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	role, err := h.service.CreateRole(req.Name, req.Description)
+	role, err := h.service.CreateRole(req.Code, req.Name, req.Description)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -84,7 +86,7 @@ func (h *RBACHandler) UpdateRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	role, err := h.service.UpdateRole(id, req.Name, req.Description)
+	role, err := h.service.UpdateRole(id, req.Code, req.Name, req.Description)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

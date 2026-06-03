@@ -5,7 +5,7 @@ import "agri-api/internal/domain"
 type RoleRepository interface {
 	GetAll() ([]domain.Role, error)
 	GetByID(id int64) (*domain.Role, error)
-	GetByName(name string) (*domain.Role, error)
+	GetByCode(code string) (*domain.Role, error)
 	Create(role *domain.Role) error
 	Update(role *domain.Role) error
 	Delete(id int64) error

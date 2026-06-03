@@ -15,12 +15,12 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.role_id, COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
 		WHERE u.email = $1 AND u.deleted_at IS NULL`
 	var u domain.User
-	err := r.db.QueryRow(query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.RoleID, &u.RoleName)
+	err := r.db.QueryRow(query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.RoleID, &u.RoleCode, &u.RoleName)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -29,12 +29,12 @@ func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {
 
 func (r *UserRepo) GetByID(id int64) (*domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.role_id, COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
 		WHERE u.id = $1 AND u.deleted_at IS NULL`
 	var u domain.User
-	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.RoleID, &u.RoleName)
+	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.RoleID, &u.RoleCode, &u.RoleName)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -58,7 +58,7 @@ func (r *UserRepo) UpdateRole(userID int64, roleID int64) error {
 
 func (r *UserRepo) GetProfile(userID int64) (*domain.UserProfile, error) {
 	query := `
-		SELECT u.id, u.email, u.role_id, COALESCE(ro.name, ''),
+		SELECT u.id, u.email, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, ''),
 		       COALESCE(p.first_name,''), COALESCE(p.last_name,''),
 		       p.date_of_birth, COALESCE(p.profile_photo,''),
 		       COALESCE(p.created_at, NOW()), COALESCE(p.updated_at, NOW())
@@ -68,7 +68,7 @@ func (r *UserRepo) GetProfile(userID int64) (*domain.UserProfile, error) {
 		WHERE u.id = $1 AND u.deleted_at IS NULL`
 	var p domain.UserProfile
 	err := r.db.QueryRow(query, userID).Scan(
-		&p.UserID, &p.Email, &p.RoleID, &p.RoleName,
+		&p.UserID, &p.Email, &p.RoleID, &p.RoleCode, &p.RoleName,
 		&p.FirstName, &p.LastName,
 		&p.DateOfBirth, &p.ProfilePhoto,
 		&p.CreatedAt, &p.UpdatedAt,

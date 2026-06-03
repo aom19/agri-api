@@ -7,13 +7,15 @@ type User struct {
 	Email        string `json:"email"`
 	PasswordHash string `json:"-"`
 	RoleID       int64  `json:"role_id"`
-	RoleName     string `json:"role"` // populat prin JOIN cu roles, nu stocat direct
+	RoleCode     string `json:"role_code"`
+	RoleName     string `json:"role"`
 }
 
 type UserProfile struct {
 	UserID       int64      `json:"user_id"`
 	Email        string     `json:"email"`
 	RoleID       int64      `json:"role_id"`
+	RoleCode     string     `json:"role_code"`
 	RoleName     string     `json:"role"`
 	FirstName    string     `json:"first_name"`
 	LastName     string     `json:"last_name"`

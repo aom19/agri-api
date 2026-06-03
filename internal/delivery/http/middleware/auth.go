@@ -33,6 +33,7 @@ func AuthMiddleware(jwt *auth.JWTService, blacklist *auth.Blacklist) gin.Handler
 
 		c.Set("user_id", claims["user_id"])
 		c.Set("role_id", claims["role_id"])
+		c.Set("role_code", claims["role_code"])
 		c.Set("role_name", claims["role_name"])
 		c.Next()
 	}

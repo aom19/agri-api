@@ -16,7 +16,7 @@ func NewRBACRepo(db *sql.DB) *RBACRepo {
 // ─── Role ────────────────────────────────────────────────────────────────────
 
 func (r *RBACRepo) GetAll() ([]domain.Role, error) {
-	rows, err := r.db.Query(`SELECT id, name, description, created_at FROM roles ORDER BY id`)
+	rows, err := r.db.Query(`SELECT id, code, name, description, created_at FROM roles ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func (r *RBACRepo) GetAll() ([]domain.Role, error) {
 	var roles []domain.Role
 	for rows.Next() {
 		var role domain.Role
-		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt); err != nil {
+		if err := rows.Scan(&role.ID, &role.Code, &role.Name, &role.Description, &role.CreatedAt); err != nil {
 			return nil, err
 		}
 		roles = append(roles, role)
@@ -36,19 +36,19 @@ func (r *RBACRepo) GetAll() ([]domain.Role, error) {
 func (r *RBACRepo) GetByID(id int64) (*domain.Role, error) {
 	var role domain.Role
 	err := r.db.QueryRow(
-		`SELECT id, name, description, created_at FROM roles WHERE id = $1`, id,
-	).Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt)
+		`SELECT id, code, name, description, created_at FROM roles WHERE id = $1`, id,
+	).Scan(&role.ID, &role.Code, &role.Name, &role.Description, &role.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	return &role, err
 }
 
-func (r *RBACRepo) GetByName(name string) (*domain.Role, error) {
+func (r *RBACRepo) GetByCode(code string) (*domain.Role, error) {
 	var role domain.Role
 	err := r.db.QueryRow(
-		`SELECT id, name, description, created_at FROM roles WHERE name = $1`, name,
-	).Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt)
+		`SELECT id, code, name, description, created_at FROM roles WHERE code = $1`, code,
+	).Scan(&role.ID, &role.Code, &role.Name, &role.Description, &role.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -57,15 +57,15 @@ func (r *RBACRepo) GetByName(name string) (*domain.Role, error) {
 
 func (r *RBACRepo) Create(role *domain.Role) error {
 	return r.db.QueryRow(
-		`INSERT INTO roles (name, description) VALUES ($1, $2) RETURNING id, created_at`,
-		role.Name, role.Description,
+		`INSERT INTO roles (code, name, description) VALUES ($1, $2, $3) RETURNING id, created_at`,
+		role.Code, role.Name, role.Description,
 	).Scan(&role.ID, &role.CreatedAt)
 }
 
 func (r *RBACRepo) Update(role *domain.Role) error {
 	_, err := r.db.Exec(
-		`UPDATE roles SET name = $1, description = $2 WHERE id = $3`,
-		role.Name, role.Description, role.ID,
+		`UPDATE roles SET code = $1, name = $2, description = $3 WHERE id = $4`,
+		role.Code, role.Name, role.Description, role.ID,
 	)
 	return err
 }

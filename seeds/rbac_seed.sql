@@ -22,11 +22,11 @@ INSERT INTO permissions (name, description) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ─── Roles ──────────────────────────────────────────────────
-INSERT INTO roles (name, description) VALUES
-    ('admin',   'Administrator complet — acces total'),
-    ('manager', 'Manager — administrare resurse, fără gestiunea rolurilor'),
-    ('viewer',  'Vizualizator — acces doar citire')
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO roles (code, name, description) VALUES
+  ('admin',   'Administrator', 'Administrator complet — acces total'),
+  ('manager', 'Manager',       'Manager — administrare resurse, fără gestiunea rolurilor'),
+  ('viewer',  'Vizualizator',  'Vizualizator — acces doar citire')
+ON CONFLICT (code) DO NOTHING;
 
 -- ─── Role → Permissions ──────────────────────────────────────
 
@@ -34,14 +34,14 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
-WHERE r.name = 'admin'
+WHERE r.code = 'admin'
 ON CONFLICT DO NOTHING;
 
 -- manager: read+write pe machines/operators/assignments + roles:read + users:read
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
-WHERE r.name = 'manager'
+WHERE r.code = 'manager'
   AND p.name IN (
       'machines:read',    'machines:write',
       'operators:read',   'operators:write',
@@ -55,7 +55,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
-WHERE r.name = 'viewer'
+WHERE r.code = 'viewer'
   AND p.name IN (
       'machines:read',
       'operators:read',
@@ -67,6 +67,6 @@ ON CONFLICT DO NOTHING;
 
 -- ─── Atribuie rolul admin primului user existent (dacă există) ────────────────
 UPDATE users
-SET role_id = (SELECT id FROM roles WHERE name = 'admin')
+SET role_id = (SELECT id FROM roles WHERE code = 'admin')
 WHERE id = (SELECT id FROM users ORDER BY id LIMIT 1)
   AND role_id IS NULL;

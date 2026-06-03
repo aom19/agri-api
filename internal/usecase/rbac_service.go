@@ -36,22 +36,22 @@ func (s *RBACService) GetRoleByID(id int64) (*domain.Role, error) {
 	return role, nil
 }
 
-func (s *RBACService) CreateRole(name, description string) (*domain.Role, error) {
-	existing, err := s.store.RoleRepo.GetByName(name)
+func (s *RBACService) CreateRole(code, name, description string) (*domain.Role, error) {
+	existing, err := s.store.RoleRepo.GetByCode(code)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, errors.New("role name already exists")
+		return nil, errors.New("role code already exists")
 	}
-	role := &domain.Role{Name: name, Description: description}
+	role := &domain.Role{Code: code, Name: name, Description: description}
 	if err := s.store.RoleRepo.Create(role); err != nil {
 		return nil, err
 	}
 	return role, nil
 }
 
-func (s *RBACService) UpdateRole(id int64, name, description string) (*domain.Role, error) {
+func (s *RBACService) UpdateRole(id int64, code, name, description string) (*domain.Role, error) {
 	role, err := s.store.RoleRepo.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -59,6 +59,7 @@ func (s *RBACService) UpdateRole(id int64, name, description string) (*domain.Ro
 	if role == nil {
 		return nil, errors.New("role not found")
 	}
+	role.Code = code
 	role.Name = name
 	role.Description = description
 	if err := s.store.RoleRepo.Update(role); err != nil {

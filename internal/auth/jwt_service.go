@@ -26,11 +26,12 @@ func (service *JWTService) AccessTokenTTL() time.Duration {
 	return service.accessTokenTTL
 }
 
-func (service *JWTService) GenerateAccess(userID string, roleID int64, roleName string) (string, error) {
+func (service *JWTService) GenerateAccess(userID string, roleID int64, roleCode, roleName string) (string, error) {
 	claims := jwt.MapClaims{
 		"jti":       uuid.NewString(),
 		"user_id":   userID,
 		"role_id":   roleID,
+		"role_code": roleCode,
 		"role_name": roleName,
 		"exp":       time.Now().Add(service.accessTokenTTL).Unix(),
 	}
