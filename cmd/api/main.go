@@ -89,6 +89,7 @@ func main() {
 	blacklist := auth.NewBlacklist(rdb)
 
 	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist)
+	rbacService := usecase.NewRBACService(appStore, jwtService, refreshRepo, blacklist)
 
 	// 6. Profile service
 	uploadDir := "uploads/avatars"
@@ -124,6 +125,8 @@ func main() {
 		AssignmentService: assigmentService,
 		AuthService:       authService,
 		ProfileService:    profileService,
+		RBACService:       rbacService,
+		PermissionRepo:    appStore.PermissionRepo,
 		UploadDir:         uploadDir,
 		JWTService:        jwtService,
 		Blacklist:         blacklist,

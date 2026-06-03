@@ -42,7 +42,7 @@ func (service *AuthService) Login(email, password string) (string, string, error
 		_ = service.blacklist.Add(context.Background(), jti, service.jwtService.AccessTokenTTL())
 	}
 
-	access, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.Role)
+	access, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.RoleID, user.RoleName)
 	if err != nil {
 		return "", "", err
 	}
@@ -87,7 +87,7 @@ func (service *AuthService) Refresh(refreshToken, oldAccessToken string) (string
 		}
 	}
 
-	newAccess, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.Role)
+	newAccess, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.RoleID, user.RoleName)
 	if err != nil {
 		return "", "", err
 	}
@@ -128,15 +128,24 @@ func (service *AuthService) Register(email, password, role string) (string, stri
 		return "", "", err
 	}
 	if role == "" {
-		role = "operator"
+		role = "viewer"
 	}
 
-	user := &domain.User{Email: email, PasswordHash: hash, Role: role}
+	// Găsește role_id după nume
+	roleEntity, err := service.store.RoleRepo.GetByName(role)
+	if err != nil {
+		return "", "", err
+	}
+	if roleEntity == nil {
+		return "", "", errors.New("role not found: " + role)
+	}
+
+	user := &domain.User{Email: email, PasswordHash: hash, RoleID: roleEntity.ID, RoleName: roleEntity.Name}
 	if err := service.store.UserRepo.Create(user); err != nil {
 		return "", "", err
 	}
 
-	access, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.Role)
+	access, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.RoleID, user.RoleName)
 	if err != nil {
 		return "", "", err
 	}

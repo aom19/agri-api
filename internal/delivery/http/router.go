@@ -5,6 +5,7 @@ import (
 	"agri-api/internal/delivery/http/handlers"
 	"agri-api/internal/delivery/http/middleware"
 	"agri-api/internal/logger"
+	"agri-api/internal/repository"
 	"agri-api/internal/usecase"
 
 	swaggerFiles "github.com/swaggo/files"
@@ -13,8 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AppDeps grupează toate dependențele aplicației.
-// Adaugă un serviciu nou direct aici, fără să modifici SetupRoutes.
 type AppDeps struct {
 	Log               *logger.Logger
 	MachineService    *usecase.MachineService
@@ -22,17 +21,20 @@ type AppDeps struct {
 	AssignmentService *usecase.AssigmentService
 	AuthService       *usecase.AuthService
 	ProfileService    *usecase.ProfileService
+	RBACService       *usecase.RBACService
+	PermissionRepo    repository.PermissionRepository
 	UploadDir         string
 	JWTService        *auth.JWTService
 	Blacklist         *auth.Blacklist
 }
 
-// SetupRoutes inregistreaza toate rutele HTTP ale aplicatiei sub prefixul /api
 func SetupRoutes(r *gin.Engine, deps AppDeps) {
+	// helper pentru construirea middleware-ului de permisiuni
+	perm := func(name string) gin.HandlerFunc {
+		return middleware.RequirePermission(deps.PermissionRepo, name)
+	}
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// Servire fișiere statice pentru avatare
 	r.Static("/uploads", "uploads")
 
 	authHandler := handlers.NewAuthHandler(deps.AuthService)
@@ -48,40 +50,53 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 
 	api.POST("/auth/logout", authHandler.Logout)
 
-	// Rutele pentru profil utilizator
 	profileHandler := handlers.NewProfileHandler(deps.ProfileService)
 	api.GET("/profile", profileHandler.GetProfile)
 	api.PATCH("/profile", profileHandler.UpdateProfile)
 	api.POST("/profile/photo", profileHandler.UploadPhoto)
 
-	// Rută de verificare a stării serviciului
 	api.GET("/health", func(c *gin.Context) {
 		deps.Log.Info("Health check called")
 		handlers.HealthCheck(c)
 	})
 
-	// Rutele pentru resursa "mașini agricole"
+	// ─── Machines ────────────────────────────────────────────────────────────
 	machineHandler := handlers.NewMachineHandler(deps.MachineService)
-	api.POST("/machines", machineHandler.Create)       // creare mașină
-	api.GET("/machines", machineHandler.GetAll)        // listare toate mașinile
-	api.GET("/machines/:id", machineHandler.GetByID)   // obținere mașină după ID
-	api.PATCH("/machines/:id", machineHandler.Update)  // actualizare parțială mașină
-	api.DELETE("/machines/:id", machineHandler.Delete) // ștergere mașină
+	api.GET("/machines", perm("machines:read"), machineHandler.GetAll)
+	api.GET("/machines/:id", perm("machines:read"), machineHandler.GetByID)
+	api.POST("/machines", perm("machines:write"), machineHandler.Create)
+	api.PATCH("/machines/:id", perm("machines:write"), machineHandler.Update)
+	api.DELETE("/machines/:id", perm("machines:delete"), machineHandler.Delete)
 
-	// Rutele pentru resursa "operatori"
+	// ─── Operators ───────────────────────────────────────────────────────────
 	operatorHandler := handlers.NewOperatorHandler(deps.OperatorService)
-	api.POST("/operators", operatorHandler.Create)       // creare operator
-	api.GET("/operators", operatorHandler.GetAll)        // listare toți operatorii
-	api.GET("/operators/:id", operatorHandler.GetByID)   // obținere operator după ID
-	api.PATCH("/operators/:id", operatorHandler.Update)  // actualizare parțială operator
-	api.DELETE("/operators/:id", operatorHandler.Delete) // ștergere operator
+	api.GET("/operators", perm("operators:read"), operatorHandler.GetAll)
+	api.GET("/operators/:id", perm("operators:read"), operatorHandler.GetByID)
+	api.POST("/operators", perm("operators:write"), operatorHandler.Create)
+	api.PATCH("/operators/:id", perm("operators:write"), operatorHandler.Update)
+	api.DELETE("/operators/:id", perm("operators:delete"), operatorHandler.Delete)
 
+	// ─── Assignments ──────────────────────────────────────────────────────────
 	assignmentHandler := handlers.NewAssigmentHandler(deps.AssignmentService)
+	api.GET("/assignments", perm("assignments:read"), assignmentHandler.GetAll)
+	api.GET("/assignments/:id", perm("assignments:read"), assignmentHandler.GetByID)
+	api.POST("/assignments", perm("assignments:write"), assignmentHandler.Create)
+	api.PATCH("/assignments/:id", perm("assignments:write"), assignmentHandler.Update)
+	api.DELETE("/assignments/:id", perm("assignments:delete"), assignmentHandler.Delete)
+	api.PATCH("/assignments/:id/close", perm("assignments:write"), assignmentHandler.Close)
 
-	api.POST("/assignments", assignmentHandler.Create)
-	api.GET("/assignments", assignmentHandler.GetAll)
-	api.GET("/assignments/:id", assignmentHandler.GetByID)
-	api.PATCH("/assignments/:id", assignmentHandler.Update)
-	api.DELETE("/assignments/:id", assignmentHandler.Delete)
-	api.PATCH("/assignments/:id/close", assignmentHandler.Close)
+	// ─── RBAC — Roles & Permissions ──────────────────────────────────────────
+	rbacHandler := handlers.NewRBACHandler(deps.RBACService)
+	api.GET("/roles", perm("roles:read"), rbacHandler.GetAllRoles)
+	api.GET("/roles/:id", perm("roles:read"), rbacHandler.GetRole)
+	api.POST("/roles", perm("roles:write"), rbacHandler.CreateRole)
+	api.PATCH("/roles/:id", perm("roles:write"), rbacHandler.UpdateRole)
+	api.DELETE("/roles/:id", perm("roles:delete"), rbacHandler.DeleteRole)
+	api.GET("/roles/:id/permissions", perm("roles:read"), rbacHandler.GetRolePermissions)
+	api.PUT("/roles/:id/permissions", perm("roles:write"), rbacHandler.SetRolePermissions)
+	api.GET("/permissions", perm("roles:read"), rbacHandler.GetAllPermissions)
+
+	// ─── Users — assign role ──────────────────────────────────────────────────
+	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)
 }
+

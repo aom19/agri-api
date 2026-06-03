@@ -5,13 +5,16 @@ import (
 	"database/sql"
 )
 
+
 type Store struct {
 	DB *sql.DB
 
-	MachineRepo   repository.MachineRepository
-	OperatorRepo  repository.OperatorRepository
-	AssigmentRepo repository.AssigmentRepository
-	UserRepo      repository.UserRepository
+	MachineRepo    repository.MachineRepository
+	OperatorRepo   repository.OperatorRepository
+	AssigmentRepo  repository.AssigmentRepository
+	UserRepo       repository.UserRepository
+	RoleRepo       repository.RoleRepository
+	PermissionRepo repository.PermissionRepository
 }
 
 // NewStore creează o nouă instanță a Store-ului și inițializează repository-urile
