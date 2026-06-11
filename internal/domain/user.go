@@ -6,13 +6,17 @@ type User struct {
 	ID           int64  `json:"id"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"-"`
-	Role         string `json:"role"`
+	RoleID       int64  `json:"role_id"`
+	RoleCode     string `json:"role_code"`
+	RoleName     string `json:"role"`
 }
 
 type UserProfile struct {
 	UserID       int64      `json:"user_id"`
 	Email        string     `json:"email"`
-	Role         string     `json:"role"`
+	RoleID       int64      `json:"role_id"`
+	RoleCode     string     `json:"role_code"`
+	RoleName     string     `json:"role"`
 	FirstName    string     `json:"first_name"`
 	LastName     string     `json:"last_name"`
 	DateOfBirth  *time.Time `json:"date_of_birth"`

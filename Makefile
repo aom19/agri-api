@@ -66,3 +66,7 @@ docker-build:
 ## Populează baza de date cu date de test (rulează manual, nu la migrate-up)
 seed:
 	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) < seeds/seed.sql
+
+## Populează roluri, permisiuni și relațiile RBAC (rulează după migrate-up)
+seed-rbac:
+	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) < seeds/rbac_seed.sql

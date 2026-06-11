@@ -1,0 +1,4 @@
+DROP INDEX IF EXISTS idx_roles_code_unique;
+
+ALTER TABLE roles DROP COLUMN IF EXISTS name;
+ALTER TABLE roles RENAME COLUMN code TO name;

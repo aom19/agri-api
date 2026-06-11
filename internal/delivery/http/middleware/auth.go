@@ -23,7 +23,6 @@ func AuthMiddleware(jwt *auth.JWTService, blacklist *auth.Blacklist) gin.Handler
 			return
 		}
 
-		// Verifică blacklist-ul Redis
 		if jti, ok := claims["jti"].(string); ok && jti != "" {
 			revoked, err := blacklist.IsBlacklisted(c.Request.Context(), jti)
 			if err != nil || revoked {
@@ -33,7 +32,9 @@ func AuthMiddleware(jwt *auth.JWTService, blacklist *auth.Blacklist) gin.Handler
 		}
 
 		c.Set("user_id", claims["user_id"])
-		c.Set("role", claims["role"])
+		c.Set("role_id", claims["role_id"])
+		c.Set("role_code", claims["role_code"])
+		c.Set("role_name", claims["role_name"])
 		c.Next()
 	}
 }
