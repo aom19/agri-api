@@ -18,6 +18,7 @@ type AppDeps struct {
 	Log               *logger.Logger
 	MachineService    *usecase.MachineService
 	OperatorService   *usecase.OperatorService
+	FieldService      *usecase.FieldService
 	AssignmentService *usecase.AssigmentService
 	AuthService       *usecase.AuthService
 	ProfileService    *usecase.ProfileService
@@ -50,7 +51,6 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 
 	api.POST("/auth/logout", authHandler.Logout)
 
-
 	profileHandler := handlers.NewProfileHandler(deps.ProfileService)
 	api.GET("/profile", profileHandler.GetProfile)
 	api.PATCH("/profile", profileHandler.UpdateProfile)
@@ -77,6 +77,14 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/operators/:id", perm("operators:write"), operatorHandler.Update)
 	api.DELETE("/operators/:id", perm("operators:delete"), operatorHandler.Delete)
 
+	// ─── Fields ───────────────────────────────────────────────────────────────
+	fieldHandler := handlers.NewFieldHandler(deps.FieldService)
+	api.GET("/fields", perm("fields:read"), fieldHandler.GetAll)
+	api.GET("/fields/:id", perm("fields:read"), fieldHandler.GetByID)
+	api.POST("/fields", perm("fields:write"), fieldHandler.Create)
+	api.PATCH("/fields/:id", perm("fields:write"), fieldHandler.Update)
+	api.DELETE("/fields/:id", perm("fields:delete"), fieldHandler.Delete)
+
 	// ─── Assignments ──────────────────────────────────────────────────────────
 	assignmentHandler := handlers.NewAssigmentHandler(deps.AssignmentService)
 	api.GET("/assignments", perm("assignments:read"), assignmentHandler.GetAll)
@@ -101,4 +109,3 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	// ─── Users — assign role ──────────────────────────────────────────────────
 	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)
 }
-

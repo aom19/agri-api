@@ -5,12 +5,12 @@ import (
 	"database/sql"
 )
 
-
 type Store struct {
 	DB *sql.DB
 
 	MachineRepo    repository.MachineRepository
 	OperatorRepo   repository.OperatorRepository
+	FieldRepo      repository.FieldRepository
 	AssigmentRepo  repository.AssigmentRepository
 	UserRepo       repository.UserRepository
 	RoleRepo       repository.RoleRepository
