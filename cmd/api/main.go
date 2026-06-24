@@ -64,6 +64,10 @@ func main() {
 	operatorRepo := postgres.NewOperatorRepo(sqlDB)
 	operatorService := usecase.NewOperatorService(operatorRepo)
 
+	// 2.1 Creează repository-ul pentru terenuri și serviciul aferent
+	fieldRepo := postgres.NewFieldRepo(sqlDB)
+	fieldService := usecase.NewFieldService(fieldRepo)
+
 	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări
 	appStore := store.NewInitialiedStore(sqlDB)
 	assigmentService := usecase.NewAssigmentService(appStore)
@@ -122,6 +126,7 @@ func main() {
 		Log:               log,
 		MachineService:    machineService,
 		OperatorService:   operatorService,
+		FieldService:      fieldService,
 		AssignmentService: assigmentService,
 		AuthService:       authService,
 		ProfileService:    profileService,

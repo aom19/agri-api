@@ -8,6 +8,9 @@ INSERT INTO permissions (name, description) VALUES
     ('machines:read',     'Vizualizare mașini'),
     ('machines:write',    'Creare și editare mașini'),
     ('machines:delete',   'Ștergere mașini'),
+  ('fields:read',       'Vizualizare terenuri'),
+  ('fields:write',      'Creare și editare terenuri'),
+  ('fields:delete',     'Ștergere terenuri'),
     ('operators:read',    'Vizualizare operatori'),
     ('operators:write',   'Creare și editare operatori'),
     ('operators:delete',  'Ștergere operatori'),
@@ -44,6 +47,7 @@ FROM roles r, permissions p
 WHERE r.code = 'manager'
   AND p.name IN (
       'machines:read',    'machines:write',
+  'fields:read',      'fields:write',
       'operators:read',   'operators:write',
       'assignments:read', 'assignments:write',
       'roles:read',
@@ -58,6 +62,7 @@ FROM roles r, permissions p
 WHERE r.code = 'viewer'
   AND p.name IN (
       'machines:read',
+  'fields:read',
       'operators:read',
       'assignments:read',
       'roles:read',
