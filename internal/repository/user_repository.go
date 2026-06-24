@@ -6,6 +6,7 @@ type UserRepository interface {
 	GetByEmail(email string) (*domain.User, error)
 	GetByID(id int64) (*domain.User, error)
 	Create(user *domain.User) error
+	MarkEmailConfirmed(id int64) error
 	UpdatePassword(id int64, passwordHash string) error
 	UpdateRole(userID int64, roleID int64) error
 	GetProfile(userID int64) (*domain.UserProfile, error)

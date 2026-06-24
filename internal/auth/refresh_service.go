@@ -108,3 +108,43 @@ func (r *Repo) InvalidateResetToken(token string) error {
 	_, err := r.db.Exec(`UPDATE password_reset_tokens SET used = TRUE WHERE token = $1`, token)
 	return err
 }
+
+func (r *Repo) StoreEmailConfirmationToken(userID int64, token string, expiresAt time.Time) error {
+	_, _ = r.db.Exec(`UPDATE email_confirmation_tokens SET used = TRUE WHERE user_id = $1`, userID)
+	query := `INSERT INTO email_confirmation_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)`
+	_, err := r.db.Exec(query, userID, token, expiresAt)
+	return err
+}
+
+func (r *Repo) ValidateEmailConfirmationToken(token string) (int64, error) {
+	var userID int64
+	var expiresAt time.Time
+	var used bool
+
+	err := r.db.QueryRow(
+		`SELECT user_id, expires_at, used FROM email_confirmation_tokens WHERE token = $1`,
+		token,
+	).Scan(&userID, &expiresAt, &used)
+	if err != nil {
+		return 0, errors.New("invalid confirmation token")
+	}
+	if used || time.Now().After(expiresAt) {
+		return 0, errors.New("confirmation token expired or already used")
+	}
+	return userID, nil
+}
+
+func (r *Repo) InvalidateEmailConfirmationToken(token string) error {
+	_, err := r.db.Exec(`UPDATE email_confirmation_tokens SET used = TRUE WHERE token = $1`, token)
+	return err
+}
+
+// GetEmailConfirmationTokenUserID returnează user_id indiferent dacă tokenul a fost deja folosit.
+func (r *Repo) GetEmailConfirmationTokenUserID(token string) (int64, error) {
+	var userID int64
+	err := r.db.QueryRow(`SELECT user_id FROM email_confirmation_tokens WHERE token = $1`, token).Scan(&userID)
+	if err != nil {
+		return 0, errors.New("invalid confirmation token")
+	}
+	return userID, nil
+}

@@ -15,12 +15,12 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
 		WHERE u.email = $1 AND u.deleted_at IS NULL`
 	var u domain.User
-	err := r.db.QueryRow(query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.RoleID, &u.RoleCode, &u.RoleName)
+	err := r.db.QueryRow(query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.RoleID, &u.RoleCode, &u.RoleName)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -29,12 +29,12 @@ func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {
 
 func (r *UserRepo) GetByID(id int64) (*domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
 		WHERE u.id = $1 AND u.deleted_at IS NULL`
 	var u domain.User
-	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.RoleID, &u.RoleCode, &u.RoleName)
+	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.RoleID, &u.RoleCode, &u.RoleName)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -44,6 +44,11 @@ func (r *UserRepo) GetByID(id int64) (*domain.User, error) {
 func (r *UserRepo) Create(user *domain.User) error {
 	query := `INSERT INTO users (email, password_hash, role_id) VALUES ($1, $2, $3) RETURNING id`
 	return r.db.QueryRow(query, user.Email, user.PasswordHash, user.RoleID).Scan(&user.ID)
+}
+
+func (r *UserRepo) MarkEmailConfirmed(id int64) error {
+	_, err := r.db.Exec(`UPDATE users SET email_confirmed = TRUE, updated_at = NOW() WHERE id = $1`, id)
+	return err
 }
 
 func (r *UserRepo) UpdatePassword(id int64, passwordHash string) error {

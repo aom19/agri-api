@@ -22,6 +22,18 @@ services:
     volumes:
       - redisdata:/data
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: agri_mailpit
+    restart: always
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_UI_HTML_CHECK_BROWSER_ONLY: "true"
+
 volumes:
   pgdata:
   redisdata:

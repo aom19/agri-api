@@ -43,6 +43,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	authGroup.POST("/register", authHandler.Register)
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/refresh", authHandler.Refresh)
+	authGroup.POST("/confirm-email", authHandler.ConfirmEmail)
+	authGroup.POST("/resend-confirmation", authHandler.ResendConfirmation)
 	authGroup.POST("/forgot-password", authHandler.ForgotPassword)
 	authGroup.POST("/reset-password/:token", authHandler.ResetPassword)
 

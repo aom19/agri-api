@@ -8,6 +8,7 @@ import (
 	"agri-api/internal/config"
 	"agri-api/internal/db"
 	httpdelivery "agri-api/internal/delivery/http"
+	"agri-api/internal/email"
 	"agri-api/internal/logger"
 	redisclient "agri-api/internal/redis"
 	"agri-api/internal/repository/postgres"
@@ -92,7 +93,16 @@ func main() {
 	log.Info("Redis connected successfully")
 	blacklist := auth.NewBlacklist(rdb)
 
-	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist)
+	emailService := email.NewEmailService(
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUser,
+		cfg.SMTPPassword,
+		cfg.SMTPFrom,
+		log,
+	)
+
+	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist, emailService, cfg.ClientOrigin)
 	rbacService := usecase.NewRBACService(appStore, jwtService, refreshRepo, blacklist)
 
 	// 6. Profile service

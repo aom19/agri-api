@@ -33,6 +33,12 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
+
 	PublicURL string
 }
 
@@ -61,6 +67,11 @@ func LoadConfig() *Config {
 		RedisAddr:       getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
 		RedisDB:         getEnvInt("REDIS_DB", 0),
+		SMTPHost:        getEnv("SMTP_HOST", "localhost"),
+		SMTPPort:        getEnvInt("SMTP_PORT", 1025),
+		SMTPUser:        getEnv("SMTP_USER", ""),
+		SMTPPassword:    getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:        getEnv("SMTP_FROM", "noreply@agri-manager.local"),
 		PublicURL:       getEnv("PUBLIC_URL", "http://localhost:8080"),
 	}
 }

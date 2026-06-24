@@ -3,12 +3,13 @@ package domain
 import "time"
 
 type User struct {
-	ID           int64  `json:"id"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"-"`
-	RoleID       int64  `json:"role_id"`
-	RoleCode     string `json:"role_code"`
-	RoleName     string `json:"role"`
+	ID             int64  `json:"id"`
+	Email          string `json:"email"`
+	PasswordHash   string `json:"-"`
+	EmailConfirmed bool   `json:"email_confirmed"`
+	RoleID         int64  `json:"role_id"`
+	RoleCode       string `json:"role_code"`
+	RoleName       string `json:"role"`
 }
 
 type UserProfile struct {
