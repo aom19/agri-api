@@ -8,9 +8,9 @@ INSERT INTO permissions (name, description) VALUES
     ('machines:read',     'Vizualizare mașini'),
     ('machines:write',    'Creare și editare mașini'),
     ('machines:delete',   'Ștergere mașini'),
-  ('fields:read',       'Vizualizare terenuri'),
-  ('fields:write',      'Creare și editare terenuri'),
-  ('fields:delete',     'Ștergere terenuri'),
+    ('fields:read',       'Vizualizare terenuri'),
+    ('fields:write',      'Creare și editare terenuri'),
+    ('fields:delete',     'Ștergere terenuri'),
     ('operators:read',    'Vizualizare operatori'),
     ('operators:write',   'Creare și editare operatori'),
     ('operators:delete',  'Ștergere operatori'),
@@ -21,7 +21,10 @@ INSERT INTO permissions (name, description) VALUES
     ('roles:write',       'Creare și editare roluri și permisiuni'),
     ('roles:delete',      'Ștergere roluri'),
     ('users:read',        'Vizualizare utilizatori'),
-    ('users:write',       'Modificare rol utilizator')
+    ('users:write',       'Modificare rol utilizator'),
+    ('users:disable',     'Dezactivare utilizatori'),
+    ('permissions:read',  'Vizualizare permisiuni')
+
 ON CONFLICT (name) DO NOTHING;
 
 -- ─── Roles ──────────────────────────────────────────────────
@@ -40,33 +43,29 @@ FROM roles r, permissions p
 WHERE r.code = 'admin'
 ON CONFLICT DO NOTHING;
 
--- manager: read+write pe machines/operators/assignments + roles:read + users:read
+-- manager: read+write pe machines/operators/assignments
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.code = 'manager'
   AND p.name IN (
       'machines:read',    'machines:write',
-  'fields:read',      'fields:write',
+      'fields:read',      'fields:write',
       'operators:read',   'operators:write',
-      'assignments:read', 'assignments:write',
-      'roles:read',
-      'users:read'
+      'assignments:read', 'assignments:write'
   )
 ON CONFLICT DO NOTHING;
 
--- viewer: doar :read pe toate resursele
+-- viewer: doar :read pe resursele operaționale
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.code = 'viewer'
   AND p.name IN (
       'machines:read',
-  'fields:read',
+      'fields:read',
       'operators:read',
-      'assignments:read',
-      'roles:read',
-      'users:read'
+      'assignments:read'
   )
 ON CONFLICT DO NOTHING;
 
