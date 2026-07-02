@@ -6,6 +6,7 @@ import (
 	"agri-api/internal/store"
 	"context"
 	"errors"
+	"strings"
 )
 
 type RBACService struct {
@@ -76,6 +77,9 @@ func (s *RBACService) DeleteRole(id int64) error {
 	if role == nil {
 		return errors.New("role not found")
 	}
+	if strings.EqualFold(role.Code, "admin") {
+		return errors.New("admin role cannot be deleted")
+	}
 	return s.store.RoleRepo.Delete(id)
 }
 
@@ -83,6 +87,17 @@ func (s *RBACService) DeleteRole(id int64) error {
 
 func (s *RBACService) GetAllPermissions() ([]domain.Permission, error) {
 	return s.store.PermissionRepo.GetAllPermissions()
+}
+
+func (s *RBACService) GetPermissionByID(id int64) (*domain.Permission, error) {
+	permission, err := s.store.PermissionRepo.GetPermissionByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if permission == nil {
+		return nil, errors.New("permission not found")
+	}
+	return permission, nil
 }
 
 func (s *RBACService) GetRolePermissions(roleID int64) ([]domain.Permission, error) {

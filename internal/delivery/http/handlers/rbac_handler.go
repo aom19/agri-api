@@ -152,6 +152,26 @@ func (h *RBACHandler) GetAllPermissions(c *gin.Context) {
 	c.JSON(http.StatusOK, perms)
 }
 
+func (h *RBACHandler) GetPermission(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	perm, err := h.service.GetPermissionByID(id)
+	if err != nil {
+		if err.Error() == "permission not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, perm)
+}
+
 // ─── My permissions ─────────────────────────────────────────────────────────
 
 // GetMyPermissions returnează permisiunile rolului utilizatorului autentificat.

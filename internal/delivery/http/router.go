@@ -23,7 +23,6 @@ type AppDeps struct {
 	AuthService       *usecase.AuthService
 	ProfileService    *usecase.ProfileService
 	RBACService       *usecase.RBACService
-	PermissionService *usecase.PermissionService
 	PermissionRepo    repository.PermissionRepository
 	UploadDir         string
 	JWTService        *auth.JWTService
