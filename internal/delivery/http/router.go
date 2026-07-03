@@ -23,6 +23,7 @@ type AppDeps struct {
 	AuthService       *usecase.AuthService
 	ProfileService    *usecase.ProfileService
 	RBACService       *usecase.RBACService
+	UserService       *usecase.UserService
 	PermissionRepo    repository.PermissionRepository
 	UploadDir         string
 	JWTService        *auth.JWTService
@@ -110,6 +111,12 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/auth/me/permissions", rbacHandler.GetMyPermissions)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────
+	userHandler := handlers.NewUserHandler(deps.UserService)
+	api.GET("/users", perm("users:read"), userHandler.GetAll)
+	api.GET("/users/:id", perm("users:read"), userHandler.GetByID)
+	api.POST("/users", perm("users:write"), userHandler.Create)
+	api.PATCH("/users/:id", perm("users:write"), userHandler.Update)
+	api.DELETE("/users/:id", perm("users:write"), userHandler.Delete)
 	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)
 
 

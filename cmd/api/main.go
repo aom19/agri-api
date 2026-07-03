@@ -104,6 +104,7 @@ func main() {
 
 	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist, emailService, cfg.ClientOrigin)
 	rbacService := usecase.NewRBACService(appStore, jwtService, refreshRepo, blacklist)
+	userService := usecase.NewUserService(appStore)
 
 	// 6. Profile service
 	uploadDir := "uploads/avatars"
@@ -141,6 +142,7 @@ func main() {
 		AuthService:       authService,
 		ProfileService:    profileService,
 		RBACService:       rbacService,
+		UserService:       userService,
 		PermissionRepo:    appStore.PermissionRepo,
 		UploadDir:         uploadDir,
 		JWTService:        jwtService,

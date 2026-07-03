@@ -13,6 +13,32 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 	return &UserRepo{db: db}
 }
 
+func (r *UserRepo) GetAll() ([]domain.User, error) {
+	query := `
+		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
+		FROM users u
+		LEFT JOIN roles ro ON ro.id = u.role_id
+		WHERE u.deleted_at IS NULL
+		ORDER BY u.id`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := make([]domain.User, 0)
+	for rows.Next() {
+		var u domain.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.RoleID, &u.RoleCode, &u.RoleName); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	return users, rows.Err()
+}
+
 func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {
 	query := `
 		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
@@ -44,6 +70,24 @@ func (r *UserRepo) GetByID(id int64) (*domain.User, error) {
 func (r *UserRepo) Create(user *domain.User) error {
 	query := `INSERT INTO users (email, password_hash, role_id) VALUES ($1, $2, $3) RETURNING id`
 	return r.db.QueryRow(query, user.Email, user.PasswordHash, user.RoleID).Scan(&user.ID)
+}
+
+func (r *UserRepo) Update(user *domain.User) error {
+	_, err := r.db.Exec(
+		`UPDATE users
+		 SET email = $1, role_id = $2, email_confirmed = $3, updated_at = NOW()
+		 WHERE id = $4 AND deleted_at IS NULL`,
+		user.Email,
+		user.RoleID,
+		user.EmailConfirmed,
+		user.ID,
+	)
+	return err
+}
+
+func (r *UserRepo) Delete(id int64) error {
+	_, err := r.db.Exec(`UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
 }
 
 func (r *UserRepo) MarkEmailConfirmed(id int64) error {
