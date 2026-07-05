@@ -87,9 +87,6 @@ func (assigmentService *AssigmentService) CreateAssigment(assigment *domain.Assi
 		if err := assigmentService.store.AssigmentRepo.Create(tx, assigmentCreated); err != nil {
 			return err
 		}
-		if err := assigmentService.store.MachineRepo.UpdateStatus(tx, assigment.MachineID, domain.MachineStatusInUse); err != nil {
-			return err
-		}
 		if err := assigmentService.store.OperatorRepo.UpdateStatus(tx, assigment.OperatorID, domain.OperatorStatusActive); err != nil {
 			return err
 		}
@@ -159,9 +156,6 @@ func (assigmentService *AssigmentService) CloseAssigment(id int64) (bool, error)
 	err = assigmentService.store.WithTx(func(tx *sql.Tx) error {
 		assigment.Status = domain.AssigmentStatusClosed
 		if err := assigmentService.store.AssigmentRepo.Update(id, assigment); err != nil {
-			return err
-		}
-		if err := assigmentService.store.MachineRepo.UpdateStatus(tx, assigment.MachineID, domain.MachineStatusAvailable); err != nil {
 			return err
 		}
 		return assigmentService.store.OperatorRepo.UpdateStatus(tx, assigment.OperatorID, domain.OperatorStatusInactive)

@@ -17,7 +17,7 @@ func NewMachineRepo(db *sql.DB) *MachineRepo {
 
 // GetAll returnează toate mașinile din baza de date
 func (machineRepo *MachineRepo) GetAll() ([]domain.Machine, error) {
-	rows, err := machineRepo.db.Query("SELECT id, name, type, status, description FROM machines WHERE deleted_at IS NULL")
+	rows, err := machineRepo.db.Query("SELECT id, name, code, type, brand, model, year, registration_number, fuel_type, status, notes FROM machines WHERE deleted_at IS NULL")
 	if err != nil {
 		return nil, err
 	}
@@ -26,8 +26,22 @@ func (machineRepo *MachineRepo) GetAll() ([]domain.Machine, error) {
 	var machines []domain.Machine
 	for rows.Next() {
 		var m domain.Machine
-		if err := rows.Scan(&m.ID, &m.Name, &m.Type, &m.Status, &m.Description); err != nil {
+		var year sql.NullInt64
+		var registrationNumber sql.NullString
+		var fuelType sql.NullString
+		if err := rows.Scan(&m.ID, &m.Name, &m.Code, &m.Type, &m.Brand, &m.Model, &year, &registrationNumber, &fuelType, &m.Status, &m.Notes); err != nil {
 			return nil, err
+		}
+		if year.Valid {
+			y := int(year.Int64)
+			m.Year = &y
+		}
+		if registrationNumber.Valid {
+			m.RegistrationNumber = registrationNumber.String
+		}
+		if fuelType.Valid {
+			ft := domain.FuelType(fuelType.String)
+			m.FuelType = &ft
 		}
 		machines = append(machines, m)
 	}
@@ -38,27 +52,59 @@ func (machineRepo *MachineRepo) GetAll() ([]domain.Machine, error) {
 // GetByID returnează o mașină după ID; returnează nil, nil dacă nu există
 func (machineRepo *MachineRepo) GetByID(id int64) (*domain.Machine, error) {
 	var m domain.Machine
-	err := machineRepo.db.QueryRow("SELECT id, name, type, status, description FROM machines WHERE id = $1 AND deleted_at IS NULL", id).Scan(&m.ID, &m.Name, &m.Type, &m.Status, &m.Description)
+	var year sql.NullInt64
+	var registrationNumber sql.NullString
+	var fuelType sql.NullString
+	err := machineRepo.db.QueryRow("SELECT id, name, code, type, brand, model, year, registration_number, fuel_type, status, notes FROM machines WHERE id = $1 AND deleted_at IS NULL", id).Scan(&m.ID, &m.Name, &m.Code, &m.Type, &m.Brand, &m.Model, &year, &registrationNumber, &fuelType, &m.Status, &m.Notes)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+	if year.Valid {
+		y := int(year.Int64)
+		m.Year = &y
+	}
+	if registrationNumber.Valid {
+		m.RegistrationNumber = registrationNumber.String
+	}
+	if fuelType.Valid {
+		ft := domain.FuelType(fuelType.String)
+		m.FuelType = &ft
+	}
 	return &m, nil
 }
 
 // Create inserează o mașină nouă și populează câmpul ID cu valoarea generată de DB
 func (machineRepo *MachineRepo) Create(machine *domain.Machine) error {
+	var fuelType any
+	if machine.FuelType != nil {
+		fuelType = string(*machine.FuelType)
+	}
+	var registrationNumber any
+	if machine.RegistrationNumber != "" {
+		registrationNumber = machine.RegistrationNumber
+	}
+
 	return machineRepo.db.QueryRow(
-		"INSERT INTO machines (name, type, status, description) VALUES ($1, $2, $3, $4) RETURNING id",
-		machine.Name, machine.Type, machine.Status, machine.Description,
+		"INSERT INTO machines (name, code, type, brand, model, year, registration_number, fuel_type, status, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+		machine.Name, machine.Code, machine.Type, machine.Brand, machine.Model, machine.Year, registrationNumber, fuelType, machine.Status, machine.Notes,
 	).Scan(&machine.ID)
 }
 
 // Update modifică datele unei mașini existente identificate prin ID
 func (machineRepo *MachineRepo) Update(id int64, machine *domain.Machine) error {
-	_, err := machineRepo.db.Exec("UPDATE machines SET name = $1, type = $2, status = $3, description = $4 WHERE id = $5 AND deleted_at IS NULL", machine.Name, machine.Type, machine.Status, machine.Description, id)
+	var fuelType any
+	if machine.FuelType != nil {
+		fuelType = string(*machine.FuelType)
+	}
+	var registrationNumber any
+	if machine.RegistrationNumber != "" {
+		registrationNumber = machine.RegistrationNumber
+	}
+
+	_, err := machineRepo.db.Exec("UPDATE machines SET name = $1, code = $2, type = $3, brand = $4, model = $5, year = $6, registration_number = $7, fuel_type = $8, status = $9, notes = $10, updated_at = NOW() WHERE id = $11 AND deleted_at IS NULL", machine.Name, machine.Code, machine.Type, machine.Brand, machine.Model, machine.Year, registrationNumber, fuelType, machine.Status, machine.Notes, id)
 	return err
 }
 
@@ -68,7 +114,7 @@ func (machineRepo *MachineRepo) Delete(id int64) error {
 }
 
 func (machineRepo *MachineRepo) UpdateStatus(tx *sql.Tx, id int64, status domain.MachineStatus) error {
-	query := `UPDATE machines SET status = $1 WHERE id = $2 AND deleted_at IS NULL`
+	query := `UPDATE machines SET status = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`
 	_, err := tx.Exec(query, status, id)
 	return err
 }

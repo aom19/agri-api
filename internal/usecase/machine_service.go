@@ -33,14 +33,29 @@ func (machineService *MachineService) GetMachineByID(id int64) (*domain.Machine,
 
 // CreateMachine validează și creează o mașină nouă cu statusul implicit "available"
 func (machineService *MachineService) CreateMachine(machine *domain.Machine) (*domain.Machine, error) {
-	if machine.Name == "" || machine.Type == "" {
-		return nil, errors.New("name and type are required")
+	if machine.Name == "" || machine.Code == "" || machine.Type == "" {
+		return nil, errors.New("name, code and type are required")
+	}
+	if !machine.Type.IsValid() {
+		return nil, errors.New("invalid machine type")
+	}
+	if machine.FuelType != nil && !machine.FuelType.IsValid() {
+		return nil, errors.New("invalid fuel type")
+	}
+	if machine.Year != nil && (*machine.Year < 1900 || *machine.Year > 2100) {
+		return nil, errors.New("invalid year")
 	}
 	m := &domain.Machine{
-		Name:        machine.Name,
-		Type:        machine.Type,
-		Status:      domain.MachineStatusAvailable,
-		Description: machine.Description,
+		Name:               machine.Name,
+		Code:               machine.Code,
+		Type:               machine.Type,
+		Brand:              machine.Brand,
+		Model:              machine.Model,
+		Year:               machine.Year,
+		RegistrationNumber: machine.RegistrationNumber,
+		FuelType:           machine.FuelType,
+		Status:             domain.MachineStatusActive,
+		Notes:              machine.Notes,
 	}
 	if err := machineService.machineRepo.Create(m); err != nil {
 		return nil, err
@@ -57,10 +72,32 @@ func (machineService *MachineService) UpdateMachine(id int64, machine *domain.Ma
 	if existing == nil {
 		return nil, errors.New("machine not found")
 	}
+	if machine.Name == "" || machine.Code == "" || machine.Type == "" {
+		return nil, errors.New("name, code and type are required")
+	}
+	if !machine.Type.IsValid() {
+		return nil, errors.New("invalid machine type")
+	}
+	if machine.FuelType != nil && !machine.FuelType.IsValid() {
+		return nil, errors.New("invalid fuel type")
+	}
+	if !machine.Status.IsValid() {
+		return nil, errors.New("invalid machine status")
+	}
+	if machine.Year != nil && (*machine.Year < 1900 || *machine.Year > 2100) {
+		return nil, errors.New("invalid year")
+	}
+
 	existing.Name = machine.Name
+	existing.Code = machine.Code
 	existing.Type = machine.Type
+	existing.Brand = machine.Brand
+	existing.Model = machine.Model
+	existing.Year = machine.Year
+	existing.RegistrationNumber = machine.RegistrationNumber
+	existing.FuelType = machine.FuelType
 	existing.Status = machine.Status
-	existing.Description = machine.Description
+	existing.Notes = machine.Notes
 
 	if err := machineService.machineRepo.Update(id, existing); err != nil {
 		return nil, err

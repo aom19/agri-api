@@ -21,15 +21,27 @@ func NewMachineHandler(service *usecase.MachineService) *MachineHandler {
 }
 
 type CreateMachineRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Type        string `json:"type" binding:"required"`
-	Description string `json:"description"`
+	Name               string             `json:"name" binding:"required"`
+	Code               string             `json:"code" binding:"required"`
+	Type               domain.MachineType `json:"type" binding:"required"`
+	Brand              string             `json:"brand"`
+	Model              string             `json:"model"`
+	Year               *int               `json:"year"`
+	RegistrationNumber string             `json:"registration_number"`
+	FuelType           *domain.FuelType   `json:"fuel_type"`
+	Notes              string             `json:"notes"`
 }
 type UpdateMachineRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Type        string `json:"type" `
-	Description string `json:"description"`
-	Status      string `json:"status" `
+	Name               string               `json:"name" binding:"required"`
+	Code               string               `json:"code" binding:"required"`
+	Type               domain.MachineType   `json:"type" binding:"required"`
+	Brand              string               `json:"brand"`
+	Model              string               `json:"model"`
+	Year               *int                 `json:"year"`
+	RegistrationNumber string               `json:"registration_number"`
+	FuelType           *domain.FuelType     `json:"fuel_type"`
+	Status             domain.MachineStatus `json:"status" binding:"required"`
+	Notes              string               `json:"notes"`
 }
 
 // Create creează o mașină nouă
@@ -50,9 +62,15 @@ func (h *MachineHandler) Create(c *gin.Context) {
 		return
 	}
 	machine, err := h.service.CreateMachine(&domain.Machine{
-		Name:        req.Name,
-		Type:        req.Type,
-		Description: req.Description,
+		Name:               req.Name,
+		Code:               req.Code,
+		Type:               req.Type,
+		Brand:              req.Brand,
+		Model:              req.Model,
+		Year:               req.Year,
+		RegistrationNumber: req.RegistrationNumber,
+		FuelType:           req.FuelType,
+		Notes:              req.Notes,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -127,8 +145,11 @@ func (h *MachineHandler) Update(c *gin.Context) {
 		return
 	}
 	machine, err := h.service.GetMachineByID(machineID)
-
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if machine == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Machine not found"})
 		return
 	}
@@ -139,11 +160,18 @@ func (h *MachineHandler) Update(c *gin.Context) {
 		return
 	}
 
-	machine.Name = req.Name
-	machine.Type = req.Type
-	machine.Description = req.Description
-
-	updatedMachine, err := h.service.UpdateMachine(machineID, machine)
+	updatedMachine, err := h.service.UpdateMachine(machineID, &domain.Machine{
+		Name:               req.Name,
+		Code:               req.Code,
+		Type:               req.Type,
+		Brand:              req.Brand,
+		Model:              req.Model,
+		Year:               req.Year,
+		RegistrationNumber: req.RegistrationNumber,
+		FuelType:           req.FuelType,
+		Status:             req.Status,
+		Notes:              req.Notes,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update machine"})
 		return
