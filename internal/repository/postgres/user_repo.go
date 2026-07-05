@@ -15,10 +15,9 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 func (r *UserRepo) GetAll() ([]domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.email_confirmed, (u.deleted_at IS NOT NULL) AS disabled, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
-		WHERE u.deleted_at IS NULL
 		ORDER BY u.id`
 
 	rows, err := r.db.Query(query)
@@ -30,7 +29,7 @@ func (r *UserRepo) GetAll() ([]domain.User, error) {
 	users := make([]domain.User, 0)
 	for rows.Next() {
 		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.RoleID, &u.RoleCode, &u.RoleName); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.Disabled, &u.RoleID, &u.RoleCode, &u.RoleName); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -87,6 +86,16 @@ func (r *UserRepo) Update(user *domain.User) error {
 
 func (r *UserRepo) Delete(id int64) error {
 	_, err := r.db.Exec(`UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
+}
+
+func (r *UserRepo) Disable(id int64) error {
+	_, err := r.db.Exec(`UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
+}
+
+func (r *UserRepo) Enable(id int64) error {
+	_, err := r.db.Exec(`UPDATE users SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NOT NULL`, id)
 	return err
 }
 

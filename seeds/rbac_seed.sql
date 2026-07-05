@@ -23,6 +23,7 @@ INSERT INTO permissions (name, description) VALUES
     ('users:read',        'Vizualizare utilizatori'),
     ('users:write',       'Modificare rol utilizator'),
     ('users:disable',     'Dezactivare utilizatori'),
+    ('users:enable',      'Reactivare utilizatori'),
     ('permissions:read',  'Vizualizare permisiuni')
 
 ON CONFLICT (name) DO NOTHING;
@@ -41,6 +42,14 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.code = 'admin'
+ON CONFLICT DO NOTHING;
+
+-- admin: asigură explicit dreptul de reactivare utilizatori
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.code = 'admin'
+  AND p.name = 'users:enable'
 ON CONFLICT DO NOTHING;
 
 -- manager: read+write pe machines/operators/assignments

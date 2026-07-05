@@ -116,7 +116,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/users/:id", perm("users:read"), userHandler.GetByID)
 	api.POST("/users", perm("users:write"), userHandler.Create)
 	api.PATCH("/users/:id", perm("users:write"), userHandler.Update)
-	api.DELETE("/users/:id", perm("users:write"), userHandler.Delete)
+	api.DELETE("/users/:id", perm("users:disable"), userHandler.Disable)
+	api.PATCH("/users/:id/enable", perm("users:enable"), userHandler.Enable)
 	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)
 
 

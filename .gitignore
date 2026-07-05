@@ -28,3 +28,6 @@ uploads/*
 uploads/avatars/*
 !uploads/avatars/.gitkeep
 
+# Jurnal local de modificări
+updates.md
+

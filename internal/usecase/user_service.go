@@ -135,3 +135,33 @@ func (s *UserService) DeleteUser(id int64) error {
 	}
 	return s.store.UserRepo.Delete(id)
 }
+
+func (s *UserService) DisableUsers(id int64) error {
+	user, err := s.store.UserRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+	return s.store.UserRepo.Disable(id)
+}
+
+func (s *UserService) EnableUsers(id int64) error {
+	users, err := s.store.UserRepo.GetAll()
+	if err != nil {
+		return err
+	}
+
+	for _, user := range users {
+		if user.ID != id {
+			continue
+		}
+		if !user.Disabled {
+			return errors.New("user already enabled")
+		}
+		return s.store.UserRepo.Enable(id)
+	}
+
+	return errors.New("user not found")
+}

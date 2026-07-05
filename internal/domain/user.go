@@ -7,6 +7,7 @@ type User struct {
 	Email          string `json:"email"`
 	PasswordHash   string `json:"-"`
 	EmailConfirmed bool   `json:"email_confirmed"`
+	Disabled       bool   `json:"disabled"`
 	RoleID         int64  `json:"role_id"`
 	RoleCode       string `json:"role_code"`
 	RoleName       string `json:"role"`
