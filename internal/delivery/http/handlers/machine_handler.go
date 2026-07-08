@@ -30,6 +30,7 @@ type CreateMachineRequest struct {
 	RegistrationNumber string             `json:"registration_number"`
 	FuelType           *domain.FuelType   `json:"fuel_type"`
 	Notes              string             `json:"notes"`
+	WorkingHours       *float64           `json:"working_hours"`
 }
 type UpdateMachineRequest struct {
 	Name               string               `json:"name" binding:"required"`
@@ -42,6 +43,7 @@ type UpdateMachineRequest struct {
 	FuelType           *domain.FuelType     `json:"fuel_type"`
 	Status             domain.MachineStatus `json:"status" binding:"required"`
 	Notes              string               `json:"notes"`
+	WorkingHours       *float64             `json:"working_hours"`
 }
 
 // Create creează o mașină nouă
@@ -90,8 +92,7 @@ func (h *MachineHandler) GetAll(c *gin.Context) {
 	machines, err := h.service.GetMachines()
 
 	if err != nil {
-		// return  empty array instead of error
-		c.JSON(http.StatusNotFound, gin.H{"machines": []domain.Machine{}})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, machines)

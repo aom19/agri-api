@@ -1,14 +1,9 @@
 package domain
 
-type MachineStatus string
 type MachineType string
 type FuelType string
 
 const (
-	MachineStatusActive      MachineStatus = "active"
-	MachineStatusMaintenance MachineStatus = "maintenance"
-	MachineStatusInactive    MachineStatus = "inactive"
-
 	MachineTypeTractor    MachineType = "tractor"
 	MachineTypeCombine    MachineType = "combine"
 	MachineTypeDrone      MachineType = "drone"
@@ -24,18 +19,19 @@ const (
 )
 
 type Machine struct {
-	ID                 int64         `json:"id"`
-	Name               string        `json:"name"`
-	Code               string        `json:"code"`
-	Type               MachineType   `json:"type"`
-	Brand              string        `json:"brand,omitempty"`
-	Model              string        `json:"model,omitempty"`
-	Year               *int          `json:"year,omitempty"`
-	RegistrationNumber string        `json:"registration_number,omitempty"`
-	FuelType           *FuelType     `json:"fuel_type,omitempty"`
-	Status             MachineStatus `json:"status"`
-	Notes              string        `json:"notes,omitempty"`
-
+	ID                 int64       `json:"id"`
+	Name               string      `json:"name"`
+	Code               string      `json:"code"`
+	Type               MachineType `json:"type"`
+	Brand              string      `json:"brand,omitempty"`
+	Model              string      `json:"model,omitempty"`
+	Year               *int        `json:"year,omitempty"`
+	RegistrationNumber string      `json:"registration_number,omitempty"`
+	FuelType           *FuelType   `json:"fuel_type,omitempty"`
+	OperatingHours     *float64    `json:"operating_hours,omitempty"`
+	Status             AssetStatus `json:"status"`
+	Notes              string      `json:"notes,omitempty"`
+	WorkingHours       *float64    `json:"working_hours,omitempty"`
 	Auditfields
 }
 
@@ -56,12 +52,6 @@ var validFuelTypes = map[FuelType]struct{}{
 	FuelTypeHybrid:   {},
 }
 
-var validMachineStatuses = map[MachineStatus]struct{}{
-	MachineStatusActive:      {},
-	MachineStatusMaintenance: {},
-	MachineStatusInactive:    {},
-}
-
 func (machineType MachineType) IsValid() bool {
 	_, ok := validMachineTypes[machineType]
 	return ok
@@ -69,10 +59,5 @@ func (machineType MachineType) IsValid() bool {
 
 func (fuelType FuelType) IsValid() bool {
 	_, ok := validFuelTypes[fuelType]
-	return ok
-}
-
-func (machineStatus MachineStatus) IsValid() bool {
-	_, ok := validMachineStatuses[machineStatus]
 	return ok
 }

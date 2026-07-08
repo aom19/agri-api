@@ -17,6 +17,7 @@ import (
 type AppDeps struct {
 	Log               *logger.Logger
 	MachineService    *usecase.MachineService
+	ImplementService  *usecase.ImplementService
 	OperatorService   *usecase.OperatorService
 	FieldService      *usecase.FieldService
 	AssignmentService *usecase.AssigmentService
@@ -71,6 +72,18 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.POST("/machines", perm("machines:write"), machineHandler.Create)
 	api.PATCH("/machines/:id", perm("machines:write"), machineHandler.Update)
 	api.DELETE("/machines/:id", perm("machines:delete"), machineHandler.Delete)
+
+	// ─── Implements ──────────────────────────────────────────────────────────
+	implementHandler := handlers.NewImplementHandler(deps.ImplementService)
+	api.GET("/implements", perm("implements:read"), implementHandler.GetAll)
+	api.GET("/implements/:id", perm("implements:read"), implementHandler.GetByID)
+	api.POST("/implements", perm("implements:write"), implementHandler.Create)
+	api.PATCH("/implements/:id", perm("implements:write"), implementHandler.Update)
+	api.DELETE("/implements/:id", perm("implements:delete"), implementHandler.Delete)
+	//activate
+	api.PATCH("/implements/:id/activate", perm("implements:write"), implementHandler.Activate)
+	api.PATCH("/implements/:id/deactivate", perm("implements:write"), implementHandler.Deactivate)
+
 
 	// ─── Operators ───────────────────────────────────────────────────────────
 	operatorHandler := handlers.NewOperatorHandler(deps.OperatorService)

@@ -65,6 +65,10 @@ func main() {
 	operatorRepo := postgres.NewOperatorRepo(sqlDB)
 	operatorService := usecase.NewOperatorService(operatorRepo)
 
+	// 2.1 Creează repository-ul pentru utilaje agricole și serviciul aferent
+	implementRepo := postgres.NewImplementRepo(sqlDB)
+	implementService := usecase.NewImplementService(implementRepo)
+
 	// 2.1 Creează repository-ul pentru terenuri și serviciul aferent
 	fieldRepo := postgres.NewFieldRepo(sqlDB)
 	fieldService := usecase.NewFieldService(fieldRepo)
@@ -136,6 +140,7 @@ func main() {
 	httpdelivery.SetupRoutes(server, httpdelivery.AppDeps{
 		Log:               log,
 		MachineService:    machineService,
+		ImplementService:  implementService,
 		OperatorService:   operatorService,
 		FieldService:      fieldService,
 		AssignmentService: assigmentService,

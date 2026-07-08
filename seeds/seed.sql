@@ -1,6 +1,17 @@
 -- Curăță datele existente (CASCADE șterge și asignările dependente)
 TRUNCATE TABLE assignments, operators, machines RESTART IDENTITY CASCADE;
 
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'implement_compatibilities') THEN
+        EXECUTE 'TRUNCATE TABLE implement_compatibilities RESTART IDENTITY';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'implements') THEN
+        EXECUTE 'TRUNCATE TABLE implements RESTART IDENTITY';
+    END IF;
+END $$;
+
 -- Seed: mașini agricole (format nume: <TIP>-<BRAND>-<MODEL>-<NR>)
 INSERT INTO machines (
     name,
@@ -11,27 +22,65 @@ INSERT INTO machines (
     year,
     registration_number,
     fuel_type,
+    operating_hours,
+    asset_status,
+    notes
+) VALUES
+    ('TR-JOHNDEERE-6R185-01', 'MCH-0001', 'tractor', 'John Deere', '6R 185', 2018, 'B-AG-0001', 'diesel', 6420, 'active', 'Tractor principal lucrari camp'),
+    ('TR-FENDT-724VARIO-02', 'MCH-0002', 'tractor', 'Fendt', '724 Vario', 2019, 'B-AG-0002', 'diesel', 5190, 'active', 'Tractor pentru transport'),
+    ('TR-NEWHOLLAND-T7270-03', 'MCH-0003', 'tractor', 'New Holland', 'T7.270', 2017, 'B-AG-0003', 'diesel', 7340, 'maintenance', 'Revizie motor programata'),
+    ('TR-CASEIH-PUMA240-04', 'MCH-0004', 'tractor', 'Case IH', 'Puma 240', 2020, 'B-AG-0004', 'diesel', 4810, 'active', 'Tractor pentru arat'),
+    ('TR-MASSEY-7720-05', 'MCH-0005', 'tractor', 'Massey Ferguson', '7720', 2016, 'B-AG-0005', 'diesel', 8125, 'inactive', 'Rezerva sezon'),
+    ('TR-VALTRA-T254-06', 'MCH-0006', 'tractor', 'Valtra', 'T254', 2022, 'B-AG-0006', 'diesel', 2130, 'active', 'Utilaj nou'),
+    ('TR-SAME-EXPLORER120-07', 'MCH-0007', 'tractor', 'Same', 'Explorer 120', 2015, 'B-AG-0007', 'diesel', 9020, 'active', 'Lucrari usoare'),
+    ('TR-ZETOR-FORTERRA140-08', 'MCH-0008', 'tractor', 'Zetor', 'Forterra 140', 2016, 'B-AG-0008', 'diesel', 6880, 'maintenance', 'Verificare transmisie'),
+    ('DR-DJI-AGRAST30-01', 'MCH-0009', 'drone', 'DJI', 'Agras T30', 2022, 'B-AG-0009', 'electric', 940, 'active', 'Monitorizare culturi'),
+    ('DR-DJI-AGRAST40-02', 'MCH-0010', 'drone', 'DJI', 'Agras T40', 2023, 'B-AG-0010', 'electric', 610, 'active', 'Stropiri localizate'),
+    ('CB-CLAAS-LEXION780-01', 'MCH-0011', 'combine', 'Claas', 'Lexion 780', 2019, 'B-AG-0011', 'diesel', 3890, 'active', 'Recoltare grau'),
+    ('CB-JOHNDEERE-S780-02', 'MCH-0012', 'combine', 'John Deere', 'S780', 2021, 'B-AG-0012', 'diesel', 2750, 'active', 'Recoltare porumb'),
+    ('CB-FENDT-IDEAL9T-03', 'MCH-0013', 'combine', 'Fendt', 'Ideal 9T', 2021, 'B-AG-0013', 'diesel', 3180, 'maintenance', 'Service pre-campanie'),
+    ('CAR-DACIA-DUSTER-01', 'MCH-0014', 'car', 'Dacia', 'Duster', 2020, 'B-AG-0014', 'gasoline', 2260, 'active', 'Masina deplasari teren'),
+    ('CAR-DACIA-DUSTER-02', 'MCH-0015', 'car', 'Dacia', 'Duster', 2021, 'B-AG-0015', 'gasoline', 1980, 'active', 'Masina echipa tehnica'),
+    ('CAR-DACIA-DUSTER-03', 'MCH-0016', 'car', 'Dacia', 'Duster', 2022, 'B-AG-0016', 'hybrid', 1290, 'inactive', 'Back-up administrativ'),
+    ('ST-MERCEDES-SPRINTER-01', 'MCH-0017', 'small_truck', 'Mercedes', 'Sprinter', 2019, 'B-AG-0017', 'diesel', 4560, 'active', 'Transport piese si echipamente'),
+    ('ST-MERCEDES-SPRINTER-02', 'MCH-0018', 'small_truck', 'Mercedes', 'Sprinter', 2021, 'B-AG-0018', 'diesel', 3010, 'maintenance', 'Revizie flota'),
+    ('SP-HARDI-ALPHAEVO-01', 'MCH-0019', 'sprayer', 'Hardi', 'Alpha Evo', 2020, 'B-AG-0019', 'diesel', 2870, 'active', 'Pulverizator autopropulsat pentru tratamente')
+ON CONFLICT DO NOTHING;
+
+-- Seed: implementuri (echipamente atașabile, fără motor propriu)
+INSERT INTO implements (
+    name,
+    code,
+    type,
+    brand,
+    model,
+    year,
+    working_width,
+    capacity,
     status,
     notes
 ) VALUES
-    ('TR-JOHNDEERE-6R185-01', 'MCH-0001', 'tractor', 'John Deere', '6R 185', 2018, 'B-AG-0001', 'diesel', 'active', 'Tractor principal lucrari camp'),
-    ('TR-FENDT-724VARIO-02', 'MCH-0002', 'tractor', 'Fendt', '724 Vario', 2019, 'B-AG-0002', 'diesel', 'active', 'Tractor pentru transport'),
-    ('TR-NEWHOLLAND-T7270-03', 'MCH-0003', 'tractor', 'New Holland', 'T7.270', 2017, 'B-AG-0003', 'diesel', 'maintenance', 'Revizie motor programata'),
-    ('TR-CASEIH-PUMA240-04', 'MCH-0004', 'tractor', 'Case IH', 'Puma 240', 2020, 'B-AG-0004', 'diesel', 'active', 'Tractor pentru arat'),
-    ('TR-MASSEY-7720-05', 'MCH-0005', 'tractor', 'Massey Ferguson', '7720', 2016, 'B-AG-0005', 'diesel', 'inactive', 'Rezerva sezon'),
-    ('TR-VALTRA-T254-06', 'MCH-0006', 'tractor', 'Valtra', 'T254', 2022, 'B-AG-0006', 'diesel', 'active', 'Utilaj nou'),
-    ('TR-SAME-EXPLORER120-07', 'MCH-0007', 'tractor', 'Same', 'Explorer 120', 2015, 'B-AG-0007', 'diesel', 'active', 'Lucrari usoare'),
-    ('TR-ZETOR-FORTERRA140-08', 'MCH-0008', 'tractor', 'Zetor', 'Forterra 140', 2016, 'B-AG-0008', 'diesel', 'maintenance', 'Verificare transmisie'),
-    ('DR-DJI-AGRAST30-01', 'MCH-0009', 'drone', 'DJI', 'Agras T30', 2022, 'B-AG-0009', 'electric', 'active', 'Monitorizare culturi'),
-    ('DR-DJI-AGRAST40-02', 'MCH-0010', 'drone', 'DJI', 'Agras T40', 2023, 'B-AG-0010', 'electric', 'active', 'Stropiri localizate'),
-    ('CB-CLAAS-LEXION780-01', 'MCH-0011', 'combine', 'Claas', 'Lexion 780', 2019, 'B-AG-0011', 'diesel', 'active', 'Recoltare grau'),
-    ('CB-JOHNDEERE-S780-02', 'MCH-0012', 'combine', 'John Deere', 'S780', 2021, 'B-AG-0012', 'diesel', 'active', 'Recoltare porumb'),
-    ('CB-FENDT-IDEAL9T-03', 'MCH-0013', 'combine', 'Fendt', 'Ideal 9T', 2021, 'B-AG-0013', 'diesel', 'maintenance', 'Service pre-campanie'),
-    ('CAR-DACIA-DUSTER-01', 'MCH-0014', 'car', 'Dacia', 'Duster', 2020, 'B-AG-0014', 'gasoline', 'active', 'Masina deplasari teren'),
-    ('CAR-DACIA-DUSTER-02', 'MCH-0015', 'car', 'Dacia', 'Duster', 2021, 'B-AG-0015', 'gasoline', 'active', 'Masina echipa tehnica'),
-    ('CAR-DACIA-DUSTER-03', 'MCH-0016', 'car', 'Dacia', 'Duster', 2022, 'B-AG-0016', 'hybrid', 'inactive', 'Back-up administrativ'),
-    ('ST-MERCEDES-SPRINTER-01', 'MCH-0017', 'small_truck', 'Mercedes', 'Sprinter', 2019, 'B-AG-0017', 'diesel', 'active', 'Transport piese si echipamente'),
-    ('ST-MERCEDES-SPRINTER-02', 'MCH-0018', 'small_truck', 'Mercedes', 'Sprinter', 2021, 'B-AG-0018', 'diesel', 'maintenance', 'Revizie flota')
+    ('PL-LEMKEN-JUWEL8-01', 'IMP-0001', 'plow', 'Lemken', 'Juwel 8', 2020, 2.4, NULL, 'active', 'Plug reversibil pentru arat'),
+    ('SE-HORSCH-PRONTO6DC-01', 'IMP-0002', 'seeder', 'Horsch', 'Pronto 6 DC', 2021, 6.0, NULL, 'active', 'Semanatoare cereale paioase'),
+    ('FS-AMAZONE-ZA-TS4200-01', 'IMP-0003', 'fertilizer_spreader', 'Amazone', 'ZA-TS 4200', 2019, NULL, 4200, 'active', 'Distribuitor ingrasaminte'),
+    ('SP-RAUCH-AERO32-01', 'IMP-0004', 'sprayer', 'Rauch', 'Aero 32', 2022, 32.0, 3200, 'maintenance', 'Pulverizator tractat'),
+    ('TR-KRAMPE-HALFPIPE-01', 'IMP-0005', 'trailer', 'Krampe', 'Halfpipe', 2018, NULL, 18000, 'active', 'Remorca transport cereale'),
+    ('HD-CLAAS-VARIO1080-01', 'IMP-0006', 'header', 'Claas', 'Vario 1080', 2020, 10.8, NULL, 'active', 'Header pentru combine'),
+    ('DH-KVERNELAND-QUALIDISC-01', 'IMP-0007', 'disc_harrow', 'Kverneland', 'Qualidisc', 2019, 4.0, NULL, 'active', 'Grapa cu discuri pentru pregatirea patului germinativ'),
+    ('CV-KONGSKILDE-VIBROFLEX-01', 'IMP-0008', 'cultivator', 'Kongskilde', 'Vibro Flex', 2017, 4.5, NULL, 'active', 'Cultivator pentru lucrari superficiale'),
+    ('OT-UNIVERSAL-PLATFORM-01', 'IMP-0009', 'other', 'Universal', 'Platform', 2015, NULL, 2500, 'inactive', 'Implement generic pentru utilizari diverse')
+ON CONFLICT DO NOTHING;
+
+-- Seed: compatibilități între tipuri de mașini și implementuri
+INSERT INTO implement_compatibilities (machine_type, implement_type) VALUES
+    ('tractor', 'plow'),
+    ('tractor', 'seeder'),
+    ('tractor', 'fertilizer_spreader'),
+    ('tractor', 'sprayer'),
+    ('tractor', 'trailer'),
+    ('combine', 'header'),
+    ('combine', 'trailer'),
+    ('drone', 'sprayer')
 ON CONFLICT DO NOTHING;
 
 -- Seed: 15 operatori
