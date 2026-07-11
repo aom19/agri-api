@@ -12,4 +12,5 @@ type OperatorRepository interface {
 	Update(id int64, operator *domain.Operator) error
 	Delete(id int64) error
 	UpdateStatus(tx *sql.Tx, id int64, status domain.OperatorStatus) error
+	UpdateStatusDirect(id int64, status domain.OperatorStatus) error
 }

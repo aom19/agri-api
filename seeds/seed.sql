@@ -84,22 +84,22 @@ INSERT INTO implement_compatibilities (machine_type, implement_type) VALUES
 ON CONFLICT DO NOTHING;
 
 -- Seed: 15 operatori
-INSERT INTO operators (name, status) VALUES
-    ('Alexandru Ionescu', 'active'),
-    ('Mihai Popescu',     'active'),
-    ('Gheorghe Dănilă',   'active'),
-    ('Ion Constantin',    'active'),
-    ('Vasile Marin',      'active'),
-    ('Dumitru Florescu',  'active'),
-    ('Nicolae Stancu',    'active'),
-    ('Florin Gheorghiu',  'active'),
-    ('Octavian Rus',      'active'),
-    ('Petru Moldovan',    'active'),
-    ('Andrei Popa',       'inactive'),
-    ('Cristian Luca',     'inactive'),
-    ('Bogdan Stoica',     'active'),
-    ('Radu Nistor',       'active'),
-    ('Sorin Enache',      'active')
+INSERT INTO operators (name, phone, email, status) VALUES
+    ('Alexandru Ionescu', '+40721100001', 'alexandru.ionescu@agri.ro', 'active'),
+    ('Mihai Popescu',     '+40721100002', 'mihai.popescu@agri.ro',     'active'),
+    ('Gheorghe Dănilă',   '+40721100003', NULL,                        'active'),
+    ('Ion Constantin',    '+40721100004', NULL,                        'active'),
+    ('Vasile Marin',      '+40721100005', 'vasile.marin@agri.ro',      'active'),
+    ('Dumitru Florescu',  '+40721100006', NULL,                        'active'),
+    ('Nicolae Stancu',    '+40721100007', 'nicolae.stancu@agri.ro',    'active'),
+    ('Florin Gheorghiu',  '+40721100008', NULL,                        'active'),
+    ('Octavian Rus',      '+40721100009', 'octavian.rus@agri.ro',      'active'),
+    ('Petru Moldovan',    '+40721100010', NULL,                        'active'),
+    ('Andrei Popa',       '+40721100011', NULL,                        'inactive'),
+    ('Cristian Luca',     '+40721100012', NULL,                        'inactive'),
+    ('Bogdan Stoica',     '+40721100013', 'bogdan.stoica@agri.ro',     'active'),
+    ('Radu Nistor',       '+40721100014', NULL,                        'active'),
+    ('Sorin Enache',      '+40721100015', 'sorin.enache@agri.ro',      'active')
 ON CONFLICT DO NOTHING;
 
 -- Seed: 15 asignări — referință după nume, nu ID hardcodat

@@ -84,7 +84,6 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/implements/:id/activate", perm("implements:write"), implementHandler.Activate)
 	api.PATCH("/implements/:id/deactivate", perm("implements:write"), implementHandler.Deactivate)
 
-
 	// ─── Operators ───────────────────────────────────────────────────────────
 	operatorHandler := handlers.NewOperatorHandler(deps.OperatorService)
 	api.GET("/operators", perm("operators:read"), operatorHandler.GetAll)
@@ -92,6 +91,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.POST("/operators", perm("operators:write"), operatorHandler.Create)
 	api.PATCH("/operators/:id", perm("operators:write"), operatorHandler.Update)
 	api.DELETE("/operators/:id", perm("operators:delete"), operatorHandler.Delete)
+	api.PATCH("/operators/:id/disable", perm("operators:disable"), operatorHandler.Disable)
+	api.PATCH("/operators/:id/enable", perm("operators:disable"), operatorHandler.Enable)
 
 	// ─── Fields ───────────────────────────────────────────────────────────────
 	fieldHandler := handlers.NewFieldHandler(deps.FieldService)
@@ -132,6 +133,5 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/users/:id", perm("users:disable"), userHandler.Disable)
 	api.PATCH("/users/:id/enable", perm("users:enable"), userHandler.Enable)
 	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)
-
 
 }

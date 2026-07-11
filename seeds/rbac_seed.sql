@@ -17,6 +17,7 @@ INSERT INTO permissions (name, description) VALUES
     ('operators:read',    'Vizualizare operatori'),
     ('operators:write',   'Creare și editare operatori'),
     ('operators:delete',  'Ștergere operatori'),
+    ('operators:disable', 'Dezactivare și reactivare operatori'),
     ('assignments:read',  'Vizualizare asignări'),
     ('assignments:write', 'Creare și editare asignări'),
     ('assignments:delete','Ștergere asignări'),
@@ -64,7 +65,7 @@ WHERE r.code = 'manager'
       'machines:read',    'machines:write',
       'implements:read',  'implements:write', 'implements:delete',
       'fields:read',      'fields:write',
-      'operators:read',   'operators:write',
+      'operators:read',   'operators:write',  'operators:disable',
       'assignments:read', 'assignments:write'
   )
 ON CONFLICT DO NOTHING;

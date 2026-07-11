@@ -16,13 +16,17 @@ type OperatorHandler struct {
 }
 
 type CreateOperatorRequest struct {
-	Name   string                `json:"name" binding:"required"`
-	Status domain.OperatorStatus `json:"status"`
+	Name  string `json:"name" binding:"required"`
+	Phone string `json:"phone"`
+	Email string `json:"email"`
+	Notes string `json:"notes"`
 }
 
 type UpdateOperatorRequest struct {
-	Name   string                `json:"name" binding:"required"`
-	Status domain.OperatorStatus `json:"status"`
+	Name  string `json:"name" binding:"required"`
+	Phone string `json:"phone"`
+	Email string `json:"email"`
+	Notes string `json:"notes"`
 }
 
 // NewOperatorHandler creează un handler nou cu serviciul injectat
@@ -48,8 +52,10 @@ func (h *OperatorHandler) Create(c *gin.Context) {
 		return
 	}
 	operator, err := h.service.CreateOperator(&domain.Operator{
-		Name:   req.Name,
-		Status: req.Status,
+		Name:  req.Name,
+		Phone: req.Phone,
+		Email: req.Email,
+		Notes: req.Notes,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -69,7 +75,6 @@ func (h *OperatorHandler) GetAll(c *gin.Context) {
 	operators, err := h.service.GetOperators()
 
 	if err != nil {
-		// return  empty array instead of error
 		c.JSON(http.StatusNotFound, gin.H{"operators": []domain.Operator{}})
 		return
 	}
@@ -129,8 +134,10 @@ func (h *OperatorHandler) Update(c *gin.Context) {
 		return
 	}
 	operator, err := h.service.UpdateOperator(operatorID, &domain.Operator{
-		Name:   req.Name,
-		Status: req.Status,
+		Name:  req.Name,
+		Phone: req.Phone,
+		Email: req.Email,
+		Notes: req.Notes,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -165,4 +172,52 @@ func (h *OperatorHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// Disable dezactivează un operator (setează status la inactive)
+// @Summary      Dezactivare operator
+// @Tags         operators
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID operator"
+// @Success      200 {object} domain.Operator
+// @Failure      400 {object} object{error=string}
+// @Router       /operators/{id}/disable [patch]
+func (h *OperatorHandler) Disable(c *gin.Context) {
+	id := c.Param("id")
+	operatorID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operator ID"})
+		return
+	}
+	operator, err := h.service.DisableOperator(operatorID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, operator)
+}
+
+// Enable reactivează un operator (setează status la active)
+// @Summary      Reactivare operator
+// @Tags         operators
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID operator"
+// @Success      200 {object} domain.Operator
+// @Failure      400 {object} object{error=string}
+// @Router       /operators/{id}/enable [patch]
+func (h *OperatorHandler) Enable(c *gin.Context) {
+	id := c.Param("id")
+	operatorID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operator ID"})
+		return
+	}
+	operator, err := h.service.EnableOperator(operatorID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, operator)
 }
