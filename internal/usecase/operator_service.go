@@ -35,11 +35,12 @@ func (operatorService *OperatorService) CreateOperator(operator *domain.Operator
 		return nil, errors.New("name is required")
 	}
 	o := &domain.Operator{
-		Name:   operator.Name,
-		Phone:  operator.Phone,
-		Email:  operator.Email,
-		Notes:  operator.Notes,
-		Status: domain.OperatorStatusActive,
+		Name:                operator.Name,
+		Phone:               operator.Phone,
+		Email:               operator.Email,
+		Notes:               operator.Notes,
+		Status:              domain.OperatorStatusActive,
+		AllowedMachineTypes: operator.AllowedMachineTypes,
 	}
 	if err := operatorService.operatorRepo.Create(o); err != nil {
 		return nil, err
@@ -60,6 +61,7 @@ func (operatorService *OperatorService) UpdateOperator(id int64, operator *domai
 	existing.Phone = operator.Phone
 	existing.Email = operator.Email
 	existing.Notes = operator.Notes
+	existing.AllowedMachineTypes = operator.AllowedMachineTypes
 	if err := operatorService.operatorRepo.Update(id, existing); err != nil {
 		return nil, err
 	}

@@ -16,17 +16,19 @@ type OperatorHandler struct {
 }
 
 type CreateOperatorRequest struct {
-	Name  string `json:"name" binding:"required"`
-	Phone string `json:"phone"`
-	Email string `json:"email"`
-	Notes string `json:"notes"`
+	Name                string               `json:"name" binding:"required"`
+	Phone               string               `json:"phone"`
+	Email               string               `json:"email"`
+	Notes               string               `json:"notes"`
+	AllowedMachineTypes []domain.MachineType `json:"allowed_machine_types"`
 }
 
 type UpdateOperatorRequest struct {
-	Name  string `json:"name" binding:"required"`
-	Phone string `json:"phone"`
-	Email string `json:"email"`
-	Notes string `json:"notes"`
+	Name                string               `json:"name" binding:"required"`
+	Phone               string               `json:"phone"`
+	Email               string               `json:"email"`
+	Notes               string               `json:"notes"`
+	AllowedMachineTypes []domain.MachineType `json:"allowed_machine_types"`
 }
 
 // NewOperatorHandler creează un handler nou cu serviciul injectat
@@ -52,10 +54,11 @@ func (h *OperatorHandler) Create(c *gin.Context) {
 		return
 	}
 	operator, err := h.service.CreateOperator(&domain.Operator{
-		Name:  req.Name,
-		Phone: req.Phone,
-		Email: req.Email,
-		Notes: req.Notes,
+		Name:                req.Name,
+		Phone:               req.Phone,
+		Email:               req.Email,
+		Notes:               req.Notes,
+		AllowedMachineTypes: req.AllowedMachineTypes,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -134,10 +137,11 @@ func (h *OperatorHandler) Update(c *gin.Context) {
 		return
 	}
 	operator, err := h.service.UpdateOperator(operatorID, &domain.Operator{
-		Name:  req.Name,
-		Phone: req.Phone,
-		Email: req.Email,
-		Notes: req.Notes,
+		Name:                req.Name,
+		Phone:               req.Phone,
+		Email:               req.Email,
+		Notes:               req.Notes,
+		AllowedMachineTypes: req.AllowedMachineTypes,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
