@@ -54,6 +54,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist))
 
 	api.POST("/auth/logout", authHandler.Logout)
+	api.POST("/auth/change-password", authHandler.ChangePassword)
 
 	profileHandler := handlers.NewProfileHandler(deps.ProfileService)
 	api.GET("/profile", profileHandler.GetProfile)

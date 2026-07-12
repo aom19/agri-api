@@ -4,6 +4,7 @@ import (
 	"agri-api/internal/usecase"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -207,6 +208,55 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Parola a fost schimbată cu succes"})
+}
+
+// ChangePassword schimbă parola utilizatorului autentificat
+// @Summary      Change password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object{old_password=string,new_password=string,confirm_password=string} true "Parolă"
+// @Success      200 {object} object{message=string}
+// @Failure      400 {object} object{error=string}
+// @Failure      401 {object} object{error=string}
+// @Router       /auth/change-password [post]
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "neautorizat"})
+		return
+	}
+	userIDStr, ok := userIDRaw.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "neautorizat"})
+		return
+	}
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "neautorizat"})
+		return
+	}
+
+	var req struct {
+		OldPassword     string `json:"old_password" binding:"required"`
+		NewPassword     string `json:"new_password" binding:"required,min=8"`
+		ConfirmPassword string `json:"confirm_password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
+		return
+	}
+	if req.NewPassword != req.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parolele noi nu coincid"})
+		return
+	}
+
+	if err := h.authService.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Parola a fost modificată cu succes"})
 }
 
 // ConfirmEmail confirmă contul folosind token-ul primit pe email.
