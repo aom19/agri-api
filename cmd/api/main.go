@@ -73,6 +73,8 @@ func main() {
 	resourceTypeRepo := postgres.NewResourceTypeRepo(sqlDB)
 	resourceRepo := postgres.NewResourceRepo(sqlDB)
 	resourceService := usecase.NewResourceService(resourceTypeRepo, resourceRepo)
+	stockRepo := postgres.NewStockRepo(sqlDB)
+	stockService := usecase.NewStockService(stockRepo, resourceRepo)
 
 	// 2.3 Creează repository-ul pentru terenuri și serviciul aferent
 	fieldRepo := postgres.NewFieldRepo(sqlDB)
@@ -146,6 +148,7 @@ func main() {
 		Log:               log,
 		MachineService:    machineService,
 		ResourceService:   resourceService,
+		StockService:      stockService,
 		ImplementService:  implementService,
 		OperatorService:   operatorService,
 		FieldService:      fieldService,

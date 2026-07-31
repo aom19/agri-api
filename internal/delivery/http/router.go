@@ -18,6 +18,7 @@ type AppDeps struct {
 	Log               *logger.Logger
 	MachineService    *usecase.MachineService
 	ResourceService   *usecase.ResourceService
+	StockService      *usecase.StockService
 	ImplementService  *usecase.ImplementService
 	OperatorService   *usecase.OperatorService
 	FieldService      *usecase.FieldService
@@ -88,6 +89,14 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.POST("/resources", perm("resources:write"), resourceHandler.CreateResource)
 	api.PATCH("/resources/:id", perm("resources:write"), resourceHandler.UpdateResource)
 	api.DELETE("/resources/:id", perm("resources:delete"), resourceHandler.DeleteResource)
+
+	// ─── Stocks ──────────────────────────────────────────────────────────────
+	stockHandler := handlers.NewStockHandler(deps.StockService)
+	api.GET("/stocks", perm("stock.view"), stockHandler.GetAll)
+	api.GET("/stocks/:id", perm("stock.view"), stockHandler.GetByID)
+	api.POST("/stocks", perm("stock.create"), stockHandler.Create)
+	api.PATCH("/stocks/:id", perm("stock.update"), stockHandler.Update)
+	api.DELETE("/stocks/:id", perm("stock.delete"), stockHandler.Delete)
 
 	// ─── Implements ──────────────────────────────────────────────────────────
 	implementHandler := handlers.NewImplementHandler(deps.ImplementService)

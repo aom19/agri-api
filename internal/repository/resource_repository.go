@@ -27,6 +27,6 @@ type StockRepository interface {
 	GetByResourceID(resourceID int64) (*domain.Stock, error)
 	Create(s *domain.Stock) error
 	Update(id int64, s *domain.Stock) error
+	Delete(id int64) error
 	DecrementQuantity(tx *sql.Tx, resourceID int64, qty float64) error
 }
-

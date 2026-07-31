@@ -93,10 +93,15 @@ func (r *StockRepo) Create(s *domain.Stock) error {
 func (r *StockRepo) Update(id int64, s *domain.Stock) error {
 	_, err := r.db.Exec(
 		`UPDATE stocks
-		 SET quantity=$1, minimum_quantity=$2, updated_at=NOW()
-		 WHERE id=$3`,
-		s.Quantity, s.MinimumQuantity, id,
+		 SET resource_id=$1, quantity=$2, minimum_quantity=$3, updated_at=NOW()
+		 WHERE id=$4`,
+		s.ResourceID, s.Quantity, s.MinimumQuantity, id,
 	)
+	return err
+}
+
+func (r *StockRepo) Delete(id int64) error {
+	_, err := r.db.Exec(`DELETE FROM stocks WHERE id=$1`, id)
 	return err
 }
 

@@ -24,6 +24,10 @@ INSERT INTO permissions (name, description) VALUES
     ('resources:read',    'Vizualizare resurse'),
     ('resources:write',   'Creare și editare resurse'),
     ('resources:delete',  'Ștergere resurse'),
+    ('stock.view',        'Vizualizare stocuri'),
+    ('stock.create',      'Creare stocuri'),
+    ('stock.update',      'Editare stocuri'),
+    ('stock.delete',      'Ștergere stocuri'),
     ('roles:read',        'Vizualizare roluri și permisiuni'),
     ('roles:write',       'Creare și editare roluri și permisiuni'),
     ('roles:delete',      'Ștergere roluri'),
@@ -70,7 +74,8 @@ WHERE r.code = 'manager'
       'fields:read',      'fields:write',
       'operators:read',   'operators:write',  'operators:disable',
       'assignments:read', 'assignments:write',
-      'resources:read',   'resources:write',  'resources:delete'
+      'resources:read',   'resources:write',  'resources:delete',
+      'stock.view',       'stock.create',      'stock.update', 'stock.delete'
   )
 ON CONFLICT DO NOTHING;
 
@@ -82,6 +87,7 @@ WHERE r.code = 'viewer'
   AND p.name IN (
       'machines:read',
       'resources:read',
+      'stock.view',
       'fields:read',
       'operators:read',
       'assignments:read'
