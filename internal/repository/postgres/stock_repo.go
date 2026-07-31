@@ -16,10 +16,12 @@ func NewStockRepo(db *sql.DB) *StockRepo {
 func (r *StockRepo) GetAll() ([]domain.Stock, error) {
 	rows, err := r.db.Query(`
 		SELECT s.id, s.resource_id, s.quantity, s.minimum_quantity, s.created_at, s.updated_at,
-		       res.id, res.name, res.resource_type_id, res.unit, res.price_per_unit,
-		       COALESCE(res.notes, ''), res.created_at, res.updated_at
+		       res.id, res.name, res.resource_type_id, res.price_per_unit,
+		       COALESCE(res.notes, ''), res.created_at, res.updated_at,
+		       rt.id, rt.name, rt.category, rt.default_unit, rt.created_at, rt.updated_at
 		FROM stocks s
 		JOIN resources res ON res.id = s.resource_id
+		JOIN resource_types rt ON rt.id = res.resource_type_id
 		ORDER BY res.name`,
 	)
 	if err != nil {
@@ -31,13 +33,16 @@ func (r *StockRepo) GetAll() ([]domain.Stock, error) {
 	for rows.Next() {
 		var s domain.Stock
 		var res domain.Resource
+		var rt domain.ResourceType
 		if err := rows.Scan(
 			&s.ID, &s.ResourceID, &s.Quantity, &s.MinimumQuantity, &s.CreatedAt, &s.UpdatedAt,
-			&res.ID, &res.Name, &res.ResourceTypeID, &res.Unit, &res.PricePerUnit,
+			&res.ID, &res.Name, &res.ResourceTypeID, &res.PricePerUnit,
 			&res.Notes, &res.CreatedAt, &res.UpdatedAt,
+			&rt.ID, &rt.Name, &rt.Category, &rt.DefaultUnit, &rt.CreatedAt, &rt.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
+		res.ResourceType = &rt
 		s.Resource = &res
 		result = append(result, s)
 	}

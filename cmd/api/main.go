@@ -69,7 +69,12 @@ func main() {
 	implementRepo := postgres.NewImplementRepo(sqlDB)
 	implementService := usecase.NewImplementService(implementRepo)
 
-	// 2.1 Creează repository-ul pentru terenuri și serviciul aferent
+	// 2.2 Creează repository-urile pentru resurse și serviciul aferent
+	resourceTypeRepo := postgres.NewResourceTypeRepo(sqlDB)
+	resourceRepo := postgres.NewResourceRepo(sqlDB)
+	resourceService := usecase.NewResourceService(resourceTypeRepo, resourceRepo)
+
+	// 2.3 Creează repository-ul pentru terenuri și serviciul aferent
 	fieldRepo := postgres.NewFieldRepo(sqlDB)
 	fieldService := usecase.NewFieldService(fieldRepo)
 
@@ -140,6 +145,7 @@ func main() {
 	httpdelivery.SetupRoutes(server, httpdelivery.AppDeps{
 		Log:               log,
 		MachineService:    machineService,
+		ResourceService:   resourceService,
 		ImplementService:  implementService,
 		OperatorService:   operatorService,
 		FieldService:      fieldService,

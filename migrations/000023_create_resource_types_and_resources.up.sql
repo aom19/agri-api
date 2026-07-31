@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS resources (
     id               BIGSERIAL PRIMARY KEY,
     name             VARCHAR(255)   NOT NULL,
     resource_type_id BIGINT         NOT NULL REFERENCES resource_types(id) ON DELETE RESTRICT,
-    unit             VARCHAR(50)    NOT NULL,
     price_per_unit   NUMERIC(14, 4) NOT NULL DEFAULT 0,
     notes            TEXT,
     created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW(),

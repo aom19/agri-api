@@ -10,6 +10,12 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'implements') THEN
         EXECUTE 'TRUNCATE TABLE implements RESTART IDENTITY';
     END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resource_types')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resources')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stocks') THEN
+        EXECUTE 'TRUNCATE TABLE stocks, resources, resource_types RESTART IDENTITY';
+    END IF;
 END $$;
 
 -- Seed: mașini agricole (format nume: <TIP>-<BRAND>-<MODEL>-<NR>)
@@ -130,4 +136,51 @@ FROM (
 ) AS l(machine_code, operator_name, start_days, end_days, status)
 JOIN machines m ON m.code = l.machine_code
 JOIN operators o ON o.name = l.operator_name
+ON CONFLICT DO NOTHING;
+
+-- Seed: tipuri de resurse agricole
+INSERT INTO resource_types (name, category, default_unit) VALUES
+    ('Combustibil', 'fuel', 'L'),
+    ('Fertilizant', 'fertilizer', 'kg'),
+    ('Seminte', 'seed', 'kg'),
+    ('Pesticid', 'pesticide', 'L'),
+    ('Apa', 'water', 'm3'),
+    ('Alte resurse', 'other', 'buc')
+ON CONFLICT DO NOTHING;
+
+-- Seed: resurse (consumabile)
+INSERT INTO resources (name, resource_type_id, price_per_unit, notes)
+VALUES
+    ('Motorina flota utilaje', 1, 28.95, 'Rezervor principal pentru tractoare si combine'),
+    ('Benzina pentru autoturisme', 1, 31.20, 'Consum pentru vehicule usoare'),
+    ('Uree pentru fertilizare faziala', 2, 7.85, 'Aplicare primavara pe grau'),
+    ('NPK pentru pregatire teren', 2, 6.60, 'Fertilizare de baza inainte de semanat'),
+    ('Samanta grau lot A', 3, 4.75, 'Lot certificat C1'),
+    ('Samanta porumb lot B', 3, 690.00, 'Saci 80.000 boabe'),
+    ('Erbicid camp est', 4, 43.90, 'Tratament post-recoltare'),
+    ('Fungicid lot rapita', 4, 96.50, 'Control boli foliare'),
+    ('Apa sistem pivot 1', 5, 1.35, 'Cost operational mediu'),
+    ('Material absorbant atelier', 6, 18.00, 'Consumabil mentenanta')
+ON CONFLICT DO NOTHING;
+
+-- Seed: stocuri pentru resurse
+INSERT INTO stocks (resource_id, quantity, minimum_quantity)
+SELECT
+    res.id,
+    s.quantity,
+    s.minimum_quantity
+FROM (
+    VALUES
+        ('Motorina flota utilaje', 12450.0000, 3000.0000),
+        ('Benzina pentru autoturisme', 1850.0000, 500.0000),
+        ('Uree pentru fertilizare faziala', 9200.0000, 2500.0000),
+        ('NPK pentru pregatire teren', 7800.0000, 2000.0000),
+        ('Samanta grau lot A', 5600.0000, 1500.0000),
+        ('Samanta porumb lot B', 140.0000, 40.0000),
+        ('Erbicid camp est', 620.0000, 180.0000),
+        ('Fungicid lot rapita', 240.0000, 80.0000),
+        ('Apa sistem pivot 1', 48000.0000, 10000.0000),
+        ('Material absorbant atelier', 85.0000, 20.0000)
+) AS s(resource_name, quantity, minimum_quantity)
+JOIN resources res ON res.name = s.resource_name
 ON CONFLICT DO NOTHING;

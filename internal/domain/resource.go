@@ -44,7 +44,6 @@ type Resource struct {
 	Name           string        `json:"name"`
 	ResourceTypeID int64         `json:"resource_type_id"`
 	ResourceType   *ResourceType `json:"resource_type,omitempty"`
-	Unit           string        `json:"unit"`
 	PricePerUnit   float64       `json:"price_per_unit"`
 	Notes          string        `json:"notes,omitempty"`
 	CreatedAt      time.Time     `json:"created_at"`
@@ -61,4 +60,3 @@ type Stock struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
-

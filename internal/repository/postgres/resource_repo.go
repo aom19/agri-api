@@ -14,7 +14,7 @@ func NewResourceRepo(db *sql.DB) *ResourceRepo {
 }
 
 const resourceSelectWithType = `
-	SELECT r.id, r.name, r.resource_type_id, r.unit, r.price_per_unit, COALESCE(r.notes, ''),
+	SELECT r.id, r.name, r.resource_type_id, r.price_per_unit, COALESCE(r.notes, ''),
 	       r.created_at, r.updated_at,
 	       rt.id, rt.name, rt.category, rt.default_unit, rt.created_at, rt.updated_at
 	FROM resources r
@@ -26,7 +26,7 @@ func scanResource(scanner interface {
 	var res domain.Resource
 	var rt domain.ResourceType
 	err := scanner.Scan(
-		&res.ID, &res.Name, &res.ResourceTypeID, &res.Unit, &res.PricePerUnit, &res.Notes,
+		&res.ID, &res.Name, &res.ResourceTypeID, &res.PricePerUnit, &res.Notes,
 		&res.CreatedAt, &res.UpdatedAt,
 		&rt.ID, &rt.Name, &rt.Category, &rt.DefaultUnit, &rt.CreatedAt, &rt.UpdatedAt,
 	)
@@ -68,19 +68,19 @@ func (r *ResourceRepo) GetByID(id int64) (*domain.Resource, error) {
 
 func (r *ResourceRepo) Create(res *domain.Resource) error {
 	return r.db.QueryRow(
-		`INSERT INTO resources (name, resource_type_id, unit, price_per_unit, notes)
-		 VALUES ($1, $2, $3, $4, $5)
+		`INSERT INTO resources (name, resource_type_id, price_per_unit, notes)
+		 VALUES ($1, $2, $3, $4)
 		 RETURNING id, created_at, updated_at`,
-		res.Name, res.ResourceTypeID, res.Unit, res.PricePerUnit, res.Notes,
+		res.Name, res.ResourceTypeID, res.PricePerUnit, res.Notes,
 	).Scan(&res.ID, &res.CreatedAt, &res.UpdatedAt)
 }
 
 func (r *ResourceRepo) Update(id int64, res *domain.Resource) error {
 	_, err := r.db.Exec(
 		`UPDATE resources
-		 SET name=$1, resource_type_id=$2, unit=$3, price_per_unit=$4, notes=$5, updated_at=NOW()
-		 WHERE id=$6`,
-		res.Name, res.ResourceTypeID, res.Unit, res.PricePerUnit, res.Notes, id,
+		 SET name=$1, resource_type_id=$2, price_per_unit=$3, notes=$4, updated_at=NOW()
+		 WHERE id=$5`,
+		res.Name, res.ResourceTypeID, res.PricePerUnit, res.Notes, id,
 	)
 	return err
 }

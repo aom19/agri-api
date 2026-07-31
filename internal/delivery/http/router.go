@@ -17,6 +17,7 @@ import (
 type AppDeps struct {
 	Log               *logger.Logger
 	MachineService    *usecase.MachineService
+	ResourceService   *usecase.ResourceService
 	ImplementService  *usecase.ImplementService
 	OperatorService   *usecase.OperatorService
 	FieldService      *usecase.FieldService
@@ -73,6 +74,20 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.POST("/machines", perm("machines:write"), machineHandler.Create)
 	api.PATCH("/machines/:id", perm("machines:write"), machineHandler.Update)
 	api.DELETE("/machines/:id", perm("machines:delete"), machineHandler.Delete)
+
+	// ─── Resources ───────────────────────────────────────────────────────────
+	resourceHandler := handlers.NewResourceHandler(deps.ResourceService)
+	api.GET("/resource-types", perm("resources:read"), resourceHandler.GetAllResourceTypes)
+	api.GET("/resource-types/:id", perm("resources:read"), resourceHandler.GetResourceTypeByID)
+	api.POST("/resource-types", perm("resources:write"), resourceHandler.CreateResourceType)
+	api.PATCH("/resource-types/:id", perm("resources:write"), resourceHandler.UpdateResourceType)
+	api.DELETE("/resource-types/:id", perm("resources:delete"), resourceHandler.DeleteResourceType)
+
+	api.GET("/resources", perm("resources:read"), resourceHandler.GetAllResources)
+	api.GET("/resources/:id", perm("resources:read"), resourceHandler.GetResourceByID)
+	api.POST("/resources", perm("resources:write"), resourceHandler.CreateResource)
+	api.PATCH("/resources/:id", perm("resources:write"), resourceHandler.UpdateResource)
+	api.DELETE("/resources/:id", perm("resources:delete"), resourceHandler.DeleteResource)
 
 	// ─── Implements ──────────────────────────────────────────────────────────
 	implementHandler := handlers.NewImplementHandler(deps.ImplementService)
