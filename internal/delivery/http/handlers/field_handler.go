@@ -19,15 +19,17 @@ func NewFieldHandler(service *usecase.FieldService) *FieldHandler {
 }
 
 type createFieldRequest struct {
-	Name     string          `json:"name" binding:"required"`
-	AreaHa   *float64        `json:"area_ha"`
-	Geometry json.RawMessage `json:"geometry" binding:"required"`
+	Name            string          `json:"name" binding:"required"`
+	CadastralNumber *string         `json:"cadastral_number"`
+	AreaHa          *float64        `json:"area_ha"`
+	Geometry        json.RawMessage `json:"geometry" binding:"required"`
 }
 
 type updateFieldRequest struct {
-	Name     string          `json:"name" binding:"required"`
-	AreaHa   *float64        `json:"area_ha"`
-	Geometry json.RawMessage `json:"geometry" binding:"required"`
+	Name            string          `json:"name" binding:"required"`
+	CadastralNumber *string         `json:"cadastral_number"`
+	AreaHa          *float64        `json:"area_ha"`
+	Geometry        json.RawMessage `json:"geometry" binding:"required"`
 }
 
 func (h *FieldHandler) Create(c *gin.Context) {
@@ -38,9 +40,10 @@ func (h *FieldHandler) Create(c *gin.Context) {
 	}
 
 	field, err := h.service.CreateField(&domain.Field{
-		Name:     req.Name,
-		AreaHa:   req.AreaHa,
-		Geometry: req.Geometry,
+		Name:            req.Name,
+		CadastralNumber: req.CadastralNumber,
+		AreaHa:          req.AreaHa,
+		Geometry:        req.Geometry,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -83,9 +86,10 @@ func (h *FieldHandler) Update(c *gin.Context) {
 	}
 
 	updated, err := h.service.UpdateField(id, &domain.Field{
-		Name:     req.Name,
-		AreaHa:   req.AreaHa,
-		Geometry: req.Geometry,
+		Name:            req.Name,
+		CadastralNumber: req.CadastralNumber,
+		AreaHa:          req.AreaHa,
+		Geometry:        req.Geometry,
 	})
 	if err != nil {
 		if err.Error() == "field not found" {

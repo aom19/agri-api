@@ -1,5 +1,5 @@
 -- Curăță datele existente (CASCADE șterge și asignările dependente)
-TRUNCATE TABLE assignments, operators, machines RESTART IDENTITY CASCADE;
+TRUNCATE TABLE fields, assignments, operators, machines RESTART IDENTITY CASCADE;
 
 DO $$
 BEGIN
@@ -184,3 +184,21 @@ FROM (
 ) AS s(resource_name, quantity, minimum_quantity)
 JOIN resources res ON res.name = s.resource_name
 ON CONFLICT DO NOTHING;
+
+-- Seed: terenuri agricole din raionul Cantemir (suprafata totala: 500 ha)
+INSERT INTO fields (name, cadastral_number, area_ha, geometry) VALUES
+    ('Lingura - Lotul Nord', '2911101.001.001', 42.50, '{"type":"Polygon","coordinates":[[[28.1670,46.2830],[28.1730,46.2830],[28.1730,46.2870],[28.1670,46.2870],[28.1670,46.2830]]]}'),
+    ('Lingura - Lotul Valea Larga', '2911101.001.002', 36.75, '{"type":"Polygon","coordinates":[[[28.1750,46.2770],[28.1810,46.2770],[28.1810,46.2810],[28.1750,46.2810],[28.1750,46.2770]]]}'),
+    ('Lingura - Lotul Sud', '2911101.001.003', 28.25, '{"type":"Polygon","coordinates":[[[28.1620,46.2730],[28.1670,46.2730],[28.1670,46.2770],[28.1620,46.2770],[28.1620,46.2730]]]}'),
+    ('Tartaul - Lotul Est', '2911102.001.001', 34.50, '{"type":"Polygon","coordinates":[[[28.2350,46.2180],[28.2410,46.2180],[28.2410,46.2220],[28.2350,46.2220],[28.2350,46.2180]]]}'),
+    ('Tartaul - Lotul Central', '2911102.001.002', 31.50, '{"type":"Polygon","coordinates":[[[28.2260,46.2140],[28.2320,46.2140],[28.2320,46.2180],[28.2260,46.2180],[28.2260,46.2140]]]}'),
+    ('Tartaul - Lotul Vest', '2911102.001.003', 29.00, '{"type":"Polygon","coordinates":[[[28.2180,46.2210],[28.2230,46.2210],[28.2230,46.2250],[28.2180,46.2250],[28.2180,46.2210]]]}'),
+    ('Carpesti - Lotul Nord', '2911103.001.001', 38.00, '{"type":"Polygon","coordinates":[[[28.1320,46.2650],[28.1390,46.2650],[28.1390,46.2690],[28.1320,46.2690],[28.1320,46.2650]]]}'),
+    ('Carpesti - Lotul Central', '2911103.001.002', 33.50, '{"type":"Polygon","coordinates":[[[28.1410,46.2580],[28.1470,46.2580],[28.1470,46.2620],[28.1410,46.2620],[28.1410,46.2580]]]}'),
+    ('Carpesti - Lotul Sud', '2911103.001.003', 27.50, '{"type":"Polygon","coordinates":[[[28.1280,46.2540],[28.1330,46.2540],[28.1330,46.2580],[28.1280,46.2580],[28.1280,46.2540]]]}'),
+    ('Plopi - Lotul Nord', '2911104.001.001', 36.00, '{"type":"Polygon","coordinates":[[[28.0980,46.2660],[28.1040,46.2660],[28.1040,46.2700],[28.0980,46.2700],[28.0980,46.2660]]]}'),
+    ('Plopi - Lotul Central', '2911104.001.002', 29.50, '{"type":"Polygon","coordinates":[[[28.1060,46.2600],[28.1120,46.2600],[28.1120,46.2640],[28.1060,46.2640],[28.1060,46.2600]]]}'),
+    ('Plopi - Lotul Sud', '2911104.001.003', 25.00, '{"type":"Polygon","coordinates":[[[28.0940,46.2550],[28.0990,46.2550],[28.0990,46.2590],[28.0940,46.2590],[28.0940,46.2550]]]}'),
+    ('Gotesti - Lotul Nord', '2911105.001.001', 42.00, '{"type":"Polygon","coordinates":[[[28.1940,46.1780],[28.2010,46.1780],[28.2010,46.1820],[28.1940,46.1820],[28.1940,46.1780]]]}'),
+    ('Gotesti - Lotul Central', '2911105.001.002', 35.00, '{"type":"Polygon","coordinates":[[[28.2020,46.1710],[28.2080,46.1710],[28.2080,46.1750],[28.2020,46.1750],[28.2020,46.1710]]]}'),
+    ('Gotesti - Lotul Sud', '2911105.001.003', 31.00, '{"type":"Polygon","coordinates":[[[28.1900,46.1660],[28.1960,46.1660],[28.1960,46.1700],[28.1900,46.1700],[28.1900,46.1660]]]}');
