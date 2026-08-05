@@ -16,11 +16,11 @@ func NewFieldRepo(db *sql.DB) *FieldRepo {
 
 func (repo *FieldRepo) Create(field *domain.Field) error {
 	query := `
-		INSERT INTO fields (name, area_ha, geometry)
-		VALUES ($1, $2, $3)
+		INSERT INTO fields (name, cadastral_number, area_ha, geometry)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at`
 
-	return repo.db.QueryRow(query, field.Name, field.AreaHa, field.Geometry).Scan(
+	return repo.db.QueryRow(query, field.Name, field.CadastralNumber, field.AreaHa, field.Geometry).Scan(
 		&field.ID,
 		&field.CreatedAt,
 		&field.UpdatedAt,
@@ -29,7 +29,7 @@ func (repo *FieldRepo) Create(field *domain.Field) error {
 
 func (repo *FieldRepo) GetAll() ([]domain.Field, error) {
 	rows, err := repo.db.Query(`
-		SELECT id, name, area_ha, geometry, created_at, updated_at
+		SELECT id, name, cadastral_number, area_ha, geometry, created_at, updated_at
 		FROM fields
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC`)
@@ -45,6 +45,7 @@ func (repo *FieldRepo) GetAll() ([]domain.Field, error) {
 		if err := rows.Scan(
 			&field.ID,
 			&field.Name,
+			&field.CadastralNumber,
 			&field.AreaHa,
 			&geometry,
 			&field.CreatedAt,
@@ -61,7 +62,7 @@ func (repo *FieldRepo) GetAll() ([]domain.Field, error) {
 
 func (repo *FieldRepo) GetByID(id string) (*domain.Field, error) {
 	query := `
-		SELECT id, name, area_ha, geometry, created_at, updated_at
+		SELECT id, name, cadastral_number, area_ha, geometry, created_at, updated_at
 		FROM fields
 		WHERE id = $1 AND deleted_at IS NULL`
 
@@ -70,6 +71,7 @@ func (repo *FieldRepo) GetByID(id string) (*domain.Field, error) {
 	err := repo.db.QueryRow(query, id).Scan(
 		&field.ID,
 		&field.Name,
+		&field.CadastralNumber,
 		&field.AreaHa,
 		&geometry,
 		&field.CreatedAt,
@@ -90,12 +92,13 @@ func (repo *FieldRepo) Update(id string, field *domain.Field) error {
 	query := `
 		UPDATE fields
 		SET name = $1,
-		    area_ha = $2,
-		    geometry = $3,
+		    cadastral_number = $2,
+		    area_ha = $3,
+		    geometry = $4,
 		    updated_at = NOW()
-		WHERE id = $4 AND deleted_at IS NULL`
+		WHERE id = $5 AND deleted_at IS NULL`
 
-	_, err := repo.db.Exec(query, field.Name, field.AreaHa, field.Geometry, id)
+	_, err := repo.db.Exec(query, field.Name, field.CadastralNumber, field.AreaHa, field.Geometry, id)
 	return err
 }
 

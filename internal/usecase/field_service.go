@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"strings"
 )
 
 type geoJSONPolygon struct {
@@ -38,9 +39,10 @@ func (s *FieldService) CreateField(field *domain.Field) (*domain.Field, error) {
 		return nil, err
 	}
 	f := &domain.Field{
-		Name:     field.Name,
-		AreaHa:   field.AreaHa,
-		Geometry: field.Geometry,
+		Name:            field.Name,
+		CadastralNumber: field.CadastralNumber,
+		AreaHa:          field.AreaHa,
+		Geometry:        field.Geometry,
 	}
 	if err := s.fieldRepo.Create(f); err != nil {
 		return nil, err
@@ -65,6 +67,7 @@ func (s *FieldService) UpdateField(id string, field *domain.Field) (*domain.Fiel
 	}
 
 	existing.Name = field.Name
+	existing.CadastralNumber = field.CadastralNumber
 	existing.AreaHa = field.AreaHa
 	existing.Geometry = field.Geometry
 
@@ -91,6 +94,9 @@ func validateFieldInput(field *domain.Field) error {
 	}
 	if field.AreaHa != nil && *field.AreaHa < 0 {
 		return errors.New("area_ha must be greater than or equal to 0")
+	}
+	if field.CadastralNumber != nil && strings.TrimSpace(*field.CadastralNumber) == "" {
+		return errors.New("cadastral_number must not be blank")
 	}
 
 	var geometry geoJSONPolygon
