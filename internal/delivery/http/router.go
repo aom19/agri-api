@@ -15,22 +15,24 @@ import (
 )
 
 type AppDeps struct {
-	Log               *logger.Logger
-	MachineService    *usecase.MachineService
-	ResourceService   *usecase.ResourceService
-	StockService      *usecase.StockService
-	ImplementService  *usecase.ImplementService
-	OperatorService   *usecase.OperatorService
-	FieldService      *usecase.FieldService
-	AssignmentService *usecase.AssigmentService
-	AuthService       *usecase.AuthService
-	ProfileService    *usecase.ProfileService
-	RBACService       *usecase.RBACService
-	UserService       *usecase.UserService
-	PermissionRepo    repository.PermissionRepository
-	UploadDir         string
-	JWTService        *auth.JWTService
-	Blacklist         *auth.Blacklist
+	Log                        *logger.Logger
+	MachineService             *usecase.MachineService
+	ResourceService            *usecase.ResourceService
+	StockService               *usecase.StockService
+	ImplementService           *usecase.ImplementService
+	OperatorService            *usecase.OperatorService
+	FieldService               *usecase.FieldService
+	AssignmentService          *usecase.AssigmentService
+	OperationService           *usecase.OperationService
+	ImplementCompatibilityRepo repository.ImplementCompatibilityRepository
+	AuthService                *usecase.AuthService
+	ProfileService             *usecase.ProfileService
+	RBACService                *usecase.RBACService
+	UserService                *usecase.UserService
+	PermissionRepo             repository.PermissionRepository
+	UploadDir                  string
+	JWTService                 *auth.JWTService
+	Blacklist                  *auth.Blacklist
 }
 
 func SetupRoutes(r *gin.Engine, deps AppDeps) {
@@ -148,6 +150,25 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/permissions", perm("roles:read"), rbacHandler.GetAllPermissions)
 	api.GET("/permissions/:id", perm("roles:read"), rbacHandler.GetPermission)
 	api.GET("/auth/me/permissions", rbacHandler.GetMyPermissions)
+
+	// ─── Operations ──────────────────────────────────────────────────────────
+	operationHandler := handlers.NewOperationHandler(deps.OperationService)
+	api.GET("/operation-types", perm("operations:read"), operationHandler.GetAllTypes)
+	api.GET("/operation-types/:id", perm("operations:read"), operationHandler.GetTypeByID)
+	api.POST("/operation-types", perm("operations:write"), operationHandler.CreateType)
+	api.PATCH("/operation-types/:id", perm("operations:write"), operationHandler.UpdateType)
+	api.DELETE("/operation-types/:id", perm("operations:delete"), operationHandler.DeleteType)
+
+	api.GET("/operation-templates", perm("operations:read"), operationHandler.GetAllTemplates)
+	api.GET("/operation-templates/:id", perm("operations:read"), operationHandler.GetTemplateByID)
+	api.GET("/operation-types/:id/templates", perm("operations:read"), operationHandler.GetTemplatesByType)
+	api.POST("/operation-templates", perm("operations:write"), operationHandler.CreateTemplate)
+	api.PATCH("/operation-templates/:id", perm("operations:write"), operationHandler.UpdateTemplate)
+	api.DELETE("/operation-templates/:id", perm("operations:delete"), operationHandler.DeleteTemplate)
+
+	// ─── Implement Compatibilities ───────────────────────────────────────────
+	compatibilityHandler := handlers.NewImplementCompatibilityHandler(deps.ImplementCompatibilityRepo)
+	api.GET("/implement-compatibilities", perm("operations:read"), compatibilityHandler.GetAll)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────
 	userHandler := handlers.NewUserHandler(deps.UserService)

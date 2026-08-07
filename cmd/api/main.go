@@ -80,6 +80,14 @@ func main() {
 	fieldRepo := postgres.NewFieldRepo(sqlDB)
 	fieldService := usecase.NewFieldService(fieldRepo)
 
+	// 2.4 Creează repository-urile pentru operațiuni și serviciul aferent
+	operationTypeRepo := postgres.NewOperationTypeRepo(sqlDB)
+	operationTemplateRepo := postgres.NewOperationTemplateRepo(sqlDB)
+	operationService := usecase.NewOperationService(operationTypeRepo, operationTemplateRepo)
+
+	// 2.5 Repository pentru compatibilitățile utilaj ↔ echipament
+	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
+
 	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări
 	appStore := store.NewInitialiedStore(sqlDB)
 	assigmentService := usecase.NewAssigmentService(appStore)
@@ -145,22 +153,24 @@ func main() {
 
 	// Înregistrează toate rutele API
 	httpdelivery.SetupRoutes(server, httpdelivery.AppDeps{
-		Log:               log,
-		MachineService:    machineService,
-		ResourceService:   resourceService,
-		StockService:      stockService,
-		ImplementService:  implementService,
-		OperatorService:   operatorService,
-		FieldService:      fieldService,
-		AssignmentService: assigmentService,
-		AuthService:       authService,
-		ProfileService:    profileService,
-		RBACService:       rbacService,
-		UserService:       userService,
-		PermissionRepo:    appStore.PermissionRepo,
-		UploadDir:         uploadDir,
-		JWTService:        jwtService,
-		Blacklist:         blacklist,
+		Log:                        log,
+		MachineService:             machineService,
+		ResourceService:            resourceService,
+		StockService:               stockService,
+		ImplementService:           implementService,
+		OperatorService:            operatorService,
+		FieldService:               fieldService,
+		AssignmentService:          assigmentService,
+		OperationService:           operationService,
+		ImplementCompatibilityRepo: implementCompatibilityRepo,
+		AuthService:                authService,
+		ProfileService:             profileService,
+		RBACService:                rbacService,
+		UserService:                userService,
+		PermissionRepo:             appStore.PermissionRepo,
+		UploadDir:                  uploadDir,
+		JWTService:                 jwtService,
+		Blacklist:                  blacklist,
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)

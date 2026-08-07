@@ -11,10 +11,22 @@ BEGIN
         EXECUTE 'TRUNCATE TABLE implements RESTART IDENTITY';
     END IF;
 
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'operation_types')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'operation_templates')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_resources')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_machine_types')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_implement_types') THEN
+        EXECUTE 'TRUNCATE TABLE template_resources, template_machine_types, template_implement_types, operation_templates, operation_types RESTART IDENTITY';
+    END IF;
+
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resource_types')
        AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resources')
        AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stocks') THEN
-        EXECUTE 'TRUNCATE TABLE stocks, resources, resource_types RESTART IDENTITY';
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_resources') THEN
+            EXECUTE 'TRUNCATE TABLE template_resources, stocks, resources, resource_types RESTART IDENTITY';
+        ELSE
+            EXECUTE 'TRUNCATE TABLE stocks, resources, resource_types RESTART IDENTITY';
+        END IF;
     END IF;
 END $$;
 
@@ -183,6 +195,101 @@ FROM (
         ('Material absorbant atelier', 85.0000, 20.0000)
 ) AS s(resource_name, quantity, minimum_quantity)
 JOIN resources res ON res.name = s.resource_name
+ON CONFLICT DO NOTHING;
+
+-- Seed: tipuri de operatiuni agricole
+INSERT INTO operation_types (code, name, description) VALUES
+    ('soil_preparation', 'Pregatire sol', 'Lucrari de pregatire a patului germinativ'),
+    ('seeding', 'Semanat', 'Operatiuni de semanat culturi agricole'),
+    ('fertilization', 'Fertilizare', 'Aplicare fertilizanti solizi sau lichizi'),
+    ('spraying', 'Stropire', 'Tratamente fitosanitare si erbicidare'),
+    ('harvesting', 'Recoltare', 'Operatiuni de recoltare si transport recolta'),
+    ('irrigation', 'Irigare', 'Aplicare apa pentru culturi')
+ON CONFLICT DO NOTHING;
+
+-- Seed: template-uri de operatiuni
+INSERT INTO operation_templates (operation_type_id, name, description, unit)
+SELECT ot.id, t.name, t.description, t.unit
+FROM (
+    VALUES
+        ('soil_preparation', 'Arat adanc standard', 'Arat cu tractor si plug reversibil pentru pregatirea solului', 'ha'),
+        ('soil_preparation', 'Pregatire pat germinativ', 'Lucrare cu grapa cu discuri si fertilizare de baza NPK', 'ha'),
+        ('seeding', 'Semanat grau standard', 'Semanat grau cu doza medie pentru teren arabil', 'ha'),
+        ('seeding', 'Semanat porumb standard', 'Semanat porumb in randuri cu densitate controlata', 'ha'),
+        ('fertilization', 'Fertilizare faziala grau', 'Aplicare uree pe cultura de grau in vegetatie', 'ha'),
+        ('spraying', 'Erbicidare camp est', 'Aplicare erbicid cu pulverizator tractat sau autopropulsat', 'ha'),
+        ('spraying', 'Tratament fungicid rapita', 'Aplicare fungicid pentru boli foliare la rapita', 'ha'),
+        ('harvesting', 'Recoltare grau', 'Recoltare cereale paioase cu combina si header', 'ha'),
+        ('irrigation', 'Irigare pivot', 'Irigare prin sistem pivot cu norma operationala medie', 'ha')
+) AS t(operation_code, name, description, unit)
+JOIN operation_types ot ON ot.code = t.operation_code
+ON CONFLICT DO NOTHING;
+
+-- Seed: resurse necesare per template
+INSERT INTO template_resources (template_id, resource_id, quantity_per_unit, notes)
+SELECT tpl.id, res.id, tr.quantity_per_unit, tr.notes
+FROM (
+    VALUES
+        ('Arat adanc standard', 'Motorina flota utilaje', 18.0000, 'Consum estimat pentru tractor greu'),
+        ('Pregatire pat germinativ', 'Motorina flota utilaje', 10.0000, 'Consum pentru tractor cu grapa cu discuri'),
+        ('Pregatire pat germinativ', 'NPK pentru pregatire teren', 180.0000, 'Fertilizare de baza'),
+        ('Semanat grau standard', 'Motorina flota utilaje', 9.0000, 'Consum semanatoare cereale'),
+        ('Semanat grau standard', 'Samanta grau lot A', 220.0000, 'Doza medie semanat grau'),
+        ('Semanat porumb standard', 'Motorina flota utilaje', 8.5000, 'Consum semanatoare prasitoare'),
+        ('Semanat porumb standard', 'Samanta porumb lot B', 0.8500, 'Saci per hectar'),
+        ('Fertilizare faziala grau', 'Motorina flota utilaje', 6.0000, 'Consum distribuitor fertilizant'),
+        ('Fertilizare faziala grau', 'Uree pentru fertilizare faziala', 160.0000, 'Doza uree per hectar'),
+        ('Erbicidare camp est', 'Motorina flota utilaje', 4.5000, 'Consum pulverizare'),
+        ('Erbicidare camp est', 'Erbicid camp est', 2.2000, 'Doza produs comercial'),
+        ('Erbicidare camp est', 'Apa sistem pivot 1', 0.2500, 'Volum apa tehnologic per hectar'),
+        ('Tratament fungicid rapita', 'Motorina flota utilaje', 4.8000, 'Consum pulverizare'),
+        ('Tratament fungicid rapita', 'Fungicid lot rapita', 1.0000, 'Doza produs comercial'),
+        ('Tratament fungicid rapita', 'Apa sistem pivot 1', 0.2200, 'Volum apa tehnologic per hectar'),
+        ('Recoltare grau', 'Motorina flota utilaje', 14.0000, 'Consum combina si logistica imediata'),
+        ('Irigare pivot', 'Apa sistem pivot 1', 350.0000, 'Norma de irigare estimata')
+) AS tr(template_name, resource_name, quantity_per_unit, notes)
+JOIN operation_templates tpl ON tpl.name = tr.template_name
+JOIN resources res ON res.name = tr.resource_name
+ON CONFLICT DO NOTHING;
+
+-- Seed: tipuri de masini compatibile per template
+INSERT INTO template_machine_types (template_id, machine_type)
+SELECT tpl.id, tm.machine_type
+FROM (
+    VALUES
+        ('Arat adanc standard', 'tractor'),
+        ('Pregatire pat germinativ', 'tractor'),
+        ('Semanat grau standard', 'tractor'),
+        ('Semanat porumb standard', 'tractor'),
+        ('Fertilizare faziala grau', 'tractor'),
+        ('Erbicidare camp est', 'tractor'),
+        ('Erbicidare camp est', 'sprayer'),
+        ('Erbicidare camp est', 'drone'),
+        ('Tratament fungicid rapita', 'tractor'),
+        ('Tratament fungicid rapita', 'sprayer'),
+        ('Tratament fungicid rapita', 'drone'),
+        ('Recoltare grau', 'combine'),
+        ('Irigare pivot', 'other')
+) AS tm(template_name, machine_type)
+JOIN operation_templates tpl ON tpl.name = tm.template_name
+ON CONFLICT DO NOTHING;
+
+-- Seed: tipuri de echipamente compatibile per template
+INSERT INTO template_implement_types (template_id, implement_type)
+SELECT tpl.id, ti.implement_type
+FROM (
+    VALUES
+        ('Arat adanc standard', 'plow'),
+        ('Pregatire pat germinativ', 'disc_harrow'),
+        ('Pregatire pat germinativ', 'fertilizer_spreader'),
+        ('Semanat grau standard', 'seeder'),
+        ('Semanat porumb standard', 'seeder'),
+        ('Fertilizare faziala grau', 'fertilizer_spreader'),
+        ('Erbicidare camp est', 'sprayer'),
+        ('Tratament fungicid rapita', 'sprayer'),
+        ('Recoltare grau', 'header')
+) AS ti(template_name, implement_type)
+JOIN operation_templates tpl ON tpl.name = ti.template_name
 ON CONFLICT DO NOTHING;
 
 -- Seed: terenuri agricole reale (poligoane OSM) din jurul satelor Lingura, Tartaul, Cirpesti, Plopi si Gotesti (raionul Cantemir)
