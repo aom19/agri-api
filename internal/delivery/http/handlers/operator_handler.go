@@ -16,6 +16,7 @@ type OperatorHandler struct {
 }
 
 type CreateOperatorRequest struct {
+	UserID              *int64               `json:"user_id"`
 	Name                string               `json:"name" binding:"required"`
 	Phone               string               `json:"phone"`
 	Email               string               `json:"email"`
@@ -24,6 +25,7 @@ type CreateOperatorRequest struct {
 }
 
 type UpdateOperatorRequest struct {
+	UserID              *int64               `json:"user_id"`
 	Name                string               `json:"name" binding:"required"`
 	Phone               string               `json:"phone"`
 	Email               string               `json:"email"`
@@ -54,6 +56,7 @@ func (h *OperatorHandler) Create(c *gin.Context) {
 		return
 	}
 	operator, err := h.service.CreateOperator(&domain.Operator{
+		UserID:              req.UserID,
 		Name:                req.Name,
 		Phone:               req.Phone,
 		Email:               req.Email,
@@ -137,6 +140,7 @@ func (h *OperatorHandler) Update(c *gin.Context) {
 		return
 	}
 	operator, err := h.service.UpdateOperator(operatorID, &domain.Operator{
+		UserID:              req.UserID,
 		Name:                req.Name,
 		Phone:               req.Phone,
 		Email:               req.Email,

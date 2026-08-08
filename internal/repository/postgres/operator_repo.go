@@ -19,7 +19,7 @@ func NewOperatorRepo(db *sql.DB) *OperatorRepo {
 
 // GetAll returnează toți operatorii din baza de date
 func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
-	rows, err := operatorRepo.db.Query("SELECT id, name, phone, email, notes, status, allowed_machine_types FROM operators WHERE deleted_at IS NULL")
+	rows, err := operatorRepo.db.Query("SELECT id, user_id, name, phone, email, notes, status, allowed_machine_types FROM operators WHERE deleted_at IS NULL")
 	if err != nil {
 		return nil, err
 	}
@@ -28,10 +28,14 @@ func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
 	var operators []domain.Operator
 	for rows.Next() {
 		var o domain.Operator
+		var userID sql.NullInt64
 		var phone, email, notes sql.NullString
 		var allowedTypes []string
-		if err := rows.Scan(&o.ID, &o.Name, &phone, &email, &notes, &o.Status, pq.Array(&allowedTypes)); err != nil {
+		if err := rows.Scan(&o.ID, &userID, &o.Name, &phone, &email, &notes, &o.Status, pq.Array(&allowedTypes)); err != nil {
 			return nil, err
+		}
+		if userID.Valid {
+			o.UserID = &userID.Int64
 		}
 		if phone.Valid {
 			o.Phone = phone.String
@@ -54,16 +58,20 @@ func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
 // GetByID returnează un operator după ID; returnează nil, nil dacă nu există
 func (operatorRepo *OperatorRepo) GetByID(id int64) (*domain.Operator, error) {
 	var o domain.Operator
+	var userID sql.NullInt64
 	var phone, email, notes sql.NullString
 	var allowedTypes []string
 	err := operatorRepo.db.QueryRow(
-		"SELECT id, name, phone, email, notes, status, allowed_machine_types FROM operators WHERE id = $1 AND deleted_at IS NULL", id,
-	).Scan(&o.ID, &o.Name, &phone, &email, &notes, &o.Status, pq.Array(&allowedTypes))
+		"SELECT id, user_id, name, phone, email, notes, status, allowed_machine_types FROM operators WHERE id = $1 AND deleted_at IS NULL", id,
+	).Scan(&o.ID, &userID, &o.Name, &phone, &email, &notes, &o.Status, pq.Array(&allowedTypes))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	if userID.Valid {
+		o.UserID = &userID.Int64
 	}
 	if phone.Valid {
 		o.Phone = phone.String
@@ -97,8 +105,8 @@ func (operatorRepo *OperatorRepo) Create(operator *domain.Operator) error {
 		allowedTypes[i] = string(t)
 	}
 	return operatorRepo.db.QueryRow(
-		"INSERT INTO operators (name, phone, email, notes, status, allowed_machine_types) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-		operator.Name, phone, email, notes, operator.Status, pq.Array(allowedTypes),
+		"INSERT INTO operators (user_id, name, phone, email, notes, status, allowed_machine_types) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+		operator.UserID, operator.Name, phone, email, notes, operator.Status, pq.Array(allowedTypes),
 	).Scan(&operator.ID)
 }
 
@@ -119,8 +127,8 @@ func (operatorRepo *OperatorRepo) Update(id int64, operator *domain.Operator) er
 		allowedTypes[i] = string(t)
 	}
 	_, err := operatorRepo.db.Exec(
-		"UPDATE operators SET name = $1, phone = $2, email = $3, notes = $4, allowed_machine_types = $5, updated_at = NOW() WHERE id = $6 AND deleted_at IS NULL",
-		operator.Name, phone, email, notes, pq.Array(allowedTypes), id,
+		"UPDATE operators SET user_id = $1, name = $2, phone = $3, email = $4, notes = $5, allowed_machine_types = $6, updated_at = NOW() WHERE id = $7 AND deleted_at IS NULL",
+		operator.UserID, operator.Name, phone, email, notes, pq.Array(allowedTypes), id,
 	)
 	return err
 }

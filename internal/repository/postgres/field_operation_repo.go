@@ -20,17 +20,22 @@ func NewFieldOperationRepo(db *sql.DB) *FieldOperationRepo {
 const fieldOperationBaseSelect = `
 	SELECT
 		fo.id,
-		fo.field_id, f.name,
+		fo.field_id, f.name, f.geometry,
 		fo.operation_type_id, ot.code, ot.name,
 		fo.operation_template_id, t.name,
-		fo.machine_id, m.name,
-		fo.implement_id, imp.name,
+		fo.machine_id, m.name, m.asset_status,
+		fo.implement_id, imp.name, imp.status,
 		fo.operator_id, op.name,
 		fo.planned_start_at,
 		fo.planned_end_at,
 		fo.area_planned_ha,
 		fo.notes,
 		fo.status,
+		fo.check_machine_status,
+		fo.check_implement_status,
+		fo.check_field_area,
+		fo.check_notes_confirmed,
+		fo.checklist_updated_at,
 		fo.created_at,
 		fo.updated_at
 	FROM field_operations fo
@@ -47,24 +52,31 @@ func scanFieldOperationRow(row interface {
 	Scan(dest ...interface{}) error
 }) (*dto.FieldOperationResponse, error) {
 	var r dto.FieldOperationResponse
+	var fieldGeometry []byte
 	if err := row.Scan(
 		&r.ID,
-		&r.FieldID, &r.FieldName,
+		&r.FieldID, &r.FieldName, &fieldGeometry,
 		&r.OperationTypeID, &r.OperationTypeCode, &r.OperationTypeName,
 		&r.OperationTemplateID, &r.OperationTemplate,
-		&r.MachineID, &r.MachineName,
-		&r.ImplementID, &r.ImplementName,
+		&r.MachineID, &r.MachineName, &r.MachineStatus,
+		&r.ImplementID, &r.ImplementName, &r.ImplementStatus,
 		&r.OperatorID, &r.OperatorName,
 		&r.PlannedStartAt,
 		&r.PlannedEndAt,
 		&r.AreaPlannedHa,
 		&r.Notes,
 		&r.Status,
+		&r.Checklist.MachineStatus,
+		&r.Checklist.ImplementStatus,
+		&r.Checklist.FieldArea,
+		&r.Checklist.NotesConfirmed,
+		&r.Checklist.UpdatedAt,
 		&r.CreatedAt,
 		&r.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
+	r.FieldGeometry = fieldGeometry
 	return &r, nil
 }
 
@@ -98,6 +110,26 @@ func (repo *FieldOperationRepo) GetAll(filter repository.FieldOperationFilter) (
 		args = append(args, filter.OperatorID)
 		i++
 	}
+	if filter.AssignedUserID > 0 {
+		query += fmt.Sprintf(`
+			AND EXISTS (
+				SELECT 1
+				FROM users u
+				JOIN operators assigned_op ON (
+					assigned_op.user_id = u.id
+					OR (
+						assigned_op.user_id IS NULL
+						AND assigned_op.email IS NOT NULL
+						AND LOWER(assigned_op.email) = LOWER(u.email)
+					)
+				)
+				WHERE u.id = $%d
+				  AND assigned_op.deleted_at IS NULL
+				  AND assigned_op.id = fo.operator_id
+			)`, i)
+		args = append(args, filter.AssignedUserID)
+		i++
+	}
 
 	query += " ORDER BY COALESCE(fo.planned_start_at, fo.created_at) DESC, fo.id DESC"
 
@@ -121,6 +153,36 @@ func (repo *FieldOperationRepo) GetAll(filter repository.FieldOperationFilter) (
 func (repo *FieldOperationRepo) GetByID(id int64) (*dto.FieldOperationResponse, error) {
 	query := fieldOperationBaseSelect + " AND fo.id = $1"
 	row := repo.db.QueryRow(query, id)
+	item, err := scanFieldOperationRow(row)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (repo *FieldOperationRepo) GetByIDForAssignedUser(id int64, userID int64) (*dto.FieldOperationResponse, error) {
+	query := fieldOperationBaseSelect + `
+		AND fo.id = $1
+		AND EXISTS (
+			SELECT 1
+			FROM users u
+			JOIN operators assigned_op ON (
+				assigned_op.user_id = u.id
+				OR (
+					assigned_op.user_id IS NULL
+					AND assigned_op.email IS NOT NULL
+					AND LOWER(assigned_op.email) = LOWER(u.email)
+				)
+			)
+			WHERE u.id = $2
+			  AND assigned_op.deleted_at IS NULL
+			  AND assigned_op.id = fo.operator_id
+		)
+	`
+	row := repo.db.QueryRow(query, id, userID)
 	item, err := scanFieldOperationRow(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -187,6 +249,39 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 		op.Status,
 		id,
 	)
+	return err
+}
+
+func (repo *FieldOperationRepo) UpdateChecklist(id int64, checklist domain.FieldOperationChecklist) error {
+	query := `
+		UPDATE field_operations SET
+			check_machine_status   = $1,
+			check_implement_status = $2,
+			check_field_area       = $3,
+			check_notes_confirmed  = $4,
+			checklist_updated_at   = NOW(),
+			updated_at             = NOW()
+		WHERE id = $5 AND deleted_at IS NULL
+	`
+	_, err := repo.db.Exec(
+		query,
+		checklist.MachineStatus,
+		checklist.ImplementStatus,
+		checklist.FieldArea,
+		checklist.NotesConfirmed,
+		id,
+	)
+	return err
+}
+
+func (repo *FieldOperationRepo) UpdateStatus(id int64, status domain.FieldOperationStatus) error {
+	query := `
+		UPDATE field_operations SET
+			status     = $1,
+			updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL
+	`
+	_, err := repo.db.Exec(query, status, id)
 	return err
 }
 

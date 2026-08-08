@@ -186,6 +186,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/field-operations/:id", perm("field_operations:read"), fieldOperationHandler.GetByID)
 	api.POST("/field-operations", perm("field_operations:write"), fieldOperationHandler.Create)
 	api.PATCH("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Update)
+	api.PATCH("/field-operations/:id/checklist", perm("field_operations:checklist"), fieldOperationHandler.UpdateChecklist)
+	api.PATCH("/field-operations/:id/start", perm("field_operations:start"), fieldOperationHandler.Start)
 	api.DELETE("/field-operations/:id", perm("field_operations:delete"), fieldOperationHandler.Delete)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────

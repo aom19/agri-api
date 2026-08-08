@@ -47,6 +47,7 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO roles (code, name, description) VALUES
   ('admin',   'Administrator', 'Administrator complet — acces total'),
   ('manager', 'Manager',       'Manager — administrare resurse, fără gestiunea rolurilor'),
+  ('operator','Operator',      'Operator de teren — acces la lucrările și alocările proprii'),
   ('viewer',  'Vizualizator',  'Vizualizator — acces doar citire')
 ON CONFLICT (code) DO NOTHING;
 
@@ -99,6 +100,17 @@ WHERE r.code = 'viewer'
       'assignments:read',
       'dashboard:read',
       'operations:read'
+  )
+ON CONFLICT DO NOTHING;
+
+-- operator: citire doar pentru dashboard și operațiunile pe teren asignate
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.code = 'operator'
+  AND p.name IN (
+      'dashboard:read',
+      'field_operations:read'
   )
 ON CONFLICT DO NOTHING;
 

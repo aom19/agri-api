@@ -204,9 +204,13 @@ Răspunsul include metrici utile pentru hartă și agricultură: temperatură, c
 
 | Metodă | Rută | Descriere |
 |---|---|---|
-| GET | `/api/dashboard/cards` | Carduri KPI agregate din baza de date: total mașini, mașini active, total operatori și alocări active |
+| GET | `/api/dashboard/cards` | Carduri KPI agregate din baza de date: total mașini, mașini active, total operatori și alocări active din operațiunile pe teren |
 
-Necesită permisiunea `dashboard:read`, acordată implicit rolurilor `admin`, `manager` și `viewer` prin migrația `000030_add_dashboard_read_permission`.
+Necesită permisiunea `dashboard:read`, acordată implicit rolurilor `admin`, `manager` și `viewer` prin migrația `000030_add_dashboard_read_permission`. Migrațiile `000032_add_operator_dashboard_permissions` și `000033_limit_operator_permissions` creează/asigură rolul `operator` și îi limitează accesul la `dashboard:read` și `field_operations:read`; operațiunile pe teren sunt filtrate în backend după operatorul asociat userului curent.
+
+Răspunsurile pentru `/api/field-operations` și `/api/field-operations/:id` includ `field_geometry` (GeoJSON Polygon), `machine_status` și `implement_status`, astfel încât operatorii pot vedea conturul terenului și disponibilitatea resurselor lucrării fără permisiuni separate pentru modulele de terenuri, mașini sau echipamente.
+
+Checklistul de plecare este persistat pe operațiunea de teren prin `/api/field-operations/:id/checklist`. Endpointul salvează verificarea stării mașinii, verificarea stării echipamentului, confirmarea terenului/suprafeței și confirmarea instrucțiunilor din note; operatorii primesc permisiunea dedicată `field_operations:checklist` prin migrația `000035_add_field_operation_checklist`. Pornirea lucrării se face prin `/api/field-operations/:id/start`, care validează checklistul și resursele active înainte să schimbe statusul în `in_progress`.
 
 ### Mașini (protejate)
 

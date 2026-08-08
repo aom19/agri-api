@@ -5,6 +5,7 @@ import (
 	"agri-api/internal/repository"
 	"agri-api/internal/usecase"
 	"errors"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -36,6 +37,13 @@ type createFieldOperationRequest struct {
 
 type updateFieldOperationRequest = createFieldOperationRequest
 
+type updateFieldOperationChecklistRequest struct {
+	MachineStatus   bool `json:"machine_status"`
+	ImplementStatus bool `json:"implement_status"`
+	FieldArea       bool `json:"field_area"`
+	NotesConfirmed  bool `json:"notes_confirmed"`
+}
+
 func toDomainFieldOperation(req createFieldOperationRequest) *domain.FieldOperation {
 	return &domain.FieldOperation{
 		FieldID:             req.FieldID,
@@ -52,6 +60,46 @@ func toDomainFieldOperation(req createFieldOperationRequest) *domain.FieldOperat
 	}
 }
 
+func toDomainFieldOperationChecklist(req updateFieldOperationChecklistRequest) domain.FieldOperationChecklist {
+	return domain.FieldOperationChecklist{
+		MachineStatus:   req.MachineStatus,
+		ImplementStatus: req.ImplementStatus,
+		FieldArea:       req.FieldArea,
+		NotesConfirmed:  req.NotesConfirmed,
+	}
+}
+
+func isOperatorRequest(c *gin.Context) bool {
+	roleCode, _ := c.Get("role_code")
+	return roleCode == "operator"
+}
+
+func currentUserID(c *gin.Context) (int64, bool) {
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		return 0, false
+	}
+	switch value := userIDRaw.(type) {
+	case string:
+		userID, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || userID <= 0 {
+			return 0, false
+		}
+		return userID, true
+	case float64:
+		if value <= 0 || value > math.MaxInt64 {
+			return 0, false
+		}
+		return int64(value), true
+	case int64:
+		return value, value > 0
+	case int:
+		return int64(value), value > 0
+	default:
+		return 0, false
+	}
+}
+
 func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 	filter := repository.FieldOperationFilter{
 		Status:          c.Query("status"),
@@ -59,6 +107,15 @@ func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 		OperationTypeID: c.Query("operation_type_id"),
 		MachineID:       c.Query("machine_id"),
 		OperatorID:      c.Query("operator_id"),
+	}
+	if isOperatorRequest(c) {
+		userID, ok := currentUserID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+			return
+		}
+		filter.OperatorID = ""
+		filter.AssignedUserID = userID
 	}
 	items, err := h.service.GetAll(filter)
 	if err != nil {
@@ -74,7 +131,17 @@ func (h *FieldOperationHandler) GetByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	item, err := h.service.GetByID(id)
+	var item interface{}
+	if isOperatorRequest(c) {
+		userID, ok := currentUserID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+			return
+		}
+		item, err = h.service.GetByIDForAssignedUser(id, userID)
+	} else {
+		item, err = h.service.GetByID(id)
+	}
 	if err != nil {
 		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -112,6 +179,68 @@ func (h *FieldOperationHandler) Update(c *gin.Context) {
 		return
 	}
 	item, err := h.service.Update(id, toDomainFieldOperation(req))
+	if err != nil {
+		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *FieldOperationHandler) UpdateChecklist(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req updateFieldOperationChecklistRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	checklist := toDomainFieldOperationChecklist(req)
+	var item interface{}
+	if isOperatorRequest(c) {
+		userID, ok := currentUserID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+			return
+		}
+		item, err = h.service.UpdateChecklistForAssignedUser(id, userID, checklist)
+	} else {
+		item, err = h.service.UpdateChecklist(id, checklist)
+	}
+	if err != nil {
+		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *FieldOperationHandler) Start(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var item interface{}
+	if isOperatorRequest(c) {
+		userID, ok := currentUserID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+			return
+		}
+		item, err = h.service.StartForAssignedUser(id, userID)
+	} else {
+		item, err = h.service.Start(id)
+	}
 	if err != nil {
 		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
