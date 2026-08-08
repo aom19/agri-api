@@ -85,6 +85,10 @@ func main() {
 	operationTemplateRepo := postgres.NewOperationTemplateRepo(sqlDB)
 	operationService := usecase.NewOperationService(operationTypeRepo, operationTemplateRepo)
 
+	// 2.4.1 Repository și serviciul pentru operațiuni pe teren
+	fieldOperationRepo := postgres.NewFieldOperationRepo(sqlDB)
+	fieldOperationService := usecase.NewFieldOperationService(fieldOperationRepo)
+
 	// 2.5 Repository pentru compatibilitățile utilaj ↔ echipament
 	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
 	dashboardRepo := postgres.NewDashboardRepo(sqlDB)
@@ -165,6 +169,7 @@ func main() {
 		FieldService:               fieldService,
 		AssignmentService:          assigmentService,
 		OperationService:           operationService,
+		FieldOperationService:      fieldOperationService,
 		DashboardService:           dashboardService,
 		WeatherService:             weatherService,
 		ImplementCompatibilityRepo: implementCompatibilityRepo,

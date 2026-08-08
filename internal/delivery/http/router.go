@@ -24,6 +24,7 @@ type AppDeps struct {
 	FieldService               *usecase.FieldService
 	AssignmentService          *usecase.AssigmentService
 	OperationService           *usecase.OperationService
+	FieldOperationService      *usecase.FieldOperationService
 	DashboardService           *usecase.DashboardService
 	WeatherService             *usecase.WeatherService
 	ImplementCompatibilityRepo repository.ImplementCompatibilityRepository
@@ -178,6 +179,14 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	// ─── Implement Compatibilities ───────────────────────────────────────────
 	compatibilityHandler := handlers.NewImplementCompatibilityHandler(deps.ImplementCompatibilityRepo)
 	api.GET("/implement-compatibilities", perm("operations:read"), compatibilityHandler.GetAll)
+
+	// ─── Field Operations ────────────────────────────────────────────────────
+	fieldOperationHandler := handlers.NewFieldOperationHandler(deps.FieldOperationService)
+	api.GET("/field-operations", perm("field_operations:read"), fieldOperationHandler.GetAll)
+	api.GET("/field-operations/:id", perm("field_operations:read"), fieldOperationHandler.GetByID)
+	api.POST("/field-operations", perm("field_operations:write"), fieldOperationHandler.Create)
+	api.PATCH("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Update)
+	api.DELETE("/field-operations/:id", perm("field_operations:delete"), fieldOperationHandler.Delete)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────
 	userHandler := handlers.NewUserHandler(deps.UserService)
