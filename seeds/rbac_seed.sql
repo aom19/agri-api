@@ -36,6 +36,7 @@ INSERT INTO permissions (name, description) VALUES
     ('users:disable',     'Dezactivare utilizatori'),
     ('users:enable',      'Reactivare utilizatori'),
     ('permissions:read',  'Vizualizare permisiuni'),
+    ('dashboard:read',    'Vizualizare carduri dashboard'),
     ('operations:read',   'Vizualizare tipuri operațiuni și template-uri'),
     ('operations:write',  'Creare și editare tipuri operațiuni și template-uri'),
     ('operations:delete', 'Ștergere tipuri operațiuni și template-uri')
@@ -79,6 +80,7 @@ WHERE r.code = 'manager'
       'assignments:read', 'assignments:write',
       'resources:read',   'resources:write',  'resources:delete',
       'stock.view',       'stock.create',      'stock.update', 'stock.delete',
+      'dashboard:read',
       'operations:read',  'operations:write'
   )
 ON CONFLICT DO NOTHING;
@@ -95,6 +97,7 @@ WHERE r.code = 'viewer'
       'fields:read',
       'operators:read',
       'assignments:read',
+      'dashboard:read',
       'operations:read'
   )
 ON CONFLICT DO NOTHING;

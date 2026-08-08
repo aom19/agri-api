@@ -1,5 +1,21 @@
 basePath: /api
 definitions:
+  domain.AssetStatus:
+    enum:
+    - active
+    - maintenance
+    - inactive
+    - active
+    - maintenance
+    - inactive
+    type: string
+    x-enum-varnames:
+    - AssetStatusActive
+    - AssetStatusMaintenance
+    - AssetStatusInactive
+    - MachineStatusActive
+    - MachineStatusMaintenance
+    - MachineStatusInactive
   domain.Assigment:
     properties:
       createdAt:
@@ -29,48 +45,184 @@ definitions:
     x-enum-varnames:
     - AssigmentStatusActive
     - AssigmentStatusClosed
-  domain.Machine:
+  domain.DashboardCard:
     properties:
+      key:
+        $ref: '#/definitions/domain.DashboardCardKey'
+      label:
+        type: string
+      progress:
+        type: integer
+      trend:
+        type: integer
+      value:
+        type: integer
+    type: object
+  domain.DashboardCardKey:
+    enum:
+    - total_machines
+    - active_machines
+    - total_operators
+    - active_assignments
+    type: string
+    x-enum-varnames:
+    - DashboardCardTotalMachines
+    - DashboardCardActiveMachines
+    - DashboardCardTotalOperators
+    - DashboardCardActiveAssignments
+  domain.FuelType:
+    enum:
+    - diesel
+    - gasoline
+    - electric
+    - hybrid
+    type: string
+    x-enum-varnames:
+    - FuelTypeDiesel
+    - FuelTypeGasoline
+    - FuelTypeElectric
+    - FuelTypeHybrid
+  domain.Implement:
+    properties:
+      brand:
+        type: string
+      capacity:
+        type: number
+      code:
+        type: string
       createdAt:
         type: string
       deletedAt:
         type: string
-      description:
-        type: string
       id:
         type: integer
+      model:
+        type: string
       name:
         type: string
-      status:
-        $ref: '#/definitions/domain.MachineStatus'
-      type:
+      notes:
         type: string
+      status:
+        $ref: '#/definitions/domain.AssetStatus'
+      type:
+        $ref: '#/definitions/domain.ImplementType'
       updatedAt:
         type: string
+      working_width:
+        type: number
+      year:
+        type: integer
+    type: object
+  domain.ImplementType:
+    enum:
+    - plow
+    - disc_harrow
+    - cultivator
+    - seeder
+    - fertilizer_spreader
+    - sprayer
+    - trailer
+    - header
+    - other
+    type: string
+    x-enum-varnames:
+    - ImplementTypePlow
+    - ImplementTypeDiscHarrow
+    - ImplementTypeCultivator
+    - ImplementTypeSeeder
+    - ImplementTypeFertilizerSpreader
+    - ImplementTypeSprayer
+    - ImplementTypeTrailer
+    - ImplementTypeHeader
+    - ImplementTypeOther
+  domain.Machine:
+    properties:
+      brand:
+        type: string
+      code:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      fuel_type:
+        $ref: '#/definitions/domain.FuelType'
+      id:
+        type: integer
+      model:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      operating_hours:
+        type: number
+      registration_number:
+        type: string
+      status:
+        $ref: '#/definitions/domain.AssetStatus'
+      type:
+        $ref: '#/definitions/domain.MachineType'
+      updatedAt:
+        type: string
+      working_hours:
+        type: number
+      year:
+        type: integer
     type: object
   domain.MachineStatus:
     enum:
     - active
-    - available
+    - maintenance
     - inactive
-    - in_service
-    - in_use
+    - active
+    - maintenance
+    - inactive
     type: string
     x-enum-varnames:
+    - AssetStatusActive
+    - AssetStatusMaintenance
+    - AssetStatusInactive
     - MachineStatusActive
-    - MachineStatusAvailable
+    - MachineStatusMaintenance
     - MachineStatusInactive
-    - MachineStatusInService
-    - MachineStatusInUse
+  domain.MachineType:
+    enum:
+    - tractor
+    - combine
+    - drone
+    - sprayer
+    - car
+    - small_truck
+    - other
+    type: string
+    x-enum-varnames:
+    - MachineTypeTractor
+    - MachineTypeCombine
+    - MachineTypeDrone
+    - MachineTypeSprayer
+    - MachineTypeCar
+    - MachineTypeSmallTruck
+    - MachineTypeOther
   domain.Operator:
     properties:
+      allowed_machine_types:
+        items:
+          $ref: '#/definitions/domain.MachineType'
+        type: array
       createdAt:
         type: string
       deletedAt:
         type: string
+      email:
+        type: string
       id:
         type: integer
       name:
+        type: string
+      notes:
+        type: string
+      phone:
         type: string
       status:
         $ref: '#/definitions/domain.OperatorStatus'
@@ -85,6 +237,31 @@ definitions:
     x-enum-varnames:
     - OperatorStatusActive
     - OperatorStatusInactive
+  domain.UserProfile:
+    properties:
+      created_at:
+        type: string
+      date_of_birth:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      profile_photo:
+        type: string
+      role:
+        type: string
+      role_code:
+        type: string
+      role_id:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
   dto.AssigmentResponse:
     properties:
       end_date:
@@ -143,46 +320,157 @@ definitions:
     - start_date
     - status
     type: object
-  handlers.CreateMachineRequest:
+  handlers.CreateImplementRequest:
     properties:
-      description:
+      brand:
+        type: string
+      capacity:
+        type: number
+      code:
+        type: string
+      fuel_type:
+        $ref: '#/definitions/domain.FuelType'
+      model:
         type: string
       name:
         type: string
-      type:
+      notes:
         type: string
+      registration_number:
+        type: string
+      type:
+        $ref: '#/definitions/domain.ImplementType'
+      working_width:
+        type: number
+      year:
+        type: integer
     required:
+    - code
+    - name
+    - type
+    type: object
+  handlers.CreateMachineRequest:
+    properties:
+      brand:
+        type: string
+      code:
+        type: string
+      fuel_type:
+        $ref: '#/definitions/domain.FuelType'
+      model:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      registration_number:
+        type: string
+      type:
+        $ref: '#/definitions/domain.MachineType'
+      working_hours:
+        type: number
+      year:
+        type: integer
+    required:
+    - code
     - name
     - type
     type: object
   handlers.CreateOperatorRequest:
     properties:
+      allowed_machine_types:
+        items:
+          $ref: '#/definitions/domain.MachineType'
+        type: array
+      email:
+        type: string
       name:
         type: string
-      status:
-        $ref: '#/definitions/domain.OperatorStatus'
+      notes:
+        type: string
+      phone:
+        type: string
     required:
     - name
+    type: object
+  handlers.CurrentWeatherResponse:
+    properties:
+      cloud_cover_percent:
+        type: integer
+      condition:
+        type: string
+      humidity_percent:
+        type: integer
+      icon:
+        type: string
+      location:
+        type: string
+      observed_at:
+        type: string
+      precipitation_mm:
+        type: number
+      source:
+        type: string
+      temperature_c:
+        type: integer
+      weather_code:
+        type: integer
+      wind_direction_deg:
+        type: integer
+      wind_speed_kmh:
+        type: number
+    type: object
+  handlers.DashboardCardsResponse:
+    properties:
+      cards:
+        items:
+          $ref: '#/definitions/domain.DashboardCard'
+        type: array
     type: object
   handlers.UpdateMachineRequest:
     properties:
-      description:
+      brand:
+        type: string
+      code:
+        type: string
+      fuel_type:
+        $ref: '#/definitions/domain.FuelType'
+      model:
         type: string
       name:
         type: string
+      notes:
+        type: string
+      registration_number:
+        type: string
       status:
-        type: string
+        $ref: '#/definitions/domain.MachineStatus'
       type:
-        type: string
+        $ref: '#/definitions/domain.MachineType'
+      working_hours:
+        type: number
+      year:
+        type: integer
     required:
+    - code
     - name
+    - status
+    - type
     type: object
   handlers.UpdateOperatorRequest:
     properties:
+      allowed_machine_types:
+        items:
+          $ref: '#/definitions/domain.MachineType'
+        type: array
+      email:
+        type: string
       name:
         type: string
-      status:
-        $ref: '#/definitions/domain.OperatorStatus'
+      notes:
+        type: string
+      phone:
+        type: string
     required:
     - name
     type: object
@@ -392,6 +680,87 @@ paths:
       summary: Inchidere asignare
       tags:
       - assignments
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Parolă
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            confirm_password:
+              type: string
+            new_password:
+              type: string
+            old_password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - auth
+  /auth/confirm-email:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Token confirmare
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Confirm email
+      tags:
+      - auth
   /auth/forgot-password:
     post:
       consumes:
@@ -414,8 +783,6 @@ paths:
           schema:
             properties:
               message:
-                type: string
-              reset_token:
                 type: string
             type: object
         "400":
@@ -545,9 +912,7 @@ paths:
           description: Created
           schema:
             properties:
-              access_token:
-                type: string
-              refresh_token:
+              message:
                 type: string
             type: object
         "400":
@@ -558,6 +923,40 @@ paths:
                 type: string
             type: object
       summary: Register
+      tags:
+      - auth
+  /auth/resend-confirmation:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email utilizator
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              errors:
+                type: object
+            type: object
+      summary: Resend confirmation email
       tags:
       - auth
   /auth/reset-password/{token}:
@@ -601,6 +1000,27 @@ paths:
       summary: Reset password
       tags:
       - auth
+  /dashboard/cards:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.DashboardCardsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Carduri dashboard
+      tags:
+      - dashboard
   /health:
     get:
       produces:
@@ -616,6 +1036,158 @@ paths:
       summary: Health check
       tags:
       - system
+  /implements:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Implement'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listare utilaje agricole
+      tags:
+      - implements
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Date utilaj agricol
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateImplementRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Implement'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Creare utilaj agricol
+      tags:
+      - implements
+  /implements/{id}:
+    delete:
+      parameters:
+      - description: ID utilaj agricol
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ștergere utilaj agricol
+      tags:
+      - implements
+    get:
+      parameters:
+      - description: ID utilaj agricol
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Implement'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obținere utilaj agricol
+      tags:
+      - implements
+  /implements/{id}/activate:
+    patch:
+      parameters:
+      - description: ID utilaj agricol
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Implement'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Activare utilaj agricol
+      tags:
+      - implements
+  /implements/{id}/deactivate:
+    patch:
+      parameters:
+      - description: ID utilaj agricol
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Implement'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Dezactivare utilaj agricol
+      tags:
+      - implements
   /logout:
     post:
       consumes:
@@ -931,6 +1503,182 @@ paths:
       summary: Actualizare operator
       tags:
       - operators
+  /operators/{id}/disable:
+    patch:
+      parameters:
+      - description: ID operator
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Operator'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Dezactivare operator
+      tags:
+      - operators
+  /operators/{id}/enable:
+    patch:
+      parameters:
+      - description: ID operator
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Operator'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reactivare operator
+      tags:
+      - operators
+  /profile:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.UserProfile'
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get profile
+      tags:
+      - profile
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Date profil
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            date_of_birth:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              errors:
+                type: object
+            type: object
+      summary: Update profile
+      tags:
+      - profile
+  /profile/photo:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Fișier imagine (jpg/png/webp, max 5MB)
+        in: formData
+        name: photo
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              profile_photo:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Upload profile photo
+      tags:
+      - profile
+  /weather/current:
+    get:
+      parameters:
+      - description: Latitudine WGS84
+        in: query
+        name: lat
+        type: number
+      - description: Longitudine WGS84
+        in: query
+        name: lng
+        type: number
+      - description: Numele locatiei afisat in raspuns
+        in: query
+        name: location
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CurrentWeatherResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Vreme curenta
+      tags:
+      - weather
 securityDefinitions:
   BearerAuth:
     description: 'Introdu token-ul cu prefixul "Bearer ": **Bearer &lt;token&gt;**'

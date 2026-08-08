@@ -24,6 +24,8 @@ type AppDeps struct {
 	FieldService               *usecase.FieldService
 	AssignmentService          *usecase.AssigmentService
 	OperationService           *usecase.OperationService
+	DashboardService           *usecase.DashboardService
+	WeatherService             *usecase.WeatherService
 	ImplementCompatibilityRepo repository.ImplementCompatibilityRepository
 	AuthService                *usecase.AuthService
 	ProfileService             *usecase.ProfileService
@@ -54,6 +56,9 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	authGroup.POST("/forgot-password", authHandler.ForgotPassword)
 	authGroup.POST("/reset-password/:token", authHandler.ResetPassword)
 
+	weatherHandler := handlers.NewWeatherHandler(deps.WeatherService)
+	r.GET("/api/weather/current", weatherHandler.GetCurrent)
+
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist))
 
@@ -69,6 +74,10 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 		deps.Log.Info("Health check called")
 		handlers.HealthCheck(c)
 	})
+
+	// ─── Dashboard ────────────────────────────────────────────────────────────
+	dashboardHandler := handlers.NewDashboardHandler(deps.DashboardService)
+	api.GET("/dashboard/cards", perm("dashboard:read"), dashboardHandler.GetCards)
 
 	// ─── Machines ────────────────────────────────────────────────────────────
 	machineHandler := handlers.NewMachineHandler(deps.MachineService)

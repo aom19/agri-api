@@ -16,6 +16,7 @@ API REST pentru managementul mașinilor agricole, operatorilor și asignărilor,
 | [go-redis/v9](https://github.com/redis/go-redis) | Client Redis |
 | [air](https://github.com/air-verse/air) | Live reload în development |
 | [zap](https://github.com/uber-go/zap) | Logger structurat |
+| [Open-Meteo](https://open-meteo.com/) | Provider gratuit pentru vremea curentă din Cantemir |
 
 ---
 
@@ -109,6 +110,7 @@ REDIS_PASSWORD=agri123
 REDIS_DB=0
 
 PUBLIC_URL=http://localhost:8080
+OPENWEATHER_API_KEY=your_openweathermap_api_key
 
 LOG_LEVEL=debug
 ```
@@ -155,6 +157,17 @@ make run
 
 **Fișiere statice:** poza de profil e servită la `/uploads/avatars/<filename>`.
 
+### Meteo (public)
+
+| Metodă | Rută | Descriere |
+|---|---|---|
+| GET | `/api/weather/current` | Vremea curentă pentru Cantemir, normalizată și cache-uită în backend |
+| GET | `/api/weather/current?lat={lat}&lng={lng}&location={name}` | Vremea curentă pentru coordonate specifice, folosită pentru meteo per teren |
+
+Backendul folosește `OPENWEATHER_API_KEY` pentru OpenWeatherMap când cheia este configurată. Dacă providerul nu răspunde sau cheia este respinsă, endpointul cade automat pe Open-Meteo, care nu necesită API key pentru uz non-comercial sub limita publică de cereri. Backendul face request-ul extern, aplică timeout și cache de 10 minute, iar frontendul consumă doar endpointul intern. Endpointul este public deoarece nu expune date sensibile.
+
+Răspunsul include metrici utile pentru hartă și agricultură: temperatură, condiție meteo, umiditate, vânt, precipitații pe ultima oră și nebulozitate. Cheia OpenWeatherMap rămâne doar în backend.
+
 ### Profil utilizator (protejate)
 
 | Metodă | Rută | Descriere |
@@ -186,6 +199,14 @@ make run
 | Metodă | Rută | Descriere |
 |---|---|---|
 | GET | `/api/health` | Starea serviciului |
+
+### Dashboard (protejate)
+
+| Metodă | Rută | Descriere |
+|---|---|---|
+| GET | `/api/dashboard/cards` | Carduri KPI agregate din baza de date: total mașini, mașini active, total operatori și alocări active |
+
+Necesită permisiunea `dashboard:read`, acordată implicit rolurilor `admin`, `manager` și `viewer` prin migrația `000030_add_dashboard_read_permission`.
 
 ### Mașini (protejate)
 

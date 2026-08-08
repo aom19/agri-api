@@ -87,6 +87,9 @@ func main() {
 
 	// 2.5 Repository pentru compatibilitățile utilaj ↔ echipament
 	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
+	dashboardRepo := postgres.NewDashboardRepo(sqlDB)
+	dashboardService := usecase.NewDashboardService(dashboardRepo)
+	weatherService := usecase.NewWeatherService(cfg.OpenWeatherAPIKey)
 
 	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări
 	appStore := store.NewInitialiedStore(sqlDB)
@@ -162,6 +165,8 @@ func main() {
 		FieldService:               fieldService,
 		AssignmentService:          assigmentService,
 		OperationService:           operationService,
+		DashboardService:           dashboardService,
+		WeatherService:             weatherService,
 		ImplementCompatibilityRepo: implementCompatibilityRepo,
 		AuthService:                authService,
 		ProfileService:             profileService,
