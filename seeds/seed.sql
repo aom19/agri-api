@@ -1,111 +1,313 @@
 -- Curăță datele existente (CASCADE șterge și asignările dependente)
-TRUNCATE TABLE assignments, operators, machines RESTART IDENTITY CASCADE;
+TRUNCATE TABLE fields, assignments, operators, machines RESTART IDENTITY CASCADE;
 
--- Seed: 10 mașini agricole
-INSERT INTO machines (name, type, status, description) VALUES
-    ('John Deere 8R 410',     'Tractor',      'available',  'Tractor de mare putere, 410 CP, 4WD'),
-    ('Case IH Axial-Flow 250','Combină',       'available',  'Combină de recoltat cereale, 502 CP'),
-    ('Fendt 724 Vario',       'Tractor',      'in_use',     'Tractor cu transmisie continuă variabilă, 240 CP'),
-    ('New Holland T7.315',    'Tractor',      'available',  'Tractor cu Blue Power, 315 CP'),
-    ('Claas Lexion 8900',     'Combină',      'in_service', 'Cea mai mare combină din lume, 790 CP'),
-    ('Amazone ZA-TS 4200',    'Distribuitor', 'available',  'Distribuitor de îngrășăminte, 4200 L'),
-    ('Horsch Joker 12 RT',    'Cultivator',   'available',  'Cultivator disc, 12 m lățime de lucru'),
-    ('Kuhn Merge Maxx 902',   'Greblă',       'inactive',   'Greblă rotativă cu 9 rotoare, 9 m'),
-    ('Väderstad Tempo V 16',  'Semănătoare',  'available',  'Semănătoare de precizie, 16 rânduri'),
-    ('Krone BiG X 1180',      'Tocat furaje', 'in_use',     'Tocător autopropulsat, 1156 CP')
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'implement_compatibilities') THEN
+        EXECUTE 'TRUNCATE TABLE implement_compatibilities RESTART IDENTITY';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'implements') THEN
+        EXECUTE 'TRUNCATE TABLE implements RESTART IDENTITY';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'operation_types')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'operation_templates')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_resources')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_machine_types')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_implement_types') THEN
+        EXECUTE 'TRUNCATE TABLE template_resources, template_machine_types, template_implement_types, operation_templates, operation_types RESTART IDENTITY';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resource_types')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resources')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stocks') THEN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_resources') THEN
+            EXECUTE 'TRUNCATE TABLE template_resources, stocks, resources, resource_types RESTART IDENTITY';
+        ELSE
+            EXECUTE 'TRUNCATE TABLE stocks, resources, resource_types RESTART IDENTITY';
+        END IF;
+    END IF;
+END $$;
+
+-- Seed: mașini agricole (format nume: <TIP>-<BRAND>-<MODEL>-<NR>)
+INSERT INTO machines (
+    name,
+    code,
+    type,
+    brand,
+    model,
+    year,
+    registration_number,
+    fuel_type,
+    operating_hours,
+    asset_status,
+    notes
+) VALUES
+    ('TR-JOHNDEERE-6R185-01', 'MCH-0001', 'tractor', 'John Deere', '6R 185', 2018, 'B-AG-0001', 'diesel', 6420, 'active', 'Tractor principal lucrari camp'),
+    ('TR-FENDT-724VARIO-02', 'MCH-0002', 'tractor', 'Fendt', '724 Vario', 2019, 'B-AG-0002', 'diesel', 5190, 'active', 'Tractor pentru transport'),
+    ('TR-NEWHOLLAND-T7270-03', 'MCH-0003', 'tractor', 'New Holland', 'T7.270', 2017, 'B-AG-0003', 'diesel', 7340, 'maintenance', 'Revizie motor programata'),
+    ('TR-CASEIH-PUMA240-04', 'MCH-0004', 'tractor', 'Case IH', 'Puma 240', 2020, 'B-AG-0004', 'diesel', 4810, 'active', 'Tractor pentru arat'),
+    ('TR-MASSEY-7720-05', 'MCH-0005', 'tractor', 'Massey Ferguson', '7720', 2016, 'B-AG-0005', 'diesel', 8125, 'inactive', 'Rezerva sezon'),
+    ('TR-VALTRA-T254-06', 'MCH-0006', 'tractor', 'Valtra', 'T254', 2022, 'B-AG-0006', 'diesel', 2130, 'active', 'Utilaj nou'),
+    ('TR-SAME-EXPLORER120-07', 'MCH-0007', 'tractor', 'Same', 'Explorer 120', 2015, 'B-AG-0007', 'diesel', 9020, 'active', 'Lucrari usoare'),
+    ('TR-ZETOR-FORTERRA140-08', 'MCH-0008', 'tractor', 'Zetor', 'Forterra 140', 2016, 'B-AG-0008', 'diesel', 6880, 'maintenance', 'Verificare transmisie'),
+    ('DR-DJI-AGRAST30-01', 'MCH-0009', 'drone', 'DJI', 'Agras T30', 2022, 'B-AG-0009', 'electric', 940, 'active', 'Monitorizare culturi'),
+    ('DR-DJI-AGRAST40-02', 'MCH-0010', 'drone', 'DJI', 'Agras T40', 2023, 'B-AG-0010', 'electric', 610, 'active', 'Stropiri localizate'),
+    ('CB-CLAAS-LEXION780-01', 'MCH-0011', 'combine', 'Claas', 'Lexion 780', 2019, 'B-AG-0011', 'diesel', 3890, 'active', 'Recoltare grau'),
+    ('CB-JOHNDEERE-S780-02', 'MCH-0012', 'combine', 'John Deere', 'S780', 2021, 'B-AG-0012', 'diesel', 2750, 'active', 'Recoltare porumb'),
+    ('CB-FENDT-IDEAL9T-03', 'MCH-0013', 'combine', 'Fendt', 'Ideal 9T', 2021, 'B-AG-0013', 'diesel', 3180, 'maintenance', 'Service pre-campanie'),
+    ('CAR-DACIA-DUSTER-01', 'MCH-0014', 'car', 'Dacia', 'Duster', 2020, 'B-AG-0014', 'gasoline', 2260, 'active', 'Masina deplasari teren'),
+    ('CAR-DACIA-DUSTER-02', 'MCH-0015', 'car', 'Dacia', 'Duster', 2021, 'B-AG-0015', 'gasoline', 1980, 'active', 'Masina echipa tehnica'),
+    ('CAR-DACIA-DUSTER-03', 'MCH-0016', 'car', 'Dacia', 'Duster', 2022, 'B-AG-0016', 'hybrid', 1290, 'inactive', 'Back-up administrativ'),
+    ('ST-MERCEDES-SPRINTER-01', 'MCH-0017', 'small_truck', 'Mercedes', 'Sprinter', 2019, 'B-AG-0017', 'diesel', 4560, 'active', 'Transport piese si echipamente'),
+    ('ST-MERCEDES-SPRINTER-02', 'MCH-0018', 'small_truck', 'Mercedes', 'Sprinter', 2021, 'B-AG-0018', 'diesel', 3010, 'maintenance', 'Revizie flota'),
+    ('SP-HARDI-ALPHAEVO-01', 'MCH-0019', 'sprayer', 'Hardi', 'Alpha Evo', 2020, 'B-AG-0019', 'diesel', 2870, 'active', 'Pulverizator autopropulsat pentru tratamente')
+ON CONFLICT DO NOTHING;
+
+-- Seed: implementuri (echipamente atașabile, fără motor propriu)
+INSERT INTO implements (
+    name,
+    code,
+    type,
+    brand,
+    model,
+    year,
+    working_width,
+    capacity,
+    status,
+    notes
+) VALUES
+    ('PL-LEMKEN-JUWEL8-01', 'IMP-0001', 'plow', 'Lemken', 'Juwel 8', 2020, 2.4, NULL, 'active', 'Plug reversibil pentru arat'),
+    ('SE-HORSCH-PRONTO6DC-01', 'IMP-0002', 'seeder', 'Horsch', 'Pronto 6 DC', 2021, 6.0, NULL, 'active', 'Semanatoare cereale paioase'),
+    ('FS-AMAZONE-ZA-TS4200-01', 'IMP-0003', 'fertilizer_spreader', 'Amazone', 'ZA-TS 4200', 2019, NULL, 4200, 'active', 'Distribuitor ingrasaminte'),
+    ('SP-RAUCH-AERO32-01', 'IMP-0004', 'sprayer', 'Rauch', 'Aero 32', 2022, 32.0, 3200, 'maintenance', 'Pulverizator tractat'),
+    ('TR-KRAMPE-HALFPIPE-01', 'IMP-0005', 'trailer', 'Krampe', 'Halfpipe', 2018, NULL, 18000, 'active', 'Remorca transport cereale'),
+    ('HD-CLAAS-VARIO1080-01', 'IMP-0006', 'header', 'Claas', 'Vario 1080', 2020, 10.8, NULL, 'active', 'Header pentru combine'),
+    ('DH-KVERNELAND-QUALIDISC-01', 'IMP-0007', 'disc_harrow', 'Kverneland', 'Qualidisc', 2019, 4.0, NULL, 'active', 'Grapa cu discuri pentru pregatirea patului germinativ'),
+    ('CV-KONGSKILDE-VIBROFLEX-01', 'IMP-0008', 'cultivator', 'Kongskilde', 'Vibro Flex', 2017, 4.5, NULL, 'active', 'Cultivator pentru lucrari superficiale'),
+    ('OT-UNIVERSAL-PLATFORM-01', 'IMP-0009', 'other', 'Universal', 'Platform', 2015, NULL, 2500, 'inactive', 'Implement generic pentru utilizari diverse')
+ON CONFLICT DO NOTHING;
+
+-- Seed: compatibilități între tipuri de mașini și implementuri
+INSERT INTO implement_compatibilities (machine_type, implement_type) VALUES
+    ('tractor', 'plow'),
+    ('tractor', 'seeder'),
+    ('tractor', 'fertilizer_spreader'),
+    ('tractor', 'sprayer'),
+    ('tractor', 'trailer'),
+    ('combine', 'header'),
+    ('combine', 'trailer'),
+    ('drone', 'sprayer')
 ON CONFLICT DO NOTHING;
 
 -- Seed: 15 operatori
-INSERT INTO operators (name, status) VALUES
-    ('Alexandru Ionescu', 'active'),
-    ('Mihai Popescu',     'active'),
-    ('Gheorghe Dănilă',   'active'),
-    ('Ion Constantin',    'active'),
-    ('Vasile Marin',      'active'),
-    ('Dumitru Florescu',  'active'),
-    ('Nicolae Stancu',    'active'),
-    ('Florin Gheorghiu',  'active'),
-    ('Octavian Rus',      'active'),
-    ('Petru Moldovan',    'active'),
-    ('Andrei Popa',       'inactive'),
-    ('Cristian Luca',     'inactive'),
-    ('Bogdan Stoica',     'active'),
-    ('Radu Nistor',       'active'),
-    ('Sorin Enache',      'active')
+INSERT INTO operators (name, phone, email, status, allowed_machine_types) VALUES
+    ('Alexandru Ionescu', '+37369100001', 'alexandru.ionescu@agri.ro', 'active',   '{tractor,combine}'),
+    ('Mihai Popescu',     '+37369100002', 'mihai.popescu@agri.ro',     'active',   '{tractor}'),
+    ('Gheorghe Dănilă',   '+37369100003', NULL,                        'active',   '{tractor,sprayer}'),
+    ('Ion Constantin',    '+37369100004', NULL,                        'active',   '{tractor,small_truck}'),
+    ('Vasile Marin',      '+37369100005', 'vasile.marin@agri.ro',      'active',   '{combine}'),
+    ('Dumitru Florescu',  '+37369100006', NULL,                        'active',   '{tractor}'),
+    ('Nicolae Stancu',    '+37369100007', 'nicolae.stancu@agri.ro',    'active',   '{tractor,car}'),
+    ('Florin Gheorghiu',  '+37369100008', NULL,                        'active',   '{tractor,small_truck}'),
+    ('Octavian Rus',      '+37369100009', 'octavian.rus@agri.ro',      'active',   '{drone}'),
+    ('Petru Moldovan',    '+37369100010', NULL,                        'active',   '{drone,sprayer}'),
+    ('Andrei Popa',       '+37369100011', NULL,                        'inactive', '{tractor}'),
+    ('Cristian Luca',     '+37369100012', NULL,                        'inactive', '{car,small_truck}'),
+    ('Bogdan Stoica',     '+37369100013', 'bogdan.stoica@agri.ro',     'active',   '{combine,tractor}'),
+    ('Radu Nistor',       '+37369100014', NULL,                        'active',   '{tractor}'),
+    ('Sorin Enache',      '+37369100015', 'sorin.enache@agri.ro',      'active',   '{tractor,sprayer}')
 ON CONFLICT DO NOTHING;
 
 -- Seed: 15 asignări — referință după nume, nu ID hardcodat
 INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '30 days', NOW() - INTERVAL '25 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'John Deere 8R 410'     AND o.name = 'Alexandru Ionescu'
+SELECT
+    m.id,
+    o.id,
+    NOW() - (l.start_days || ' days')::interval,
+    CASE WHEN l.status = 'closed' THEN NOW() - (l.end_days || ' days')::interval ELSE NULL END,
+    l.status
+FROM (
+    VALUES
+        ('MCH-0001', 'Alexandru Ionescu', 30, 25, 'closed'),
+        ('MCH-0002', 'Mihai Popescu', 20, 15, 'closed'),
+        ('MCH-0003', 'Gheorghe Dănilă', 10, NULL, 'active'),
+        ('MCH-0004', 'Ion Constantin', 5, NULL, 'active'),
+        ('MCH-0005', 'Vasile Marin', 60, 50, 'closed'),
+        ('MCH-0006', 'Dumitru Florescu', 45, 40, 'closed'),
+        ('MCH-0007', 'Nicolae Stancu', 3, NULL, 'active'),
+        ('MCH-0008', 'Florin Gheorghiu', 90, 80, 'closed'),
+        ('MCH-0009', 'Octavian Rus', 7, NULL, 'active'),
+        ('MCH-0010', 'Petru Moldovan', 15, 10, 'closed'),
+        ('MCH-0011', 'Bogdan Stoica', 120, 100, 'closed'),
+        ('MCH-0012', 'Radu Nistor', 2, NULL, 'active'),
+        ('MCH-0013', 'Sorin Enache', 50, 45, 'closed'),
+        ('MCH-0014', 'Nicolae Stancu', 1, NULL, 'active'),
+        ('MCH-0015', 'Petru Moldovan', 8, 3, 'closed')
+) AS l(machine_code, operator_name, start_days, end_days, status)
+JOIN machines m ON m.code = l.machine_code
+JOIN operators o ON o.name = l.operator_name
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '20 days', NOW() - INTERVAL '15 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'Case IH Axial-Flow 250' AND o.name = 'Mihai Popescu'
+-- Seed: tipuri de resurse agricole
+INSERT INTO resource_types (name, category, default_unit) VALUES
+    ('Combustibil', 'fuel', 'L'),
+    ('Fertilizant', 'fertilizer', 'kg'),
+    ('Seminte', 'seed', 'kg'),
+    ('Pesticid', 'pesticide', 'L'),
+    ('Apa', 'water', 'm3'),
+    ('Alte resurse', 'other', 'buc')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '10 days', NULL, 'active'
-FROM machines m, operators o WHERE m.name = 'Fendt 724 Vario'        AND o.name = 'Gheorghe Dănilă'
+-- Seed: resurse (consumabile)
+INSERT INTO resources (name, resource_type_id, price_per_unit, notes)
+VALUES
+    ('Motorina flota utilaje', 1, 28.95, 'Rezervor principal pentru tractoare si combine'),
+    ('Benzina pentru autoturisme', 1, 31.20, 'Consum pentru vehicule usoare'),
+    ('Uree pentru fertilizare faziala', 2, 7.85, 'Aplicare primavara pe grau'),
+    ('NPK pentru pregatire teren', 2, 6.60, 'Fertilizare de baza inainte de semanat'),
+    ('Samanta grau lot A', 3, 4.75, 'Lot certificat C1'),
+    ('Samanta porumb lot B', 3, 690.00, 'Saci 80.000 boabe'),
+    ('Erbicid camp est', 4, 43.90, 'Tratament post-recoltare'),
+    ('Fungicid lot rapita', 4, 96.50, 'Control boli foliare'),
+    ('Apa sistem pivot 1', 5, 1.35, 'Cost operational mediu'),
+    ('Material absorbant atelier', 6, 18.00, 'Consumabil mentenanta')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '5 days', NULL, 'active'
-FROM machines m, operators o WHERE m.name = 'New Holland T7.315'     AND o.name = 'Ion Constantin'
+-- Seed: stocuri pentru resurse
+INSERT INTO stocks (resource_id, quantity, minimum_quantity)
+SELECT
+    res.id,
+    s.quantity,
+    s.minimum_quantity
+FROM (
+    VALUES
+        ('Motorina flota utilaje', 12450.0000, 3000.0000),
+        ('Benzina pentru autoturisme', 1850.0000, 500.0000),
+        ('Uree pentru fertilizare faziala', 9200.0000, 2500.0000),
+        ('NPK pentru pregatire teren', 7800.0000, 2000.0000),
+        ('Samanta grau lot A', 5600.0000, 1500.0000),
+        ('Samanta porumb lot B', 140.0000, 40.0000),
+        ('Erbicid camp est', 620.0000, 180.0000),
+        ('Fungicid lot rapita', 240.0000, 80.0000),
+        ('Apa sistem pivot 1', 48000.0000, 10000.0000),
+        ('Material absorbant atelier', 85.0000, 20.0000)
+) AS s(resource_name, quantity, minimum_quantity)
+JOIN resources res ON res.name = s.resource_name
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '60 days', NOW() - INTERVAL '50 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'Claas Lexion 8900'      AND o.name = 'Vasile Marin'
+-- Seed: tipuri de operatiuni agricole
+INSERT INTO operation_types (code, name, description) VALUES
+    ('soil_preparation', 'Pregatire sol', 'Lucrari de pregatire a patului germinativ'),
+    ('seeding', 'Semanat', 'Operatiuni de semanat culturi agricole'),
+    ('fertilization', 'Fertilizare', 'Aplicare fertilizanti solizi sau lichizi'),
+    ('spraying', 'Stropire', 'Tratamente fitosanitare si erbicidare'),
+    ('harvesting', 'Recoltare', 'Operatiuni de recoltare si transport recolta'),
+    ('irrigation', 'Irigare', 'Aplicare apa pentru culturi')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '45 days', NOW() - INTERVAL '40 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'Amazone ZA-TS 4200'     AND o.name = 'Dumitru Florescu'
+-- Seed: template-uri de operatiuni
+INSERT INTO operation_templates (operation_type_id, name, description, unit)
+SELECT ot.id, t.name, t.description, t.unit
+FROM (
+    VALUES
+        ('soil_preparation', 'Arat adanc standard', 'Arat cu tractor si plug reversibil pentru pregatirea solului', 'ha'),
+        ('soil_preparation', 'Pregatire pat germinativ', 'Lucrare cu grapa cu discuri si fertilizare de baza NPK', 'ha'),
+        ('seeding', 'Semanat grau standard', 'Semanat grau cu doza medie pentru teren arabil', 'ha'),
+        ('seeding', 'Semanat porumb standard', 'Semanat porumb in randuri cu densitate controlata', 'ha'),
+        ('fertilization', 'Fertilizare faziala grau', 'Aplicare uree pe cultura de grau in vegetatie', 'ha'),
+        ('spraying', 'Erbicidare camp est', 'Aplicare erbicid cu pulverizator tractat sau autopropulsat', 'ha'),
+        ('spraying', 'Tratament fungicid rapita', 'Aplicare fungicid pentru boli foliare la rapita', 'ha'),
+        ('harvesting', 'Recoltare grau', 'Recoltare cereale paioase cu combina si header', 'ha'),
+        ('irrigation', 'Irigare pivot', 'Irigare prin sistem pivot cu norma operationala medie', 'ha')
+) AS t(operation_code, name, description, unit)
+JOIN operation_types ot ON ot.code = t.operation_code
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '3 days', NULL, 'active'
-FROM machines m, operators o WHERE m.name = 'Horsch Joker 12 RT'     AND o.name = 'Nicolae Stancu'
+-- Seed: resurse necesare per template
+INSERT INTO template_resources (template_id, resource_id, quantity_per_unit, notes)
+SELECT tpl.id, res.id, tr.quantity_per_unit, tr.notes
+FROM (
+    VALUES
+        ('Arat adanc standard', 'Motorina flota utilaje', 18.0000, 'Consum estimat pentru tractor greu'),
+        ('Pregatire pat germinativ', 'Motorina flota utilaje', 10.0000, 'Consum pentru tractor cu grapa cu discuri'),
+        ('Pregatire pat germinativ', 'NPK pentru pregatire teren', 180.0000, 'Fertilizare de baza'),
+        ('Semanat grau standard', 'Motorina flota utilaje', 9.0000, 'Consum semanatoare cereale'),
+        ('Semanat grau standard', 'Samanta grau lot A', 220.0000, 'Doza medie semanat grau'),
+        ('Semanat porumb standard', 'Motorina flota utilaje', 8.5000, 'Consum semanatoare prasitoare'),
+        ('Semanat porumb standard', 'Samanta porumb lot B', 0.8500, 'Saci per hectar'),
+        ('Fertilizare faziala grau', 'Motorina flota utilaje', 6.0000, 'Consum distribuitor fertilizant'),
+        ('Fertilizare faziala grau', 'Uree pentru fertilizare faziala', 160.0000, 'Doza uree per hectar'),
+        ('Erbicidare camp est', 'Motorina flota utilaje', 4.5000, 'Consum pulverizare'),
+        ('Erbicidare camp est', 'Erbicid camp est', 2.2000, 'Doza produs comercial'),
+        ('Erbicidare camp est', 'Apa sistem pivot 1', 0.2500, 'Volum apa tehnologic per hectar'),
+        ('Tratament fungicid rapita', 'Motorina flota utilaje', 4.8000, 'Consum pulverizare'),
+        ('Tratament fungicid rapita', 'Fungicid lot rapita', 1.0000, 'Doza produs comercial'),
+        ('Tratament fungicid rapita', 'Apa sistem pivot 1', 0.2200, 'Volum apa tehnologic per hectar'),
+        ('Recoltare grau', 'Motorina flota utilaje', 14.0000, 'Consum combina si logistica imediata'),
+        ('Irigare pivot', 'Apa sistem pivot 1', 350.0000, 'Norma de irigare estimata')
+) AS tr(template_name, resource_name, quantity_per_unit, notes)
+JOIN operation_templates tpl ON tpl.name = tr.template_name
+JOIN resources res ON res.name = tr.resource_name
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '90 days', NOW() - INTERVAL '80 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'Kuhn Merge Maxx 902'    AND o.name = 'Florin Gheorghiu'
+-- Seed: tipuri de masini compatibile per template
+INSERT INTO template_machine_types (template_id, machine_type)
+SELECT tpl.id, tm.machine_type
+FROM (
+    VALUES
+        ('Arat adanc standard', 'tractor'),
+        ('Pregatire pat germinativ', 'tractor'),
+        ('Semanat grau standard', 'tractor'),
+        ('Semanat porumb standard', 'tractor'),
+        ('Fertilizare faziala grau', 'tractor'),
+        ('Erbicidare camp est', 'tractor'),
+        ('Erbicidare camp est', 'sprayer'),
+        ('Erbicidare camp est', 'drone'),
+        ('Tratament fungicid rapita', 'tractor'),
+        ('Tratament fungicid rapita', 'sprayer'),
+        ('Tratament fungicid rapita', 'drone'),
+        ('Recoltare grau', 'combine'),
+        ('Irigare pivot', 'other')
+) AS tm(template_name, machine_type)
+JOIN operation_templates tpl ON tpl.name = tm.template_name
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '7 days', NULL, 'active'
-FROM machines m, operators o WHERE m.name = 'Väderstad Tempo V 16'   AND o.name = 'Octavian Rus'
+-- Seed: tipuri de echipamente compatibile per template
+INSERT INTO template_implement_types (template_id, implement_type)
+SELECT tpl.id, ti.implement_type
+FROM (
+    VALUES
+        ('Arat adanc standard', 'plow'),
+        ('Pregatire pat germinativ', 'disc_harrow'),
+        ('Pregatire pat germinativ', 'fertilizer_spreader'),
+        ('Semanat grau standard', 'seeder'),
+        ('Semanat porumb standard', 'seeder'),
+        ('Fertilizare faziala grau', 'fertilizer_spreader'),
+        ('Erbicidare camp est', 'sprayer'),
+        ('Tratament fungicid rapita', 'sprayer'),
+        ('Recoltare grau', 'header')
+) AS ti(template_name, implement_type)
+JOIN operation_templates tpl ON tpl.name = ti.template_name
 ON CONFLICT DO NOTHING;
 
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '15 days', NOW() - INTERVAL '10 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'Krone BiG X 1180'       AND o.name = 'Petru Moldovan'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '120 days', NOW() - INTERVAL '100 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'John Deere 8R 410'      AND o.name = 'Bogdan Stoica'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '2 days', NULL, 'active'
-FROM machines m, operators o WHERE m.name = 'Fendt 724 Vario'        AND o.name = 'Radu Nistor'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '50 days', NOW() - INTERVAL '45 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'Claas Lexion 8900'      AND o.name = 'Sorin Enache'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '1 days', NULL, 'active'
-FROM machines m, operators o WHERE m.name = 'Horsch Joker 12 RT'     AND o.name = 'Nicolae Stancu'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT m.id, o.id, NOW() - INTERVAL '8 days', NOW() - INTERVAL '3 days', 'closed'
-FROM machines m, operators o WHERE m.name = 'Väderstad Tempo V 16'   AND o.name = 'Petru Moldovan'
-ON CONFLICT DO NOTHING;
+-- Seed: terenuri agricole reale (poligoane OSM) din jurul satelor Lingura, Tartaul, Cirpesti, Plopi si Gotesti (raionul Cantemir)
+-- Geometrii preluate din OpenStreetMap (c) OpenStreetMap contributors, ODbL 1.0 - http://osm.org/copyright
+-- cadastral_number: numere generate dupa formatul cadastral moldovenesc (raion.localitate.tarla.parcela), NU sunt verificate contra cadastru.gov.md (nu exista API public accesibil)
+INSERT INTO fields (name, cadastral_number, area_ha, geometry) VALUES
+    ('Lingura - Teren agricol Nord', '2925101.001.01', 7.98, '{"type":"Polygon","coordinates":[[[28.321552,46.220088],[28.322785,46.220034],[28.322821,46.220271],[28.32151,46.224465],[28.320505,46.227655],[28.319414,46.227649],[28.321474,46.22026],[28.321552,46.220088]]]}'), -- OSM way/56029914, 7.98 ha
+    ('Lingura - Vie Est', '2925101.002.01', 3.50, '{"type":"Polygon","coordinates":[[[28.299269,46.237219],[28.299563,46.236438],[28.299624,46.23627],[28.300525,46.236302],[28.301436,46.236337],[28.30307,46.236367],[28.30301,46.236457],[28.302505,46.237797],[28.299269,46.237219]]]}'), -- OSM way/1316871759, 3.50 ha
+    ('Lingura - Vie Vest', '2925101.003.01', 3.31, '{"type":"Polygon","coordinates":[[[28.309741,46.22723],[28.310153,46.226129],[28.314267,46.226737],[28.314054,46.227432],[28.311633,46.227332],[28.311356,46.227267],[28.311272,46.227086],[28.310975,46.227043],[28.310887,46.227309],[28.31068,46.227274],[28.310689,46.227234],[28.310617,46.227221],[28.310589,46.227305],[28.310514,46.227336],[28.309741,46.22723]]]}'), -- OSM way/56029808, 3.31 ha
+    ('Tartaul - Tarla Mare', '2925201.001.01', 84.02, '{"type":"Polygon","coordinates":[[[28.406613,46.188999],[28.406506,46.189147],[28.405541,46.18891],[28.405605,46.188761],[28.405905,46.18836],[28.405863,46.188226],[28.403395,46.187766],[28.40333,46.187573],[28.403931,46.186503],[28.403931,46.18634],[28.403352,46.186206],[28.403266,46.185968],[28.403416,46.185597],[28.405133,46.182091],[28.40597,46.180397],[28.406571,46.179431],[28.406957,46.179209],[28.407086,46.178674],[28.407472,46.177619],[28.408909,46.174796],[28.410004,46.172136],[28.410562,46.170858],[28.414553,46.171943],[28.415883,46.169476],[28.417707,46.170056],[28.417728,46.170149],[28.413909,46.176634],[28.411495,46.180735],[28.411015,46.18152],[28.410913,46.181587],[28.410764,46.181657],[28.410708,46.181706],[28.410663,46.18182],[28.410662,46.182009],[28.410639,46.18215],[28.410274,46.18276],[28.409028,46.184962],[28.407665,46.187235],[28.406613,46.188999]]]}'), -- OSM way/807107813, 84.02 ha
+    ('Tartaul - Tarla Centrala', '2925201.002.01', 53.50, '{"type":"Polygon","coordinates":[[[28.304328,46.13363],[28.304343,46.13366],[28.304283,46.133867],[28.303914,46.134997],[28.303576,46.136009],[28.303164,46.137178],[28.30282,46.138171],[28.302415,46.1393],[28.302195,46.139886],[28.302102,46.139965],[28.301981,46.140052],[28.301954,46.140102],[28.301937,46.140153],[28.30168,46.140082],[28.301441,46.14001],[28.301241,46.13994],[28.301119,46.139865],[28.301056,46.139813],[28.300867,46.139651],[28.300886,46.139618],[28.300903,46.139567],[28.300968,46.139392],[28.300982,46.139322],[28.30097,46.13923],[28.300951,46.139198],[28.300916,46.139183],[28.300876,46.13919],[28.300837,46.139225],[28.300775,46.13927],[28.300639,46.13932],[28.30059,46.139342],[28.30056,46.139396],[28.300536,46.139422],[28.300449,46.13935],[28.300299,46.139203],[28.300141,46.139017],[28.300096,46.138958],[28.300085,46.138908],[28.300153,46.138691],[28.30037,46.138165],[28.300425,46.137987],[28.300411,46.137959],[28.300318,46.137937],[28.300006,46.137873],[28.299463,46.13774],[28.299344,46.137711],[28.299311,46.137725],[28.299276,46.13777],[28.299138,46.138135],[28.298943,46.138638],[28.298942,46.138668],[28.298972,46.138703],[28.299038,46.138732],[28.299325,46.138804],[28.299924,46.138928],[28.300035,46.138983],[28.300134,46.139069],[28.300315,46.139267],[28.300618,46.139537],[28.300902,46.139772],[28.300894,46.139843],[28.300851,46.139994],[28.300594,46.140686],[28.300249,46.141685],[28.299629,46.143349],[28.299128,46.14478],[28.29889,46.1454],[28.298813,46.145753],[28.298695,46.146153],[28.298664,46.146286],[28.298637,46.146321],[28.298571,46.146299],[28.298436,46.146205],[28.298084,46.145952],[28.297547,46.145472],[28.297356,46.145274],[28.297312,46.14518],[28.297315,46.14508],[28.297265,46.144968],[28.296986,46.144609],[28.296874,46.144557],[28.29677,46.144496],[28.296654,46.144376],[28.296247,46.143991],[28.29533,46.142896],[28.294636,46.142021],[28.294591,46.141914],[28.294626,46.141774],[28.294837,46.141251],[28.295151,46.140255],[28.295504,46.139252],[28.295887,46.138169],[28.296344,46.136843],[28.296828,46.135431],[28.297111,46.134561],[28.297132,46.134492],[28.297855,46.134488],[28.298293,46.134456],[28.299331,46.13439],[28.300567,46.134309],[28.301564,46.134262],[28.301767,46.13422],[28.302341,46.134081],[28.30314,46.133887],[28.304017,46.133676],[28.304261,46.133636],[28.304328,46.13363]]]}'), -- OSM way/107943418, 53.50 ha
+    ('Tartaul - Tarla Mica', '2925201.003.01', 9.84, '{"type":"Polygon","coordinates":[[[28.307049,46.1404],[28.307014,46.140514],[28.307008,46.140572],[28.307016,46.140642],[28.307042,46.1407],[28.307074,46.140743],[28.307126,46.14077],[28.30723,46.140801],[28.307504,46.140841],[28.307689,46.140866],[28.30779,46.140888],[28.307878,46.140916],[28.307965,46.140954],[28.308048,46.140988],[28.308091,46.140999],[28.308149,46.140991],[28.308185,46.14093],[28.308341,46.140454],[28.308662,46.139479],[28.309197,46.137834],[28.309867,46.13582],[28.310069,46.135122],[28.31061,46.133511],[28.311018,46.132259],[28.311093,46.132027],[28.31109,46.131988],[28.311068,46.13198],[28.311041,46.131991],[28.310987,46.132021],[28.310863,46.132058],[28.310371,46.132186],[28.310111,46.132264],[28.309938,46.132334],[28.309773,46.132416],[28.309685,46.132474],[28.309616,46.132547],[28.309567,46.132633],[28.309517,46.132764],[28.309348,46.133275],[28.309084,46.134058],[28.308871,46.134698],[28.308556,46.135686],[28.308395,46.136221],[28.308312,46.136564],[28.308223,46.136797],[28.307845,46.137941],[28.307392,46.13935],[28.307049,46.1404]]]}'), -- OSM way/107943429, 9.84 ha
+    ('Cirpesti - Lot Nord', '2925301.001.01', 2.38, '{"type":"Polygon","coordinates":[[[28.359647,46.264055],[28.360211,46.264194],[28.361136,46.264412],[28.36186,46.264546],[28.362724,46.264772],[28.363505,46.264941],[28.363698,46.264679],[28.363864,46.264296],[28.36384,46.264255],[28.363572,46.264166],[28.363443,46.264016],[28.363255,46.263882],[28.363017,46.263717],[28.362593,46.263559],[28.361968,46.263357],[28.361809,46.263482],[28.361603,46.263593],[28.361463,46.26365],[28.361375,46.263732],[28.361308,46.263849],[28.361289,46.26394],[28.361303,46.264051],[28.361292,46.264116],[28.36122,46.264147],[28.361024,46.26416],[28.36064,46.264112],[28.360353,46.264092],[28.360101,46.264056],[28.359862,46.264032],[28.359691,46.26403],[28.359647,46.264055]]]}'), -- OSM way/1139493446, 2.38 ha
+    ('Cirpesti - Lot Central', '2925301.002.01', 1.91, '{"type":"Polygon","coordinates":[[[28.363448,46.261894],[28.36435,46.26187],[28.364409,46.262814],[28.36354,46.262914],[28.363548,46.26296],[28.363379,46.263016],[28.362944,46.263031],[28.362679,46.262974],[28.362424,46.262923],[28.362188,46.262879],[28.362188,46.262363],[28.362333,46.262026],[28.362456,46.26193],[28.362756,46.261907],[28.363448,46.261894]]]}'), -- OSM way/1139493447, 1.91 ha
+    ('Cirpesti - Lot Sud', '2925301.003.01', 1.56, '{"type":"Polygon","coordinates":[[[28.364494,46.261889],[28.364604,46.261887],[28.365197,46.262065],[28.365621,46.26213],[28.366004,46.262132],[28.366179,46.262133],[28.366249,46.263224],[28.365938,46.263218],[28.365398,46.263189],[28.365133,46.263144],[28.36479,46.262998],[28.364529,46.262855],[28.364494,46.261889]]]}'), -- OSM way/1139493448, 1.56 ha
+    ('Plopi - Tarla Mare', '2925401.001.01', 210.25, '{"type":"Polygon","coordinates":[[[28.175356,46.186861],[28.17158,46.187181],[28.169885,46.187374],[28.169048,46.187485],[28.168533,46.187753],[28.168758,46.188213],[28.170228,46.191875],[28.171269,46.194207],[28.171108,46.194496],[28.16849,46.194935],[28.167471,46.195039],[28.167009,46.195157],[28.166666,46.195351],[28.166451,46.195543],[28.166269,46.196353],[28.166237,46.197341],[28.166237,46.197467],[28.166076,46.197964],[28.166054,46.199888],[28.166237,46.200133],[28.16672,46.200252],[28.171591,46.200668],[28.171671,46.200617],[28.173153,46.199547],[28.175795,46.19764],[28.176923,46.19636],[28.178714,46.19541],[28.180356,46.193813],[28.18071,46.193219],[28.181561,46.193025],[28.185536,46.192232],[28.188598,46.191748],[28.191857,46.191426],[28.194464,46.18964],[28.196563,46.188732],[28.197257,46.1882],[28.198899,46.186524],[28.199092,46.185823],[28.199114,46.185093],[28.198742,46.183966],[28.193284,46.184648],[28.189121,46.18519],[28.183446,46.185963],[28.178875,46.186564],[28.1757,46.186839],[28.175356,46.186861]]]}'), -- OSM way/1084193348, 210.25 ha
+    ('Plopi - Tarla Nord', '2925401.002.01', 52.41, '{"type":"Polygon","coordinates":[[[28.246279,46.201161],[28.241799,46.201833],[28.238597,46.202312],[28.236247,46.202672],[28.235834,46.202765],[28.235775,46.202943],[28.235893,46.203452],[28.23607,46.203983],[28.236194,46.204209],[28.236376,46.204573],[28.236537,46.204859],[28.236676,46.205126],[28.236757,46.205327],[28.236923,46.205609],[28.237052,46.205795],[28.237283,46.206006],[28.237771,46.206355],[28.238098,46.206288],[28.238264,46.206285],[28.238463,46.206804],[28.238651,46.207462],[28.23952,46.208234],[28.239756,46.208256],[28.239949,46.208382],[28.240319,46.208542],[28.240507,46.208587],[28.240619,46.208798],[28.2407,46.209013],[28.241038,46.209121],[28.241547,46.208995],[28.242422,46.208624],[28.243527,46.208022],[28.244106,46.20774],[28.244299,46.207655],[28.244986,46.207529],[28.245329,46.206756],[28.245624,46.206526],[28.245533,46.206166],[28.245699,46.206043],[28.245748,46.206084],[28.245742,46.206218],[28.248085,46.205823],[28.247797,46.205019],[28.247373,46.203964],[28.247019,46.203036],[28.246279,46.201161]]]}'), -- OSM way/1147423784, 52.41 ha
+    ('Plopi - Tarla Sud', '2925401.003.01', 48.28, '{"type":"Polygon","coordinates":[[[28.248768,46.206801],[28.25434,46.205705],[28.255538,46.207213],[28.257544,46.209849],[28.259068,46.211994],[28.259336,46.212336],[28.257281,46.213115],[28.255087,46.214028],[28.253885,46.214415],[28.253167,46.214652],[28.252695,46.214879],[28.252035,46.215064],[28.251466,46.213639],[28.25108,46.212555],[28.250495,46.21107],[28.249825,46.209452],[28.249202,46.207866],[28.248768,46.206801]]]}'), -- OSM way/1147419313, 48.28 ha
+    ('Gotesti - Tarla Mare', '2925501.001.01', 130.03, '{"type":"Polygon","coordinates":[[[28.149476,46.110885],[28.15028,46.110834],[28.151467,46.110765],[28.153161,46.110673],[28.154106,46.110621],[28.155093,46.110573],[28.156034,46.110509],[28.156499,46.110477],[28.156702,46.110478],[28.156954,46.110503],[28.157655,46.110601],[28.157876,46.110609],[28.158084,46.110595],[28.158273,46.110559],[28.158634,46.110484],[28.158938,46.110453],[28.160159,46.110375],[28.161115,46.110296],[28.161402,46.110255],[28.161537,46.110246],[28.161682,46.110261],[28.161798,46.110294],[28.16192,46.110346],[28.16203,46.110431],[28.162113,46.11055],[28.162172,46.110693],[28.1622,46.11085],[28.162227,46.111204],[28.162249,46.111308],[28.162406,46.111633],[28.162589,46.111981],[28.16274,46.112354],[28.16287,46.112748],[28.163061,46.113147],[28.1631,46.113279],[28.163094,46.113334],[28.163049,46.113393],[28.162967,46.113444],[28.162868,46.113475],[28.162639,46.113479],[28.162409,46.113502],[28.162254,46.113548],[28.162105,46.113621],[28.162033,46.11371],[28.162,46.11382],[28.162017,46.114002],[28.16227,46.115859],[28.162499,46.117352],[28.162595,46.118006],[28.162658,46.118304],[28.162727,46.118771],[28.162797,46.11936],[28.162982,46.120641],[28.16302,46.121115],[28.163073,46.121415],[28.163214,46.122247],[28.16172,46.122324],[28.157669,46.122493],[28.152432,46.122689],[28.150748,46.122761],[28.150553,46.122761],[28.150511,46.122396],[28.150398,46.121781],[28.150262,46.120671],[28.150181,46.119987],[28.150047,46.118851],[28.149971,46.117981],[28.149875,46.11732],[28.149846,46.117202],[28.149955,46.117129],[28.150001,46.117074],[28.150015,46.116965],[28.149986,46.116734],[28.149995,46.116291],[28.149973,46.116068],[28.149854,46.115468],[28.149779,46.115249],[28.149748,46.115161],[28.149737,46.115111],[28.149758,46.115064],[28.149804,46.114981],[28.149835,46.114896],[28.14984,46.114755],[28.149779,46.114172],[28.14967,46.113641],[28.149622,46.11337],[28.149626,46.113056],[28.149632,46.112819],[28.149599,46.112659],[28.149549,46.112517],[28.149559,46.111884],[28.149476,46.110885]]]}'), -- OSM way/1327828168, 130.03 ha
+    ('Gotesti - Tarla Est', '2925501.002.01', 92.34, '{"type":"Polygon","coordinates":[[[28.222324,46.136253],[28.216824,46.136477],[28.214528,46.136565],[28.212985,46.136616],[28.212987,46.136876],[28.213037,46.137774],[28.213116,46.138903],[28.213183,46.139885],[28.213223,46.140296],[28.213259,46.140463],[28.213251,46.140624],[28.213252,46.140839],[28.213313,46.141576],[28.213382,46.142294],[28.213435,46.142763],[28.213535,46.143714],[28.213583,46.144264],[28.213652,46.144966],[28.213783,46.146277],[28.213898,46.14735],[28.213958,46.147743],[28.214002,46.147864],[28.214014,46.14788],[28.214251,46.147865],[28.214548,46.147826],[28.215046,46.147791],[28.215907,46.147733],[28.216567,46.147684],[28.217498,46.147628],[28.218675,46.147548],[28.220119,46.147454],[28.221477,46.147364],[28.222861,46.147268],[28.223447,46.147215],[28.223522,46.147198],[28.223566,46.147202],[28.223606,46.147221],[28.223696,46.147209],[28.223704,46.147012],[28.223492,46.145088],[28.223146,46.14244],[28.222408,46.136797],[28.222324,46.136253]]]}'), -- OSM way/1327866531, 92.34 ha
+    ('Gotesti - Tarla Vest', '2925501.003.01', 68.47, '{"type":"Polygon","coordinates":[[[28.208236,46.11603],[28.208199,46.115913],[28.207479,46.11598],[28.207062,46.116011],[28.205724,46.116076],[28.20478,46.116101],[28.204437,46.116107],[28.204472,46.116369],[28.204511,46.116863],[28.204514,46.117369],[28.204556,46.117504],[28.204552,46.117569],[28.20451,46.117682],[28.204535,46.117894],[28.204577,46.118304],[28.204609,46.118487],[28.204624,46.118811],[28.204961,46.118818],[28.205437,46.1188],[28.205845,46.122009],[28.205394,46.122028],[28.204939,46.122034],[28.204998,46.122754],[28.205085,46.123735],[28.205195,46.124922],[28.205213,46.125176],[28.205247,46.126089],[28.205312,46.12659],[28.205424,46.127895],[28.205482,46.128468],[28.205591,46.129047],[28.205625,46.129269],[28.205686,46.129985],[28.205803,46.13102],[28.205951,46.132258],[28.206122,46.133811],[28.206226,46.134767],[28.20634,46.136017],[28.206383,46.136544],[28.206377,46.136686],[28.206356,46.136848],[28.206468,46.136787],[28.206879,46.136482],[28.207016,46.136259],[28.207103,46.136164],[28.207224,46.136102],[28.207486,46.135861],[28.207943,46.13539],[28.208517,46.13483],[28.208794,46.134591],[28.209156,46.134364],[28.209548,46.134162],[28.21039,46.133795],[28.210754,46.133611],[28.210656,46.133066],[28.210467,46.131437],[28.210189,46.129687],[28.209935,46.127829],[28.20971,46.125945],[28.209491,46.124549],[28.209367,46.123491],[28.20907,46.121299],[28.208818,46.119393],[28.208679,46.118307],[28.208551,46.117453],[28.208523,46.117207],[28.208493,46.117175],[28.208448,46.117159],[28.208372,46.117153],[28.208136,46.11721],[28.207828,46.117272],[28.207639,46.117316],[28.207474,46.117418],[28.207295,46.117512],[28.206958,46.117693],[28.206906,46.117696],[28.206864,46.1176],[28.206878,46.117566],[28.206964,46.117518],[28.207305,46.117325],[28.207427,46.117268],[28.207795,46.117154],[28.208135,46.117024],[28.208254,46.11697],[28.208318,46.116914],[28.208366,46.11685],[28.208251,46.116256],[28.208236,46.11603]]]}'); -- OSM way/1327866514, 68.47 ha

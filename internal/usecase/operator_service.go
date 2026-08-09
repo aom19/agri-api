@@ -35,7 +35,12 @@ func (operatorService *OperatorService) CreateOperator(operator *domain.Operator
 		return nil, errors.New("name is required")
 	}
 	o := &domain.Operator{
-		Name: operator.Name,
+		Name:                operator.Name,
+		Phone:               operator.Phone,
+		Email:               operator.Email,
+		Notes:               operator.Notes,
+		Status:              domain.OperatorStatusActive,
+		AllowedMachineTypes: operator.AllowedMachineTypes,
 	}
 	if err := operatorService.operatorRepo.Create(o); err != nil {
 		return nil, err
@@ -53,6 +58,10 @@ func (operatorService *OperatorService) UpdateOperator(id int64, operator *domai
 		return nil, errors.New("operator not found")
 	}
 	existing.Name = operator.Name
+	existing.Phone = operator.Phone
+	existing.Email = operator.Email
+	existing.Notes = operator.Notes
+	existing.AllowedMachineTypes = operator.AllowedMachineTypes
 	if err := operatorService.operatorRepo.Update(id, existing); err != nil {
 		return nil, err
 	}
@@ -67,4 +76,36 @@ func (operatorService *OperatorService) DeleteOperator(id int64) error {
 	}
 
 	return operatorService.operatorRepo.Delete(id)
+}
+
+// DisableOperator dezactivează un operator (setează statusul la inactive)
+func (operatorService *OperatorService) DisableOperator(id int64) (*domain.Operator, error) {
+	existing, err := operatorService.operatorRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, errors.New("operator not found")
+	}
+	if err := operatorService.operatorRepo.UpdateStatusDirect(id, domain.OperatorStatusInactive); err != nil {
+		return nil, err
+	}
+	existing.Status = domain.OperatorStatusInactive
+	return existing, nil
+}
+
+// EnableOperator reactivează un operator (setează statusul la active)
+func (operatorService *OperatorService) EnableOperator(id int64) (*domain.Operator, error) {
+	existing, err := operatorService.operatorRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, errors.New("operator not found")
+	}
+	if err := operatorService.operatorRepo.UpdateStatusDirect(id, domain.OperatorStatusActive); err != nil {
+		return nil, err
+	}
+	existing.Status = domain.OperatorStatusActive
+	return existing, nil
 }

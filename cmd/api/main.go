@@ -65,9 +65,41 @@ func main() {
 	operatorRepo := postgres.NewOperatorRepo(sqlDB)
 	operatorService := usecase.NewOperatorService(operatorRepo)
 
-	// 2.1 Creează repository-ul pentru terenuri și serviciul aferent
+	// 2.1 Creează repository-ul pentru utilaje agricole și serviciul aferent
+	implementRepo := postgres.NewImplementRepo(sqlDB)
+	implementService := usecase.NewImplementService(implementRepo)
+
+	// 2.2 Creează repository-urile pentru resurse și serviciul aferent
+	resourceTypeRepo := postgres.NewResourceTypeRepo(sqlDB)
+	resourceRepo := postgres.NewResourceRepo(sqlDB)
+	resourceService := usecase.NewResourceService(resourceTypeRepo, resourceRepo)
+	stockRepo := postgres.NewStockRepo(sqlDB)
+	stockService := usecase.NewStockService(stockRepo, resourceRepo)
+
+	// 2.3 Creează repository-ul pentru terenuri și serviciul aferent
 	fieldRepo := postgres.NewFieldRepo(sqlDB)
 	fieldService := usecase.NewFieldService(fieldRepo)
+
+	// 2.4 Creează repository-urile pentru operațiuni și serviciul aferent
+	operationTypeRepo := postgres.NewOperationTypeRepo(sqlDB)
+	operationTemplateRepo := postgres.NewOperationTemplateRepo(sqlDB)
+	operationService := usecase.NewOperationService(operationTypeRepo, operationTemplateRepo)
+
+	// 2.4.1 Repository și serviciul pentru operațiuni pe teren
+	fieldOperationRepo := postgres.NewFieldOperationRepo(sqlDB)
+	fieldOperationService := usecase.NewFieldOperationService(fieldOperationRepo)
+
+	// 2.6 Audit & Notifications
+	auditRepo := postgres.NewAuditRepo(sqlDB)
+	auditService := usecase.NewAuditService(auditRepo)
+	notificationRepo := postgres.NewNotificationRepo(sqlDB)
+	notificationService := usecase.NewNotificationService(notificationRepo)
+
+	// 2.5 Repository pentru compatibilitățile utilaj ↔ echipament
+	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
+	dashboardRepo := postgres.NewDashboardRepo(sqlDB)
+	dashboardService := usecase.NewDashboardService(dashboardRepo)
+	weatherService := usecase.NewWeatherService(cfg.OpenWeatherAPIKey)
 
 	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări
 	appStore := store.NewInitialiedStore(sqlDB)
@@ -104,6 +136,7 @@ func main() {
 
 	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist, emailService, cfg.ClientOrigin)
 	rbacService := usecase.NewRBACService(appStore, jwtService, refreshRepo, blacklist)
+	userService := usecase.NewUserService(appStore)
 
 	// 6. Profile service
 	uploadDir := "uploads/avatars"
@@ -133,18 +166,30 @@ func main() {
 
 	// Înregistrează toate rutele API
 	httpdelivery.SetupRoutes(server, httpdelivery.AppDeps{
-		Log:               log,
-		MachineService:    machineService,
-		OperatorService:   operatorService,
-		FieldService:      fieldService,
-		AssignmentService: assigmentService,
-		AuthService:       authService,
-		ProfileService:    profileService,
-		RBACService:       rbacService,
-		PermissionRepo:    appStore.PermissionRepo,
-		UploadDir:         uploadDir,
-		JWTService:        jwtService,
-		Blacklist:         blacklist,
+		Log:                        log,
+		MachineService:             machineService,
+		ResourceService:            resourceService,
+		StockService:               stockService,
+		ImplementService:           implementService,
+		OperatorService:            operatorService,
+		FieldService:               fieldService,
+		AssignmentService:          assigmentService,
+		OperationService:           operationService,
+		FieldOperationService:      fieldOperationService,
+		DashboardService:           dashboardService,
+		WeatherService:             weatherService,
+		AuditService:               auditService,
+		NotificationService:        notificationService,
+		AuditRepo:                  auditRepo,
+		ImplementCompatibilityRepo: implementCompatibilityRepo,
+		AuthService:                authService,
+		ProfileService:             profileService,
+		RBACService:                rbacService,
+		UserService:                userService,
+		PermissionRepo:             appStore.PermissionRepo,
+		UploadDir:                  uploadDir,
+		JWTService:                 jwtService,
+		Blacklist:                  blacklist,
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)

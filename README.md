@@ -16,6 +16,7 @@ API REST pentru managementul mașinilor agricole, operatorilor și asignărilor,
 | [go-redis/v9](https://github.com/redis/go-redis) | Client Redis |
 | [air](https://github.com/air-verse/air) | Live reload în development |
 | [zap](https://github.com/uber-go/zap) | Logger structurat |
+| [Open-Meteo](https://open-meteo.com/) | Provider gratuit pentru vremea curentă din Cantemir |
 
 ---
 
@@ -109,6 +110,7 @@ REDIS_PASSWORD=agri123
 REDIS_DB=0
 
 PUBLIC_URL=http://localhost:8080
+OPENWEATHER_API_KEY=your_openweathermap_api_key
 
 LOG_LEVEL=debug
 ```
@@ -155,6 +157,17 @@ make run
 
 **Fișiere statice:** poza de profil e servită la `/uploads/avatars/<filename>`.
 
+### Meteo (public)
+
+| Metodă | Rută | Descriere |
+|---|---|---|
+| GET | `/api/weather/current` | Vremea curentă pentru Cantemir, normalizată și cache-uită în backend |
+| GET | `/api/weather/current?lat={lat}&lng={lng}&location={name}` | Vremea curentă pentru coordonate specifice, folosită pentru meteo per teren |
+
+Backendul folosește `OPENWEATHER_API_KEY` pentru OpenWeatherMap când cheia este configurată. Dacă providerul nu răspunde sau cheia este respinsă, endpointul cade automat pe Open-Meteo, care nu necesită API key pentru uz non-comercial sub limita publică de cereri. Backendul face request-ul extern, aplică timeout și cache de 10 minute, iar frontendul consumă doar endpointul intern. Endpointul este public deoarece nu expune date sensibile.
+
+Răspunsul include metrici utile pentru hartă și agricultură: temperatură, condiție meteo, umiditate, vânt, precipitații pe ultima oră și nebulozitate. Cheia OpenWeatherMap rămâne doar în backend.
+
 ### Profil utilizator (protejate)
 
 | Metodă | Rută | Descriere |
@@ -186,6 +199,24 @@ make run
 | Metodă | Rută | Descriere |
 |---|---|---|
 | GET | `/api/health` | Starea serviciului |
+
+### Dashboard (protejate)
+
+| Metodă | Rută | Descriere |
+|---|---|---|
+| GET | `/api/dashboard/cards` | Carduri KPI agregate din baza de date: total mașini, mașini active, total operatori și alocări active din operațiunile pe teren |
+
+Necesită permisiunea `dashboard:read`, acordată implicit rolurilor `admin`, `manager` și `viewer` prin migrația `000030_add_dashboard_read_permission`. Migrațiile `000032_add_operator_dashboard_permissions` și `000033_limit_operator_permissions` creează/asigură rolul `operator` și îi limitează accesul la `dashboard:read` și `field_operations:read`; operațiunile pe teren sunt filtrate în backend după operatorul asociat userului curent.
+
+Răspunsurile pentru `/api/field-operations` și `/api/field-operations/:id` includ `field_geometry` (GeoJSON Polygon), `machine_status` și `implement_status`, astfel încât operatorii pot vedea conturul terenului și disponibilitatea resurselor lucrării fără permisiuni separate pentru modulele de terenuri, mașini sau echipamente.
+
+Checklistul de plecare este persistat pe operațiunea de teren prin `/api/field-operations/:id/checklist`. Endpointul salvează verificarea stării mașinii, verificarea stării echipamentului, confirmarea terenului/suprafeței și confirmarea instrucțiunilor din note; operatorii primesc permisiunea dedicată `field_operations:checklist` prin migrația `000035_add_field_operation_checklist`. Pornirea lucrării se face prin `/api/field-operations/:id/start`, care validează checklistul și resursele active înainte să schimbe statusul în `in_progress`.
+
+### Audit și notificări (protejate)
+
+Migrația `000036_create_audit_and_notifications` creează jurnalul de audit, notificările și permisiunile `audit:read` și `notifications:read`. Jurnalul este disponibil pentru admin la `/api/audit-log` și poate fi filtrat după `entity_type`, `entity_id` și `limit`; frontendul îl afișează în pagina `/admin/audit`.
+
+Handler-ele pentru mașini, echipamente, resurse, stocuri, terenuri, operatori, alocări, utilizatori, template-uri și operațiuni pe teren primesc serviciile de audit/notificări din router. Actualizările de status pentru mașini/echipamente/operatori/alocări, nivelurile minime de stoc și pornirea lucrărilor emit notificări persistente și evenimente WebSocket pe `/ws/notifications?token=<jwt>`. Operațiunile de creare, actualizare, ștergere, checklist și start sunt logate în audit cu `actor_id` din tokenul JWT; răspunsul audit include `actor_name` din profilul utilizatorului și `entity_name` pentru denumirea entității afectate, iar schimbările de status salvează tranziția `old_status` -> `status` când statusul anterior este disponibil.
 
 ### Mașini (protejate)
 

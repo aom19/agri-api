@@ -260,3 +260,29 @@ func (service *AuthService) sendAccountConfirmation(userID int64, emailAddr stri
 	confirmURL := fmt.Sprintf("%s/confirm-email?token=%s", service.clientOrigin, url.QueryEscape(token))
 	return service.emailService.SendAccountConfirmation(emailAddr, confirmURL)
 }
+
+// ChangePassword verifică parola veche și o înlocuiește cu una nouă
+func (service *AuthService) ChangePassword(userID int64, oldPassword, newPassword string) error {
+	user, err := service.store.UserRepo.GetByID(userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+	if !auth.CheckPasswordHash(oldPassword, user.PasswordHash) {
+		return errors.New("parola curentă este incorectă")
+	}
+	hash, err := auth.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	if err := service.store.UserRepo.UpdatePassword(userID, hash); err != nil {
+		return err
+	}
+	// Trimite email de confirmare (non-blocant față de răspunsul HTTP)
+	if service.emailService != nil {
+		go func() { _ = service.emailService.SendPasswordChanged(user.Email) }()
+	}
+	return nil
+}

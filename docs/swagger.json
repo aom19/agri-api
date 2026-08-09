@@ -326,6 +326,136 @@
                 }
             }
         },
+        "/auth/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change password",
+                "parameters": [
+                    {
+                        "description": "Parolă",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "confirm_password": {
+                                    "type": "string"
+                                },
+                                "new_password": {
+                                    "type": "string"
+                                },
+                                "old_password": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/confirm-email": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Confirm email",
+                "parameters": [
+                    {
+                        "description": "Token confirmare",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "token": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/forgot-password": {
             "post": {
                 "consumes": [
@@ -361,9 +491,6 @@
                             "type": "object",
                             "properties": {
                                 "message": {
-                                    "type": "string"
-                                },
-                                "reset_token": {
                                     "type": "string"
                                 }
                             }
@@ -568,10 +695,7 @@
                         "schema": {
                             "type": "object",
                             "properties": {
-                                "access_token": {
-                                    "type": "string"
-                                },
-                                "refresh_token": {
+                                "message": {
                                     "type": "string"
                                 }
                             }
@@ -584,6 +708,60 @@
                             "properties": {
                                 "error": {
                                     "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/resend-confirmation": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Resend confirmation email",
+                "parameters": [
+                    {
+                        "description": "Email utilizator",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "errors": {
+                                    "type": "object"
                                 }
                             }
                         }
@@ -655,6 +833,41 @@
                 }
             }
         },
+        "/dashboard/cards": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Carduri dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DashboardCardsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "produces": [
@@ -671,6 +884,254 @@
                             "type": "object",
                             "properties": {
                                 "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/implements": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "implements"
+                ],
+                "summary": "Listare utilaje agricole",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Implement"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "implements"
+                ],
+                "summary": "Creare utilaj agricol",
+                "parameters": [
+                    {
+                        "description": "Date utilaj agricol",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateImplementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Implement"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/implements/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "implements"
+                ],
+                "summary": "Obținere utilaj agricol",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID utilaj agricol",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Implement"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "implements"
+                ],
+                "summary": "Ștergere utilaj agricol",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID utilaj agricol",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/implements/{id}/activate": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "implements"
+                ],
+                "summary": "Activare utilaj agricol",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID utilaj agricol",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Implement"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/implements/{id}/deactivate": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "implements"
+                ],
+                "summary": "Dezactivare utilaj agricol",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID utilaj agricol",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Implement"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
                                     "type": "string"
                                 }
                             }
@@ -1189,9 +1650,307 @@
                     }
                 }
             }
+        },
+        "/operators/{id}/disable": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operators"
+                ],
+                "summary": "Dezactivare operator",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID operator",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Operator"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/operators/{id}/enable": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operators"
+                ],
+                "summary": "Reactivare operator",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID operator",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Operator"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Get profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.UserProfile"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Update profile",
+                "parameters": [
+                    {
+                        "description": "Date profil",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "date_of_birth": {
+                                    "type": "string"
+                                },
+                                "first_name": {
+                                    "type": "string"
+                                },
+                                "last_name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.UserProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "errors": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/photo": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Upload profile photo",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Fișier imagine (jpg/png/webp, max 5MB)",
+                        "name": "photo",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "profile_photo": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/weather/current": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "weather"
+                ],
+                "summary": "Vreme curenta",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitudine WGS84",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitudine WGS84",
+                        "name": "lng",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Numele locatiei afisat in raspuns",
+                        "name": "location",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CurrentWeatherResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "domain.AssetStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "maintenance",
+                "inactive",
+                "active",
+                "maintenance",
+                "inactive"
+            ],
+            "x-enum-varnames": [
+                "AssetStatusActive",
+                "AssetStatusMaintenance",
+                "AssetStatusInactive",
+                "MachineStatusActive",
+                "MachineStatusMaintenance",
+                "MachineStatusInactive"
+            ]
+        },
         "domain.Assigment": {
             "type": "object",
             "properties": {
@@ -1235,32 +1994,178 @@
                 "AssigmentStatusClosed"
             ]
         },
-        "domain.Machine": {
+        "domain.DashboardCard": {
             "type": "object",
             "properties": {
+                "key": {
+                    "$ref": "#/definitions/domain.DashboardCardKey"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "trend": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.DashboardCardKey": {
+            "type": "string",
+            "enum": [
+                "total_machines",
+                "active_machines",
+                "total_operators",
+                "active_assignments"
+            ],
+            "x-enum-varnames": [
+                "DashboardCardTotalMachines",
+                "DashboardCardActiveMachines",
+                "DashboardCardTotalOperators",
+                "DashboardCardActiveAssignments"
+            ]
+        },
+        "domain.FuelType": {
+            "type": "string",
+            "enum": [
+                "diesel",
+                "gasoline",
+                "electric",
+                "hybrid"
+            ],
+            "x-enum-varnames": [
+                "FuelTypeDiesel",
+                "FuelTypeGasoline",
+                "FuelTypeElectric",
+                "FuelTypeHybrid"
+            ]
+        },
+        "domain.Implement": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "type": "number"
+                },
+                "code": {
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
                 "deletedAt": {
                     "type": "string"
                 },
-                "description": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "integer"
+                },
+                "model": {
+                    "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "notes": {
+                    "type": "string"
+                },
                 "status": {
-                    "$ref": "#/definitions/domain.MachineStatus"
+                    "$ref": "#/definitions/domain.AssetStatus"
                 },
                 "type": {
-                    "type": "string"
+                    "$ref": "#/definitions/domain.ImplementType"
                 },
                 "updatedAt": {
                     "type": "string"
+                },
+                "working_width": {
+                    "type": "number"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ImplementType": {
+            "type": "string",
+            "enum": [
+                "plow",
+                "disc_harrow",
+                "cultivator",
+                "seeder",
+                "fertilizer_spreader",
+                "sprayer",
+                "trailer",
+                "header",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "ImplementTypePlow",
+                "ImplementTypeDiscHarrow",
+                "ImplementTypeCultivator",
+                "ImplementTypeSeeder",
+                "ImplementTypeFertilizerSpreader",
+                "ImplementTypeSprayer",
+                "ImplementTypeTrailer",
+                "ImplementTypeHeader",
+                "ImplementTypeOther"
+            ]
+        },
+        "domain.Machine": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "type": "string"
+                },
+                "fuel_type": {
+                    "$ref": "#/definitions/domain.FuelType"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "operating_hours": {
+                    "type": "number"
+                },
+                "registration_number": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.AssetStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/domain.MachineType"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "working_hours": {
+                    "type": "number"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },
@@ -1268,32 +2173,70 @@
             "type": "string",
             "enum": [
                 "active",
-                "available",
+                "maintenance",
                 "inactive",
-                "in_service",
-                "in_use"
+                "active",
+                "maintenance",
+                "inactive"
             ],
             "x-enum-varnames": [
+                "AssetStatusActive",
+                "AssetStatusMaintenance",
+                "AssetStatusInactive",
                 "MachineStatusActive",
-                "MachineStatusAvailable",
-                "MachineStatusInactive",
-                "MachineStatusInService",
-                "MachineStatusInUse"
+                "MachineStatusMaintenance",
+                "MachineStatusInactive"
+            ]
+        },
+        "domain.MachineType": {
+            "type": "string",
+            "enum": [
+                "tractor",
+                "combine",
+                "drone",
+                "sprayer",
+                "car",
+                "small_truck",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "MachineTypeTractor",
+                "MachineTypeCombine",
+                "MachineTypeDrone",
+                "MachineTypeSprayer",
+                "MachineTypeCar",
+                "MachineTypeSmallTruck",
+                "MachineTypeOther"
             ]
         },
         "domain.Operator": {
             "type": "object",
             "properties": {
+                "allowed_machine_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MachineType"
+                    }
+                },
                 "createdAt": {
                     "type": "string"
                 },
                 "deletedAt": {
                     "type": "string"
                 },
+                "email": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "phone": {
                     "type": "string"
                 },
                 "status": {
@@ -1314,6 +2257,44 @@
                 "OperatorStatusActive",
                 "OperatorStatusInactive"
             ]
+        },
+        "domain.UserProfile": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "date_of_birth": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "profile_photo": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "role_code": {
+                    "type": "string"
+                },
+                "role_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
         },
         "dto.AssigmentResponse": {
             "type": "object",
@@ -1402,21 +2383,86 @@
                 }
             }
         },
-        "handlers.CreateMachineRequest": {
+        "handlers.CreateImplementRequest": {
             "type": "object",
             "required": [
+                "code",
                 "name",
                 "type"
             ],
             "properties": {
-                "description": {
+                "brand": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "type": "number"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "fuel_type": {
+                    "$ref": "#/definitions/domain.FuelType"
+                },
+                "model": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
-                "type": {
+                "notes": {
                     "type": "string"
+                },
+                "registration_number": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/domain.ImplementType"
+                },
+                "working_width": {
+                    "type": "number"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.CreateMachineRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "fuel_type": {
+                    "$ref": "#/definitions/domain.FuelType"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "registration_number": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/domain.MachineType"
+                },
+                "working_hours": {
+                    "type": "number"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },
@@ -1426,31 +2472,119 @@
                 "name"
             ],
             "properties": {
+                "allowed_machine_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MachineType"
+                    }
+                },
+                "email": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
-                "status": {
-                    "$ref": "#/definitions/domain.OperatorStatus"
+                "notes": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.CurrentWeatherResponse": {
+            "type": "object",
+            "properties": {
+                "cloud_cover_percent": {
+                    "type": "integer"
+                },
+                "condition": {
+                    "type": "string"
+                },
+                "humidity_percent": {
+                    "type": "integer"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "observed_at": {
+                    "type": "string"
+                },
+                "precipitation_mm": {
+                    "type": "number"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "temperature_c": {
+                    "type": "integer"
+                },
+                "weather_code": {
+                    "type": "integer"
+                },
+                "wind_direction_deg": {
+                    "type": "integer"
+                },
+                "wind_speed_kmh": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.DashboardCardsResponse": {
+            "type": "object",
+            "properties": {
+                "cards": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.DashboardCard"
+                    }
                 }
             }
         },
         "handlers.UpdateMachineRequest": {
             "type": "object",
             "required": [
-                "name"
+                "code",
+                "name",
+                "status",
+                "type"
             ],
             "properties": {
-                "description": {
+                "brand": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "fuel_type": {
+                    "$ref": "#/definitions/domain.FuelType"
+                },
+                "model": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
-                "status": {
+                "notes": {
                     "type": "string"
                 },
-                "type": {
+                "registration_number": {
                     "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.MachineStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/domain.MachineType"
+                },
+                "working_hours": {
+                    "type": "number"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },
@@ -1460,11 +2594,23 @@
                 "name"
             ],
             "properties": {
+                "allowed_machine_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MachineType"
+                    }
+                },
+                "email": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
-                "status": {
-                    "$ref": "#/definitions/domain.OperatorStatus"
+                "notes": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
                 }
             }
         }

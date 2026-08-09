@@ -8,26 +8,46 @@ INSERT INTO permissions (name, description) VALUES
     ('machines:read',     'Vizualizare mașini'),
     ('machines:write',    'Creare și editare mașini'),
     ('machines:delete',   'Ștergere mașini'),
-  ('fields:read',       'Vizualizare terenuri'),
-  ('fields:write',      'Creare și editare terenuri'),
-  ('fields:delete',     'Ștergere terenuri'),
+  ('implements:read',   'Vizualizare Echipamente agricole'),
+  ('implements:write',  'Creare și editare Echipamente agricole'),
+  ('implements:delete', 'Ștergere Echipamente agricole'),
+    ('fields:read',       'Vizualizare terenuri'),
+    ('fields:write',      'Creare și editare terenuri'),
+    ('fields:delete',     'Ștergere terenuri'),
     ('operators:read',    'Vizualizare operatori'),
     ('operators:write',   'Creare și editare operatori'),
     ('operators:delete',  'Ștergere operatori'),
+    ('operators:disable', 'Dezactivare și reactivare operatori'),
     ('assignments:read',  'Vizualizare asignări'),
     ('assignments:write', 'Creare și editare asignări'),
     ('assignments:delete','Ștergere asignări'),
+    ('resources:read',    'Vizualizare resurse'),
+    ('resources:write',   'Creare și editare resurse'),
+    ('resources:delete',  'Ștergere resurse'),
+    ('stock.view',        'Vizualizare stocuri'),
+    ('stock.create',      'Creare stocuri'),
+    ('stock.update',      'Editare stocuri'),
+    ('stock.delete',      'Ștergere stocuri'),
     ('roles:read',        'Vizualizare roluri și permisiuni'),
     ('roles:write',       'Creare și editare roluri și permisiuni'),
     ('roles:delete',      'Ștergere roluri'),
     ('users:read',        'Vizualizare utilizatori'),
-    ('users:write',       'Modificare rol utilizator')
+    ('users:write',       'Modificare rol utilizator'),
+    ('users:disable',     'Dezactivare utilizatori'),
+    ('users:enable',      'Reactivare utilizatori'),
+    ('permissions:read',  'Vizualizare permisiuni'),
+    ('dashboard:read',    'Vizualizare carduri dashboard'),
+    ('operations:read',   'Vizualizare tipuri operațiuni și template-uri'),
+    ('operations:write',  'Creare și editare tipuri operațiuni și template-uri'),
+    ('operations:delete', 'Ștergere tipuri operațiuni și template-uri')
+
 ON CONFLICT (name) DO NOTHING;
 
 -- ─── Roles ──────────────────────────────────────────────────
 INSERT INTO roles (code, name, description) VALUES
   ('admin',   'Administrator', 'Administrator complet — acces total'),
   ('manager', 'Manager',       'Manager — administrare resurse, fără gestiunea rolurilor'),
+  ('operator','Operator',      'Operator de teren — acces la lucrările și alocările proprii'),
   ('viewer',  'Vizualizator',  'Vizualizator — acces doar citire')
 ON CONFLICT (code) DO NOTHING;
 
@@ -40,33 +60,57 @@ FROM roles r, permissions p
 WHERE r.code = 'admin'
 ON CONFLICT DO NOTHING;
 
--- manager: read+write pe machines/operators/assignments + roles:read + users:read
+-- admin: asigură explicit dreptul de reactivare utilizatori
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.code = 'admin'
+  AND p.name = 'users:enable'
+ON CONFLICT DO NOTHING;
+
+-- manager: read+write pe machines/operators/assignments
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.code = 'manager'
   AND p.name IN (
       'machines:read',    'machines:write',
-  'fields:read',      'fields:write',
-      'operators:read',   'operators:write',
+      'implements:read',  'implements:write', 'implements:delete',
+      'fields:read',      'fields:write',
+      'operators:read',   'operators:write',  'operators:disable',
       'assignments:read', 'assignments:write',
-      'roles:read',
-      'users:read'
+      'resources:read',   'resources:write',  'resources:delete',
+      'stock.view',       'stock.create',      'stock.update', 'stock.delete',
+      'dashboard:read',
+      'operations:read',  'operations:write'
   )
 ON CONFLICT DO NOTHING;
 
--- viewer: doar :read pe toate resursele
+-- viewer: doar :read pe resursele operaționale
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.code = 'viewer'
   AND p.name IN (
       'machines:read',
-  'fields:read',
+      'resources:read',
+      'stock.view',
+      'fields:read',
       'operators:read',
       'assignments:read',
-      'roles:read',
-      'users:read'
+      'dashboard:read',
+      'operations:read'
+  )
+ON CONFLICT DO NOTHING;
+
+-- operator: citire doar pentru dashboard și operațiunile pe teren asignate
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.code = 'operator'
+  AND p.name IN (
+      'dashboard:read',
+      'field_operations:read'
   )
 ON CONFLICT DO NOTHING;
 

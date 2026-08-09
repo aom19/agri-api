@@ -17,6 +17,9 @@ var confirmationTpl string
 //go:embed templates/password_reset.html
 var passwordResetTpl string
 
+//go:embed templates/password_changed.html
+var passwordChangedTpl string
+
 type EmailService struct {
 	host     string
 	port     int
@@ -25,20 +28,22 @@ type EmailService struct {
 	from     string
 	log      *logger.Logger
 
-	confirmTpl   *template.Template
-	resetTpl     *template.Template
+	confirmTpl         *template.Template
+	resetTpl           *template.Template
+	passwordChangedTpl *template.Template
 }
 
 func NewEmailService(host string, port int, user, password, from string, log *logger.Logger) *EmailService {
 	return &EmailService{
-		host:         host,
-		port:         port,
-		user:         user,
-		password:     password,
-		from:         from,
-		log:          log,
-		confirmTpl:   template.Must(template.New("confirmation").Parse(confirmationTpl)),
-		resetTpl:     template.Must(template.New("password_reset").Parse(passwordResetTpl)),
+		host:               host,
+		port:               port,
+		user:               user,
+		password:           password,
+		from:               from,
+		log:                log,
+		confirmTpl:         template.Must(template.New("confirmation").Parse(confirmationTpl)),
+		resetTpl:           template.Must(template.New("password_reset").Parse(passwordResetTpl)),
+		passwordChangedTpl: template.Must(template.New("password_changed").Parse(passwordChangedTpl)),
 	}
 }
 
@@ -56,6 +61,14 @@ func (s *EmailService) SendPasswordReset(to, resetURL string) error {
 		return fmt.Errorf("password_reset template: %w", err)
 	}
 	return s.sendHTML(to, "Resetare parolă AgriERP", buf.String())
+}
+
+func (s *EmailService) SendPasswordChanged(to string) error {
+	var buf bytes.Buffer
+	if err := s.passwordChangedTpl.Execute(&buf, nil); err != nil {
+		return fmt.Errorf("password_changed template: %w", err)
+	}
+	return s.sendHTML(to, "Parolă modificată cu succes — AgriERP", buf.String())
 }
 
 func (s *EmailService) sendHTML(to, subject, htmlBody string) error {

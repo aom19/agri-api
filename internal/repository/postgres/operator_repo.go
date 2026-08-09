@@ -3,6 +3,8 @@ package postgres
 import (
 	"agri-api/internal/domain"
 	"database/sql"
+
+	"github.com/lib/pq"
 )
 
 // OperatorRepo implementează repository.OperatorRepository folosind PostgreSQL
@@ -17,7 +19,7 @@ func NewOperatorRepo(db *sql.DB) *OperatorRepo {
 
 // GetAll returnează toți operatorii din baza de date
 func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
-	rows, err := operatorRepo.db.Query("SELECT id, name, status FROM operators 	WHERE deleted_at IS NULL")
+	rows, err := operatorRepo.db.Query("SELECT id, user_id, name, phone, email, notes, status, allowed_machine_types FROM operators WHERE deleted_at IS NULL")
 	if err != nil {
 		return nil, err
 	}
@@ -26,8 +28,26 @@ func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
 	var operators []domain.Operator
 	for rows.Next() {
 		var o domain.Operator
-		if err := rows.Scan(&o.ID, &o.Name, &o.Status); err != nil {
+		var userID sql.NullInt64
+		var phone, email, notes sql.NullString
+		var allowedTypes []string
+		if err := rows.Scan(&o.ID, &userID, &o.Name, &phone, &email, &notes, &o.Status, pq.Array(&allowedTypes)); err != nil {
 			return nil, err
+		}
+		if userID.Valid {
+			o.UserID = &userID.Int64
+		}
+		if phone.Valid {
+			o.Phone = phone.String
+		}
+		if email.Valid {
+			o.Email = email.String
+		}
+		if notes.Valid {
+			o.Notes = notes.String
+		}
+		for _, t := range allowedTypes {
+			o.AllowedMachineTypes = append(o.AllowedMachineTypes, domain.MachineType(t))
 		}
 		operators = append(operators, o)
 	}
@@ -38,27 +58,78 @@ func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
 // GetByID returnează un operator după ID; returnează nil, nil dacă nu există
 func (operatorRepo *OperatorRepo) GetByID(id int64) (*domain.Operator, error) {
 	var o domain.Operator
-	err := operatorRepo.db.QueryRow("SELECT id, name, status FROM operators WHERE id = $1 AND deleted_at IS NULL", id).Scan(&o.ID, &o.Name, &o.Status)
+	var userID sql.NullInt64
+	var phone, email, notes sql.NullString
+	var allowedTypes []string
+	err := operatorRepo.db.QueryRow(
+		"SELECT id, user_id, name, phone, email, notes, status, allowed_machine_types FROM operators WHERE id = $1 AND deleted_at IS NULL", id,
+	).Scan(&o.ID, &userID, &o.Name, &phone, &email, &notes, &o.Status, pq.Array(&allowedTypes))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+	if userID.Valid {
+		o.UserID = &userID.Int64
+	}
+	if phone.Valid {
+		o.Phone = phone.String
+	}
+	if email.Valid {
+		o.Email = email.String
+	}
+	if notes.Valid {
+		o.Notes = notes.String
+	}
+	for _, t := range allowedTypes {
+		o.AllowedMachineTypes = append(o.AllowedMachineTypes, domain.MachineType(t))
+	}
 	return &o, nil
 }
 
 // Create inserează un operator nou și populează câmpul ID cu valoarea generată de DB
 func (operatorRepo *OperatorRepo) Create(operator *domain.Operator) error {
+	var phone, email, notes any
+	if operator.Phone != "" {
+		phone = operator.Phone
+	}
+	if operator.Email != "" {
+		email = operator.Email
+	}
+	if operator.Notes != "" {
+		notes = operator.Notes
+	}
+	allowedTypes := make([]string, len(operator.AllowedMachineTypes))
+	for i, t := range operator.AllowedMachineTypes {
+		allowedTypes[i] = string(t)
+	}
 	return operatorRepo.db.QueryRow(
-		"INSERT INTO operators (name, status) VALUES ($1, $2) RETURNING id",
-		operator.Name, operator.Status,
+		"INSERT INTO operators (user_id, name, phone, email, notes, status, allowed_machine_types) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+		operator.UserID, operator.Name, phone, email, notes, operator.Status, pq.Array(allowedTypes),
 	).Scan(&operator.ID)
 }
 
 // Update modifică datele unui operator existent identificat prin ID
 func (operatorRepo *OperatorRepo) Update(id int64, operator *domain.Operator) error {
-	_, err := operatorRepo.db.Exec("UPDATE operators SET name = $1, status = $2 WHERE id = $3 AND deleted_at IS NULL", operator.Name, operator.Status, id)
+	var phone, email, notes any
+	if operator.Phone != "" {
+		phone = operator.Phone
+	}
+	if operator.Email != "" {
+		email = operator.Email
+	}
+	if operator.Notes != "" {
+		notes = operator.Notes
+	}
+	allowedTypes := make([]string, len(operator.AllowedMachineTypes))
+	for i, t := range operator.AllowedMachineTypes {
+		allowedTypes[i] = string(t)
+	}
+	_, err := operatorRepo.db.Exec(
+		"UPDATE operators SET user_id = $1, name = $2, phone = $3, email = $4, notes = $5, allowed_machine_types = $6, updated_at = NOW() WHERE id = $7 AND deleted_at IS NULL",
+		operator.UserID, operator.Name, phone, email, notes, pq.Array(allowedTypes), id,
+	)
 	return err
 }
 
@@ -68,6 +139,12 @@ func (operatorRepo *OperatorRepo) Delete(id int64) error {
 }
 
 func (operatorRepo *OperatorRepo) UpdateStatus(tx *sql.Tx, id int64, status domain.OperatorStatus) error {
-	_, err := tx.Exec("UPDATE operators SET status = $1 WHERE id = $2 AND deleted_at IS NULL", status, id)
+	_, err := tx.Exec("UPDATE operators SET status = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL", status, id)
+	return err
+}
+
+// UpdateStatusDirect actualizează statusul unui operator fără tranzacție
+func (operatorRepo *OperatorRepo) UpdateStatusDirect(id int64, status domain.OperatorStatus) error {
+	_, err := operatorRepo.db.Exec("UPDATE operators SET status = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL", status, id)
 	return err
 }
