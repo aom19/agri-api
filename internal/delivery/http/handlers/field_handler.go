@@ -12,10 +12,24 @@ import (
 // FieldHandler gestioneaza request-urile HTTP pentru terenuri.
 type FieldHandler struct {
 	service *usecase.FieldService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
-func NewFieldHandler(service *usecase.FieldService) *FieldHandler {
-	return &FieldHandler{service: service}
+func NewFieldHandler(service *usecase.FieldService, opts ...func(*FieldHandler)) *FieldHandler {
+	h := &FieldHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithFieldAudit(a *usecase.AuditService) func(*FieldHandler) {
+	return func(h *FieldHandler) { h.audit = a }
+}
+
+func WithFieldNotif(n *usecase.NotificationService) func(*FieldHandler) {
+	return func(h *FieldHandler) { h.notif = n }
 }
 
 type createFieldRequest struct {
@@ -51,6 +65,10 @@ func (h *FieldHandler) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, field)
+	auditAndNotify(c, h.audit, h.notif, "field", field.ID, "create", "Teren creat", field.Name, map[string]interface{}{
+		"name":    field.Name,
+		"area_ha": field.AreaHa,
+	})
 }
 
 func (h *FieldHandler) GetAll(c *gin.Context) {
@@ -101,13 +119,23 @@ func (h *FieldHandler) Update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updated)
+	auditAndNotify(c, h.audit, h.notif, "field", updated.ID, "update", "Teren actualizat", updated.Name, map[string]interface{}{
+		"name":    updated.Name,
+		"area_ha": updated.AreaHa,
+	})
 }
 
 func (h *FieldHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
+	field, _ := h.service.GetFieldByID(id)
 	if err := h.service.DeleteField(id); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.Status(http.StatusNoContent)
+	name := "teren"
+	if field != nil {
+		name = field.Name
+	}
+	auditAndNotify(c, h.audit, h.notif, "field", id, "delete", "Teren șters", name, nil)
 }

@@ -89,6 +89,12 @@ func main() {
 	fieldOperationRepo := postgres.NewFieldOperationRepo(sqlDB)
 	fieldOperationService := usecase.NewFieldOperationService(fieldOperationRepo)
 
+	// 2.6 Audit & Notifications
+	auditRepo := postgres.NewAuditRepo(sqlDB)
+	auditService := usecase.NewAuditService(auditRepo)
+	notificationRepo := postgres.NewNotificationRepo(sqlDB)
+	notificationService := usecase.NewNotificationService(notificationRepo)
+
 	// 2.5 Repository pentru compatibilitățile utilaj ↔ echipament
 	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
 	dashboardRepo := postgres.NewDashboardRepo(sqlDB)
@@ -172,6 +178,9 @@ func main() {
 		FieldOperationService:      fieldOperationService,
 		DashboardService:           dashboardService,
 		WeatherService:             weatherService,
+		AuditService:               auditService,
+		NotificationService:        notificationService,
+		AuditRepo:                  auditRepo,
 		ImplementCompatibilityRepo: implementCompatibilityRepo,
 		AuthService:                authService,
 		ProfileService:             profileService,

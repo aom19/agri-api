@@ -10,10 +10,32 @@ import (
 
 type UserHandler struct {
 	service *usecase.UserService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
-func NewUserHandler(service *usecase.UserService) *UserHandler {
-	return &UserHandler{service: service}
+func NewUserHandler(service *usecase.UserService, opts ...func(*UserHandler)) *UserHandler {
+	h := &UserHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithUserAudit(a *usecase.AuditService) func(*UserHandler) {
+	return func(h *UserHandler) { h.audit = a }
+}
+
+func WithUserNotif(n *usecase.NotificationService) func(*UserHandler) {
+	return func(h *UserHandler) { h.notif = n }
+}
+
+func (h *UserHandler) userNotificationMessage(id int64) string {
+	message, err := h.service.GetUserDisplayName(id)
+	if err != nil || message == "" {
+		return "utilizator"
+	}
+	return message
 }
 
 type createUserRequest struct {
@@ -73,6 +95,11 @@ func (h *UserHandler) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, user)
+	auditAndNotify(c, h.audit, h.notif, "user", auditID(user.ID), "create", "Utilizator creat", user.Email, map[string]interface{}{
+		"email":           user.Email,
+		"role_id":         user.RoleID,
+		"email_confirmed": user.EmailConfirmed,
+	})
 }
 
 func (h *UserHandler) Update(c *gin.Context) {
@@ -99,6 +126,11 @@ func (h *UserHandler) Update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+	auditAndNotify(c, h.audit, h.notif, "user", auditID(user.ID), "update", "Utilizator actualizat", user.Email, map[string]interface{}{
+		"email":           user.Email,
+		"role_id":         user.RoleID,
+		"email_confirmed": user.EmailConfirmed,
+	})
 }
 
 func (h *UserHandler) Delete(c *gin.Context) {
@@ -108,6 +140,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	message := h.userNotificationMessage(id)
 	if err := h.service.DeleteUser(id); err != nil {
 		if err.Error() == "user not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -118,6 +151,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+	auditAndNotify(c, h.audit, h.notif, "user", auditID(id), "delete", "Utilizator dezactivat", message, nil)
 }
 
 func (h *UserHandler) Disable(c *gin.Context) {
@@ -127,6 +161,7 @@ func (h *UserHandler) Disable(c *gin.Context) {
 		return
 	}
 
+	message := h.userNotificationMessage(id)
 	if err := h.service.DisableUsers(id); err != nil {
 		if err.Error() == "user not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -137,6 +172,7 @@ func (h *UserHandler) Disable(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+	auditAndNotify(c, h.audit, h.notif, "user", auditID(id), "disable", "Utilizator dezactivat", message, statusChange("active", "inactive"))
 }
 
 func (h *UserHandler) Enable(c *gin.Context) {
@@ -156,4 +192,6 @@ func (h *UserHandler) Enable(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+	message := h.userNotificationMessage(id)
+	auditAndNotify(c, h.audit, h.notif, "user", auditID(id), "enable", "Utilizator activat", message, statusChange("inactive", "active"))
 }

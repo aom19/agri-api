@@ -12,10 +12,24 @@ import (
 
 type OperationHandler struct {
 	service *usecase.OperationService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
-func NewOperationHandler(service *usecase.OperationService) *OperationHandler {
-	return &OperationHandler{service: service}
+func NewOperationHandler(service *usecase.OperationService, opts ...func(*OperationHandler)) *OperationHandler {
+	h := &OperationHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithOperationAudit(a *usecase.AuditService) func(*OperationHandler) {
+	return func(h *OperationHandler) { h.audit = a }
+}
+
+func WithOperationNotif(n *usecase.NotificationService) func(*OperationHandler) {
+	return func(h *OperationHandler) { h.notif = n }
 }
 
 // ─── Request DTOs ────────────────────────────────────────────────────────────
@@ -105,6 +119,10 @@ func (h *OperationHandler) CreateType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, result)
+	auditAndNotify(c, h.audit, h.notif, "operation_type", auditID(result.ID), "create", "Tip operațiune creat", result.Name, map[string]interface{}{
+		"code": result.Code,
+		"name": result.Name,
+	})
 }
 
 func (h *OperationHandler) UpdateType(c *gin.Context) {
@@ -134,6 +152,10 @@ func (h *OperationHandler) UpdateType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+	auditAndNotify(c, h.audit, h.notif, "operation_type", auditID(result.ID), "update", "Tip operațiune actualizat", result.Name, map[string]interface{}{
+		"code": result.Code,
+		"name": result.Name,
+	})
 }
 
 func (h *OperationHandler) DeleteType(c *gin.Context) {
@@ -143,6 +165,7 @@ func (h *OperationHandler) DeleteType(c *gin.Context) {
 		return
 	}
 
+	item, _ := h.service.GetTypeByID(id)
 	if err := h.service.DeleteType(id); err != nil {
 		if errors.Is(err, usecase.ErrOperationTypeNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -152,6 +175,11 @@ func (h *OperationHandler) DeleteType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	message := "tip operațiune"
+	if item != nil {
+		message = item.Name
+	}
+	auditAndNotify(c, h.audit, h.notif, "operation_type", auditID(id), "delete", "Tip operațiune șters", message, nil)
 }
 
 // ─── OperationTemplate Handlers ──────────────────────────────────────────────
@@ -233,6 +261,11 @@ func (h *OperationHandler) CreateTemplate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, result)
+	auditAndNotify(c, h.audit, h.notif, "operation_template", auditID(result.ID), "create", "Template creat", result.Name, map[string]interface{}{
+		"name":              result.Name,
+		"operation_type_id": result.OperationTypeID,
+		"unit":              result.Unit,
+	})
 }
 
 func (h *OperationHandler) UpdateTemplate(c *gin.Context) {
@@ -275,6 +308,11 @@ func (h *OperationHandler) UpdateTemplate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+	auditAndNotify(c, h.audit, h.notif, "operation_template", auditID(result.ID), "update", "Template actualizat", result.Name, map[string]interface{}{
+		"name":              result.Name,
+		"operation_type_id": result.OperationTypeID,
+		"unit":              result.Unit,
+	})
 }
 
 func (h *OperationHandler) DeleteTemplate(c *gin.Context) {
@@ -284,6 +322,7 @@ func (h *OperationHandler) DeleteTemplate(c *gin.Context) {
 		return
 	}
 
+	item, _ := h.service.GetTemplateByID(id)
 	if err := h.service.DeleteTemplate(id); err != nil {
 		if errors.Is(err, usecase.ErrOperationTemplateNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -293,4 +332,9 @@ func (h *OperationHandler) DeleteTemplate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	message := "template"
+	if item != nil {
+		message = item.Name
+	}
+	auditAndNotify(c, h.audit, h.notif, "operation_template", auditID(id), "delete", "Template șters", message, nil)
 }

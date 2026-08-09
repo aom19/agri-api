@@ -212,6 +212,12 @@ Răspunsurile pentru `/api/field-operations` și `/api/field-operations/:id` inc
 
 Checklistul de plecare este persistat pe operațiunea de teren prin `/api/field-operations/:id/checklist`. Endpointul salvează verificarea stării mașinii, verificarea stării echipamentului, confirmarea terenului/suprafeței și confirmarea instrucțiunilor din note; operatorii primesc permisiunea dedicată `field_operations:checklist` prin migrația `000035_add_field_operation_checklist`. Pornirea lucrării se face prin `/api/field-operations/:id/start`, care validează checklistul și resursele active înainte să schimbe statusul în `in_progress`.
 
+### Audit și notificări (protejate)
+
+Migrația `000036_create_audit_and_notifications` creează jurnalul de audit, notificările și permisiunile `audit:read` și `notifications:read`. Jurnalul este disponibil pentru admin la `/api/audit-log` și poate fi filtrat după `entity_type`, `entity_id` și `limit`; frontendul îl afișează în pagina `/admin/audit`.
+
+Handler-ele pentru mașini, echipamente, resurse, stocuri, terenuri, operatori, alocări, utilizatori, template-uri și operațiuni pe teren primesc serviciile de audit/notificări din router. Actualizările de status pentru mașini/echipamente/operatori/alocări, nivelurile minime de stoc și pornirea lucrărilor emit notificări persistente și evenimente WebSocket pe `/ws/notifications?token=<jwt>`. Operațiunile de creare, actualizare, ștergere, checklist și start sunt logate în audit cu `actor_id` din tokenul JWT; răspunsul audit include `actor_name` din profilul utilizatorului și `entity_name` pentru denumirea entității afectate, iar schimbările de status salvează tranziția `old_status` -> `status` când statusul anterior este disponibil.
+
 ### Mașini (protejate)
 
 | Metodă | Rută | Descriere |

@@ -5,6 +5,7 @@ import (
 	"agri-api/internal/repository"
 	"agri-api/internal/usecase"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -15,10 +16,24 @@ import (
 
 type FieldOperationHandler struct {
 	service *usecase.FieldOperationService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
-func NewFieldOperationHandler(service *usecase.FieldOperationService) *FieldOperationHandler {
-	return &FieldOperationHandler{service: service}
+func NewFieldOperationHandler(service *usecase.FieldOperationService, opts ...func(*FieldOperationHandler)) *FieldOperationHandler {
+	h := &FieldOperationHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithFieldOpAudit(a *usecase.AuditService) func(*FieldOperationHandler) {
+	return func(h *FieldOperationHandler) { h.audit = a }
+}
+
+func WithFieldOpNotif(n *usecase.NotificationService) func(*FieldOperationHandler) {
+	return func(h *FieldOperationHandler) { h.notif = n }
 }
 
 type createFieldOperationRequest struct {
@@ -100,6 +115,14 @@ func currentUserID(c *gin.Context) (int64, bool) {
 	}
 }
 
+func currentActorID(c *gin.Context) *int64 {
+	userID, ok := currentUserID(c)
+	if !ok {
+		return nil
+	}
+	return &userID
+}
+
 func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 	filter := repository.FieldOperationFilter{
 		Status:          c.Query("status"),
@@ -165,6 +188,12 @@ func (h *FieldOperationHandler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, item)
+
+	if h.audit != nil {
+		h.audit.Log("field_operation", strconv.FormatInt(item.ID, 10), "create", currentActorID(c), map[string]interface{}{
+			"status": string(item.Status),
+		})
+	}
 }
 
 func (h *FieldOperationHandler) Update(c *gin.Context) {
@@ -178,6 +207,7 @@ func (h *FieldOperationHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	oldItem, oldErr := h.service.GetByID(id)
 	item, err := h.service.Update(id, toDomainFieldOperation(req))
 	if err != nil {
 		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
@@ -188,6 +218,14 @@ func (h *FieldOperationHandler) Update(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, item)
+
+	if h.audit != nil {
+		changes := map[string]interface{}{"status": string(req.Status)}
+		if oldErr == nil && oldItem != nil {
+			changes["old_status"] = string(oldItem.Status)
+		}
+		h.audit.Log("field_operation", strconv.FormatInt(id, 10), "update", currentActorID(c), changes)
+	}
 }
 
 func (h *FieldOperationHandler) UpdateChecklist(c *gin.Context) {
@@ -222,6 +260,15 @@ func (h *FieldOperationHandler) UpdateChecklist(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, item)
+
+	if h.audit != nil {
+		h.audit.Log("field_operation", strconv.FormatInt(id, 10), "checklist", currentActorID(c), map[string]interface{}{
+			"machine_status":   checklist.MachineStatus,
+			"implement_status": checklist.ImplementStatus,
+			"field_area":       checklist.FieldArea,
+			"notes_confirmed":  checklist.NotesConfirmed,
+		})
+	}
 }
 
 func (h *FieldOperationHandler) Start(c *gin.Context) {
@@ -230,6 +277,7 @@ func (h *FieldOperationHandler) Start(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
+	oldItem, oldErr := h.service.GetByID(id)
 	var item interface{}
 	if isOperatorRequest(c) {
 		userID, ok := currentUserID(c)
@@ -250,6 +298,22 @@ func (h *FieldOperationHandler) Start(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, item)
+
+	if h.audit != nil {
+		changes := map[string]interface{}{"status": string(domain.FieldOperationStatusInProgress)}
+		if oldErr == nil && oldItem != nil {
+			changes["old_status"] = string(oldItem.Status)
+		}
+		h.audit.Log("field_operation", strconv.FormatInt(id, 10), "start", currentActorID(c), changes)
+	}
+	if h.notif != nil {
+		h.notif.Emit(
+			domain.NotifOperationStarted,
+			"Lucrare pornită",
+			fmt.Sprintf("Lucrarea #%d a fost pornită", id),
+			"field_operation", strconv.FormatInt(id, 10),
+		)
+	}
 }
 
 func (h *FieldOperationHandler) Delete(c *gin.Context) {

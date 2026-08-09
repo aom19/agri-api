@@ -27,6 +27,9 @@ type AppDeps struct {
 	FieldOperationService      *usecase.FieldOperationService
 	DashboardService           *usecase.DashboardService
 	WeatherService             *usecase.WeatherService
+	AuditService               *usecase.AuditService
+	NotificationService        *usecase.NotificationService
+	AuditRepo                  repository.AuditRepository
 	ImplementCompatibilityRepo repository.ImplementCompatibilityRepository
 	AuthService                *usecase.AuthService
 	ProfileService             *usecase.ProfileService
@@ -81,7 +84,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/dashboard/cards", perm("dashboard:read"), dashboardHandler.GetCards)
 
 	// ─── Machines ────────────────────────────────────────────────────────────
-	machineHandler := handlers.NewMachineHandler(deps.MachineService)
+	machineHandler := handlers.NewMachineHandler(
+		deps.MachineService,
+		handlers.WithMachineAudit(deps.AuditService),
+		handlers.WithMachineNotif(deps.NotificationService),
+	)
 	api.GET("/machines", perm("machines:read"), machineHandler.GetAll)
 	api.GET("/machines/:id", perm("machines:read"), machineHandler.GetByID)
 	api.POST("/machines", perm("machines:write"), machineHandler.Create)
@@ -89,7 +96,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/machines/:id", perm("machines:delete"), machineHandler.Delete)
 
 	// ─── Resources ───────────────────────────────────────────────────────────
-	resourceHandler := handlers.NewResourceHandler(deps.ResourceService)
+	resourceHandler := handlers.NewResourceHandler(
+		deps.ResourceService,
+		handlers.WithResourceAudit(deps.AuditService),
+		handlers.WithResourceNotif(deps.NotificationService),
+	)
 	api.GET("/resource-types", perm("resources:read"), resourceHandler.GetAllResourceTypes)
 	api.GET("/resource-types/:id", perm("resources:read"), resourceHandler.GetResourceTypeByID)
 	api.POST("/resource-types", perm("resources:write"), resourceHandler.CreateResourceType)
@@ -103,7 +114,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/resources/:id", perm("resources:delete"), resourceHandler.DeleteResource)
 
 	// ─── Stocks ──────────────────────────────────────────────────────────────
-	stockHandler := handlers.NewStockHandler(deps.StockService)
+	stockHandler := handlers.NewStockHandler(
+		deps.StockService,
+		handlers.WithStockAudit(deps.AuditService),
+		handlers.WithStockNotif(deps.NotificationService),
+	)
 	api.GET("/stocks", perm("stock.view"), stockHandler.GetAll)
 	api.GET("/stocks/:id", perm("stock.view"), stockHandler.GetByID)
 	api.POST("/stocks", perm("stock.create"), stockHandler.Create)
@@ -111,7 +126,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/stocks/:id", perm("stock.delete"), stockHandler.Delete)
 
 	// ─── Implements ──────────────────────────────────────────────────────────
-	implementHandler := handlers.NewImplementHandler(deps.ImplementService)
+	implementHandler := handlers.NewImplementHandler(
+		deps.ImplementService,
+		handlers.WithImplementAudit(deps.AuditService),
+		handlers.WithImplementNotif(deps.NotificationService),
+	)
 	api.GET("/implements", perm("implements:read"), implementHandler.GetAll)
 	api.GET("/implements/:id", perm("implements:read"), implementHandler.GetByID)
 	api.POST("/implements", perm("implements:write"), implementHandler.Create)
@@ -122,7 +141,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/implements/:id/deactivate", perm("implements:write"), implementHandler.Deactivate)
 
 	// ─── Operators ───────────────────────────────────────────────────────────
-	operatorHandler := handlers.NewOperatorHandler(deps.OperatorService)
+	operatorHandler := handlers.NewOperatorHandler(
+		deps.OperatorService,
+		handlers.WithOperatorAudit(deps.AuditService),
+		handlers.WithOperatorNotif(deps.NotificationService),
+	)
 	api.GET("/operators", perm("operators:read"), operatorHandler.GetAll)
 	api.GET("/operators/:id", perm("operators:read"), operatorHandler.GetByID)
 	api.POST("/operators", perm("operators:write"), operatorHandler.Create)
@@ -132,7 +155,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/operators/:id/enable", perm("operators:disable"), operatorHandler.Enable)
 
 	// ─── Fields ───────────────────────────────────────────────────────────────
-	fieldHandler := handlers.NewFieldHandler(deps.FieldService)
+	fieldHandler := handlers.NewFieldHandler(
+		deps.FieldService,
+		handlers.WithFieldAudit(deps.AuditService),
+		handlers.WithFieldNotif(deps.NotificationService),
+	)
 	api.GET("/fields", perm("fields:read"), fieldHandler.GetAll)
 	api.GET("/fields/:id", perm("fields:read"), fieldHandler.GetByID)
 	api.POST("/fields", perm("fields:write"), fieldHandler.Create)
@@ -140,7 +167,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/fields/:id", perm("fields:delete"), fieldHandler.Delete)
 
 	// ─── Assignments ──────────────────────────────────────────────────────────
-	assignmentHandler := handlers.NewAssigmentHandler(deps.AssignmentService)
+	assignmentHandler := handlers.NewAssigmentHandler(
+		deps.AssignmentService,
+		handlers.WithAssigmentAudit(deps.AuditService),
+		handlers.WithAssigmentNotif(deps.NotificationService),
+	)
 	api.GET("/assignments", perm("assignments:read"), assignmentHandler.GetAll)
 	api.GET("/assignments/:id", perm("assignments:read"), assignmentHandler.GetByID)
 	api.POST("/assignments", perm("assignments:write"), assignmentHandler.Create)
@@ -162,7 +193,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/auth/me/permissions", rbacHandler.GetMyPermissions)
 
 	// ─── Operations ──────────────────────────────────────────────────────────
-	operationHandler := handlers.NewOperationHandler(deps.OperationService)
+	operationHandler := handlers.NewOperationHandler(
+		deps.OperationService,
+		handlers.WithOperationAudit(deps.AuditService),
+		handlers.WithOperationNotif(deps.NotificationService),
+	)
 	api.GET("/operation-types", perm("operations:read"), operationHandler.GetAllTypes)
 	api.GET("/operation-types/:id", perm("operations:read"), operationHandler.GetTypeByID)
 	api.POST("/operation-types", perm("operations:write"), operationHandler.CreateType)
@@ -181,7 +216,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/implement-compatibilities", perm("operations:read"), compatibilityHandler.GetAll)
 
 	// ─── Field Operations ────────────────────────────────────────────────────
-	fieldOperationHandler := handlers.NewFieldOperationHandler(deps.FieldOperationService)
+	fieldOperationHandler := handlers.NewFieldOperationHandler(
+		deps.FieldOperationService,
+		handlers.WithFieldOpAudit(deps.AuditService),
+		handlers.WithFieldOpNotif(deps.NotificationService),
+	)
 	api.GET("/field-operations", perm("field_operations:read"), fieldOperationHandler.GetAll)
 	api.GET("/field-operations/:id", perm("field_operations:read"), fieldOperationHandler.GetByID)
 	api.POST("/field-operations", perm("field_operations:write"), fieldOperationHandler.Create)
@@ -191,7 +230,11 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/field-operations/:id", perm("field_operations:delete"), fieldOperationHandler.Delete)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────
-	userHandler := handlers.NewUserHandler(deps.UserService)
+	userHandler := handlers.NewUserHandler(
+		deps.UserService,
+		handlers.WithUserAudit(deps.AuditService),
+		handlers.WithUserNotif(deps.NotificationService),
+	)
 	api.GET("/users", perm("users:read"), userHandler.GetAll)
 	api.GET("/users/:id", perm("users:read"), userHandler.GetByID)
 	api.POST("/users", perm("users:write"), userHandler.Create)
@@ -199,5 +242,20 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/users/:id", perm("users:disable"), userHandler.Disable)
 	api.PATCH("/users/:id/enable", perm("users:enable"), userHandler.Enable)
 	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)
+
+	// ─── Notifications ──────────────────────────────────────────────────────
+	notificationHandler := handlers.NewNotificationHandler(deps.NotificationService)
+	api.GET("/notifications", perm("notifications:read"), notificationHandler.GetAll)
+	api.GET("/notifications/count", perm("notifications:read"), notificationHandler.CountUnread)
+	api.PATCH("/notifications/:id/read", perm("notifications:read"), notificationHandler.MarkAsRead)
+	api.PATCH("/notifications/read-all", perm("notifications:read"), notificationHandler.MarkAllAsRead)
+
+	// ─── WebSocket (notification stream) ─────────────────────────────────────
+	wsHandler := handlers.NewWebSocketHandler(deps.NotificationService, deps.JWTService, deps.Blacklist)
+	r.GET("/ws/notifications", wsHandler.HandleNotifications)
+
+	// ─── Audit Log ───────────────────────────────────────────────────────
+	auditHandler := handlers.NewAuditHandler(deps.AuditRepo)
+	api.GET("/audit-log", perm("audit:read"), auditHandler.GetAll)
 
 }

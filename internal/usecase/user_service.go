@@ -5,6 +5,7 @@ import (
 	"agri-api/internal/domain"
 	"agri-api/internal/store"
 	"errors"
+	"strings"
 )
 
 type UserService struct {
@@ -28,6 +29,38 @@ func (s *UserService) GetUserByID(id int64) (*domain.User, error) {
 		return nil, errors.New("user not found")
 	}
 	return user, nil
+}
+
+func (s *UserService) GetUserDisplayName(id int64) (string, error) {
+	user, err := s.store.UserRepo.GetByID(id)
+	if err != nil {
+		return "", err
+	}
+	if user == nil {
+		users, err := s.store.UserRepo.GetAll()
+		if err != nil {
+			return "", err
+		}
+		for i := range users {
+			if users[i].ID == id {
+				user = &users[i]
+				break
+			}
+		}
+	}
+	if user == nil {
+		return "", errors.New("user not found")
+	}
+
+	profile, err := s.store.UserRepo.GetProfile(id)
+	if err == nil && profile != nil {
+		name := strings.TrimSpace(strings.Join([]string{profile.FirstName, profile.LastName}, " "))
+		if name != "" {
+			return name, nil
+		}
+	}
+
+	return user.Email, nil
 }
 
 func (s *UserService) CreateUser(email, password string, roleID int64, emailConfirmed bool) (*domain.User, error) {

@@ -13,6 +13,8 @@ import (
 // OperatorHandler gestionează request-urile HTTP pentru resursa operatori
 type OperatorHandler struct {
 	service *usecase.OperatorService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
 type CreateOperatorRequest struct {
@@ -34,8 +36,20 @@ type UpdateOperatorRequest struct {
 }
 
 // NewOperatorHandler creează un handler nou cu serviciul injectat
-func NewOperatorHandler(service *usecase.OperatorService) *OperatorHandler {
-	return &OperatorHandler{service: service}
+func NewOperatorHandler(service *usecase.OperatorService, opts ...func(*OperatorHandler)) *OperatorHandler {
+	h := &OperatorHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithOperatorAudit(a *usecase.AuditService) func(*OperatorHandler) {
+	return func(h *OperatorHandler) { h.audit = a }
+}
+
+func WithOperatorNotif(n *usecase.NotificationService) func(*OperatorHandler) {
+	return func(h *OperatorHandler) { h.notif = n }
 }
 
 // Create creează un operator nou
@@ -68,6 +82,11 @@ func (h *OperatorHandler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, operator)
+	auditAndNotify(c, h.audit, h.notif, "operator", auditID(operator.ID), "create", "Operator creat", operator.Name, map[string]interface{}{
+		"name":   operator.Name,
+		"email":  operator.Email,
+		"status": string(operator.Status),
+	})
 }
 
 // GetAll returnează toți operatorii
@@ -113,6 +132,10 @@ func (h *OperatorHandler) GetByID(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, operator)
+	auditAndNotify(c, h.audit, h.notif, "operator", auditID(operator.ID), "update", "Operator actualizat", operator.Name, map[string]interface{}{
+		"name":  operator.Name,
+		"email": operator.Email,
+	})
 }
 
 // Update actualizează un operator
@@ -170,7 +193,7 @@ func (h *OperatorHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operator ID"})
 		return
 	}
-	_, err = h.service.GetOperatorByID(operatorID)
+	operator, err := h.service.GetOperatorByID(operatorID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "operator not found"})
 		return
@@ -180,6 +203,11 @@ func (h *OperatorHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+	name := "operator"
+	if operator != nil {
+		name = operator.Name
+	}
+	auditAndNotify(c, h.audit, h.notif, "operator", id, "delete", "Operator șters", name, nil)
 }
 
 // Disable dezactivează un operator (setează status la inactive)
@@ -198,12 +226,18 @@ func (h *OperatorHandler) Disable(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operator ID"})
 		return
 	}
+	oldOperator, _ := h.service.GetOperatorByID(operatorID)
 	operator, err := h.service.DisableOperator(operatorID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, operator)
+	changes := statusChange("", string(operator.Status))
+	if oldOperator != nil {
+		changes["old_status"] = string(oldOperator.Status)
+	}
+	auditAndNotify(c, h.audit, h.notif, "operator", id, "disable", "Operator dezactivat", operator.Name, changes)
 }
 
 // Enable reactivează un operator (setează status la active)
@@ -222,10 +256,16 @@ func (h *OperatorHandler) Enable(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operator ID"})
 		return
 	}
+	oldOperator, _ := h.service.GetOperatorByID(operatorID)
 	operator, err := h.service.EnableOperator(operatorID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, operator)
+	changes := statusChange("", string(operator.Status))
+	if oldOperator != nil {
+		changes["old_status"] = string(oldOperator.Status)
+	}
+	auditAndNotify(c, h.audit, h.notif, "operator", id, "enable", "Operator activat", operator.Name, changes)
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -10,14 +11,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MachineHandler gestionează request-urile HTTP pentru resursa mașini
 type MachineHandler struct {
 	service *usecase.MachineService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
-// NewMachineHandler creează un handler nou cu serviciul injectat
-func NewMachineHandler(service *usecase.MachineService) *MachineHandler {
-	return &MachineHandler{service: service}
+func NewMachineHandler(service *usecase.MachineService, opts ...func(*MachineHandler)) *MachineHandler {
+	h := &MachineHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithMachineAudit(a *usecase.AuditService) func(*MachineHandler) {
+	return func(h *MachineHandler) { h.audit = a }
+}
+
+func WithMachineNotif(n *usecase.NotificationService) func(*MachineHandler) {
+	return func(h *MachineHandler) { h.notif = n }
 }
 
 type CreateMachineRequest struct {
@@ -178,6 +191,21 @@ func (h *MachineHandler) Update(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, updatedMachine)
+
+	if h.audit != nil {
+		h.audit.Log("machine", id, "update", currentActorID(c), map[string]interface{}{
+			"old_status": string(machine.Status),
+			"status":     string(req.Status),
+		})
+	}
+	if h.notif != nil && machine.Status != req.Status && req.Status != domain.AssetStatusActive {
+		h.notif.Emit(
+			domain.NotifAssetUnavailable,
+			fmt.Sprintf("Mașină %s", req.Status),
+			fmt.Sprintf("%s a trecut în %s", updatedMachine.Name, req.Status),
+			"machine", id,
+		)
+	}
 }
 
 // Delete șterge o mașină

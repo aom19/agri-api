@@ -16,11 +16,25 @@ import (
 // AssigmentHandler gestionează request-urile HTTP pentru resursa asigment
 type AssigmentHandler struct {
 	service *usecase.AssigmentService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
 // NewAssigmentHandler creează un handler nou cu serviciul injectat
-func NewAssigmentHandler(service *usecase.AssigmentService) *AssigmentHandler {
-	return &AssigmentHandler{service: service}
+func NewAssigmentHandler(service *usecase.AssigmentService, opts ...func(*AssigmentHandler)) *AssigmentHandler {
+	h := &AssigmentHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithAssigmentAudit(a *usecase.AuditService) func(*AssigmentHandler) {
+	return func(h *AssigmentHandler) { h.audit = a }
+}
+
+func WithAssigmentNotif(n *usecase.NotificationService) func(*AssigmentHandler) {
+	return func(h *AssigmentHandler) { h.notif = n }
 }
 
 type CreateAssigmentRequest struct {
@@ -60,6 +74,11 @@ func (h *AssigmentHandler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, assigment)
+	auditAndNotify(c, h.audit, h.notif, "assignment", auditID(assigment.ID), "create", "Alocare creată", "Alocare activă", map[string]interface{}{
+		"machine_id":  assigment.MachineID,
+		"operator_id": assigment.OperatorID,
+		"status":      string(assigment.Status),
+	})
 }
 
 // GetAll returneaza asignarile cu paginare si filtrare
@@ -175,6 +194,7 @@ func (h *AssigmentHandler) Update(c *gin.Context) {
 		return
 	}
 
+	oldStatus := assigment.Status
 	assigment.MachineID = req.MachineID
 	assigment.OperatorID = req.OperatorID
 	assigment.StartDate = req.StartDate
@@ -187,6 +207,15 @@ func (h *AssigmentHandler) Update(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, updatedAssigment)
+	changes := map[string]interface{}{
+		"machine_id":  updatedAssigment.MachineID,
+		"operator_id": updatedAssigment.OperatorID,
+		"status":      string(updatedAssigment.Status),
+	}
+	if oldStatus != updatedAssigment.Status {
+		changes["old_status"] = string(oldStatus)
+	}
+	auditAndNotify(c, h.audit, h.notif, "assignment", id, "update", "Alocare actualizată", "Alocare actualizată", changes)
 }
 
 // Delete sterge o asignare
@@ -205,12 +234,19 @@ func (h *AssigmentHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid assigment ID"})
 		return
 	}
+	assigment, _ := h.service.GetAssigmentByID(assigmentID)
 	err = h.service.DeleteAssigment(assigmentID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Assigment deleted successfully"})
+	changes := map[string]interface{}{}
+	if assigment != nil {
+		changes["machine_id"] = assigment.MachineID
+		changes["operator_id"] = assigment.OperatorID
+	}
+	auditAndNotify(c, h.audit, h.notif, "assignment", id, "delete", "Alocare ștearsă", "Alocare ștearsă", changes)
 }
 
 // Close inchide o asignare activa
@@ -229,6 +265,7 @@ func (h *AssigmentHandler) Close(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid assigment ID"})
 		return
 	}
+	assigment, _ := h.service.GetAssigmentByID(assigmentID)
 	success, err := h.service.CloseAssigment(assigmentID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -239,4 +276,11 @@ func (h *AssigmentHandler) Close(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Assigment closed successfully"})
+	changes := statusChange("", string(domain.AssigmentStatusClosed))
+	if assigment != nil {
+		changes["old_status"] = string(assigment.Status)
+		changes["machine_id"] = assigment.MachineID
+		changes["operator_id"] = assigment.OperatorID
+	}
+	auditAndNotify(c, h.audit, h.notif, "assignment", id, "close", "Alocare închisă", "Alocare închisă", changes)
 }

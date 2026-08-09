@@ -4,6 +4,7 @@ import (
 	"agri-api/internal/domain"
 	"agri-api/internal/usecase"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -12,10 +13,24 @@ import (
 
 type StockHandler struct {
 	service *usecase.StockService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
-func NewStockHandler(service *usecase.StockService) *StockHandler {
-	return &StockHandler{service: service}
+func NewStockHandler(service *usecase.StockService, opts ...func(*StockHandler)) *StockHandler {
+	h := &StockHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithStockAudit(a *usecase.AuditService) func(*StockHandler) {
+	return func(h *StockHandler) { h.audit = a }
+}
+
+func WithStockNotif(n *usecase.NotificationService) func(*StockHandler) {
+	return func(h *StockHandler) { h.notif = n }
 }
 
 type stockRequest struct {
@@ -69,6 +84,12 @@ func (h *StockHandler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, stock)
+
+	auditAndNotify(c, h.audit, h.notif, "stock", auditID(stock.ID), "create", "Stoc creat", fmt.Sprintf("Stoc #%d", stock.ID), map[string]interface{}{
+		"resource_id":      stock.ResourceID,
+		"quantity":         stock.Quantity,
+		"minimum_quantity": stock.MinimumQuantity,
+	})
 }
 
 func (h *StockHandler) Update(c *gin.Context) {
@@ -84,6 +105,7 @@ func (h *StockHandler) Update(c *gin.Context) {
 		return
 	}
 
+	oldStock, _ := h.service.GetStockByID(id)
 	stock, err := h.service.UpdateStock(id, &domain.Stock{
 		ResourceID:      req.ResourceID,
 		Quantity:        req.Quantity,
@@ -98,6 +120,25 @@ func (h *StockHandler) Update(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, stock)
+
+	changes := map[string]interface{}{
+		"resource_id":      stock.ResourceID,
+		"quantity":         stock.Quantity,
+		"minimum_quantity": stock.MinimumQuantity,
+	}
+	if oldStock != nil {
+		changes["old_quantity"] = oldStock.Quantity
+		changes["old_minimum_quantity"] = oldStock.MinimumQuantity
+	}
+	auditAndNotify(c, h.audit, h.notif, "stock", auditID(id), "update", "Stoc actualizat", fmt.Sprintf("Stoc #%d", id), changes)
+	if h.notif != nil && stock.Quantity <= stock.MinimumQuantity {
+		h.notif.Emit(
+			domain.NotifStockLow,
+			"Stoc scăzut",
+			fmt.Sprintf("Stocul #%d a atins nivelul minim (%.2f / %.2f)", id, stock.Quantity, stock.MinimumQuantity),
+			"stock", fmt.Sprintf("%d", id),
+		)
+	}
 }
 
 func (h *StockHandler) Delete(c *gin.Context) {
@@ -107,6 +148,7 @@ func (h *StockHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	stock, _ := h.service.GetStockByID(id)
 	if err := h.service.DeleteStock(id); err != nil {
 		if errors.Is(err, usecase.ErrStockNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -116,6 +158,11 @@ func (h *StockHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+	message := fmt.Sprintf("Stoc #%d", id)
+	if stock != nil && stock.Resource != nil {
+		message = stock.Resource.Name
+	}
+	auditAndNotify(c, h.audit, h.notif, "stock", auditID(id), "delete", "Stoc șters", message, nil)
 }
 
 func parseStockID(c *gin.Context) (int64, error) {

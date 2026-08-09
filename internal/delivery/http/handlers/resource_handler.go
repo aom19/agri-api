@@ -12,10 +12,24 @@ import (
 
 type ResourceHandler struct {
 	service *usecase.ResourceService
+	audit   *usecase.AuditService
+	notif   *usecase.NotificationService
 }
 
-func NewResourceHandler(service *usecase.ResourceService) *ResourceHandler {
-	return &ResourceHandler{service: service}
+func NewResourceHandler(service *usecase.ResourceService, opts ...func(*ResourceHandler)) *ResourceHandler {
+	h := &ResourceHandler{service: service}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+func WithResourceAudit(a *usecase.AuditService) func(*ResourceHandler) {
+	return func(h *ResourceHandler) { h.audit = a }
+}
+
+func WithResourceNotif(n *usecase.NotificationService) func(*ResourceHandler) {
+	return func(h *ResourceHandler) { h.notif = n }
 }
 
 type createResourceTypeRequest struct {
@@ -91,6 +105,10 @@ func (h *ResourceHandler) CreateResourceType(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, created)
+	auditAndNotify(c, h.audit, h.notif, "resource_type", auditID(created.ID), "create", "Tip resursă creat", created.Name, map[string]interface{}{
+		"name":     created.Name,
+		"category": string(created.Category),
+	})
 }
 
 func (h *ResourceHandler) UpdateResourceType(c *gin.Context) {
@@ -121,6 +139,10 @@ func (h *ResourceHandler) UpdateResourceType(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updated)
+	auditAndNotify(c, h.audit, h.notif, "resource_type", auditID(updated.ID), "update", "Tip resursă actualizat", updated.Name, map[string]interface{}{
+		"name":     updated.Name,
+		"category": string(updated.Category),
+	})
 }
 
 func (h *ResourceHandler) DeleteResourceType(c *gin.Context) {
@@ -130,6 +152,7 @@ func (h *ResourceHandler) DeleteResourceType(c *gin.Context) {
 		return
 	}
 
+	item, _ := h.service.GetResourceTypeByID(id)
 	if err := h.service.DeleteResourceType(id); err != nil {
 		if errors.Is(err, usecase.ErrResourceTypeNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -140,6 +163,11 @@ func (h *ResourceHandler) DeleteResourceType(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+	name := "tip resursă"
+	if item != nil {
+		name = item.Name
+	}
+	auditAndNotify(c, h.audit, h.notif, "resource_type", auditID(id), "delete", "Tip resursă șters", name, nil)
 }
 
 func (h *ResourceHandler) GetAllResources(c *gin.Context) {
@@ -190,6 +218,11 @@ func (h *ResourceHandler) CreateResource(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, created)
+	auditAndNotify(c, h.audit, h.notif, "resource", auditID(created.ID), "create", "Resursă creată", created.Name, map[string]interface{}{
+		"name":             created.Name,
+		"resource_type_id": created.ResourceTypeID,
+		"price_per_unit":   created.PricePerUnit,
+	})
 }
 
 func (h *ResourceHandler) UpdateResource(c *gin.Context) {
@@ -221,6 +254,11 @@ func (h *ResourceHandler) UpdateResource(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updated)
+	auditAndNotify(c, h.audit, h.notif, "resource", auditID(updated.ID), "update", "Resursă actualizată", updated.Name, map[string]interface{}{
+		"name":             updated.Name,
+		"resource_type_id": updated.ResourceTypeID,
+		"price_per_unit":   updated.PricePerUnit,
+	})
 }
 
 func (h *ResourceHandler) DeleteResource(c *gin.Context) {
@@ -230,6 +268,7 @@ func (h *ResourceHandler) DeleteResource(c *gin.Context) {
 		return
 	}
 
+	item, _ := h.service.GetResourceByID(id)
 	if err := h.service.DeleteResource(id); err != nil {
 		if errors.Is(err, usecase.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -240,4 +279,9 @@ func (h *ResourceHandler) DeleteResource(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+	name := "resursă"
+	if item != nil {
+		name = item.Name
+	}
+	auditAndNotify(c, h.audit, h.notif, "resource", auditID(id), "delete", "Resursă ștearsă", name, nil)
 }
