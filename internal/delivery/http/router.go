@@ -15,30 +15,35 @@ import (
 )
 
 type AppDeps struct {
-	Log                        *logger.Logger
-	MachineService             *usecase.MachineService
-	ResourceService            *usecase.ResourceService
-	StockService               *usecase.StockService
-	ImplementService           *usecase.ImplementService
-	OperatorService            *usecase.OperatorService
-	FieldService               *usecase.FieldService
-	AssignmentService          *usecase.AssigmentService
-	OperationService           *usecase.OperationService
-	FieldOperationService      *usecase.FieldOperationService
-	DashboardService           *usecase.DashboardService
-	WeatherService             *usecase.WeatherService
-	AuditService               *usecase.AuditService
-	NotificationService        *usecase.NotificationService
-	AuditRepo                  repository.AuditRepository
-	ImplementCompatibilityRepo repository.ImplementCompatibilityRepository
-	AuthService                *usecase.AuthService
-	ProfileService             *usecase.ProfileService
-	RBACService                *usecase.RBACService
-	UserService                *usecase.UserService
-	PermissionRepo             repository.PermissionRepository
-	UploadDir                  string
-	JWTService                 *auth.JWTService
-	Blacklist                  *auth.Blacklist
+	Log                             *logger.Logger
+	MachineService                  *usecase.MachineService
+	ResourceService                 *usecase.ResourceService
+	StockService                    *usecase.StockService
+	ImplementService                *usecase.ImplementService
+	OperatorService                 *usecase.OperatorService
+	FieldService                    *usecase.FieldService
+	AssignmentService               *usecase.AssigmentService
+	OperationService                *usecase.OperationService
+	FieldOperationService           *usecase.FieldOperationService
+	DashboardService                *usecase.DashboardService
+	ReportService                   *usecase.ReportService
+	StockMovementService            *usecase.StockMovementService
+	CropService                     *usecase.CropService
+	ReportDigestService             *usecase.ReportDigestService
+	FieldOperationCompletionService *usecase.FieldOperationCompletionService
+	WeatherService                  *usecase.WeatherService
+	AuditService                    *usecase.AuditService
+	NotificationService             *usecase.NotificationService
+	AuditRepo                       repository.AuditRepository
+	ImplementCompatibilityRepo      repository.ImplementCompatibilityRepository
+	AuthService                     *usecase.AuthService
+	ProfileService                  *usecase.ProfileService
+	RBACService                     *usecase.RBACService
+	UserService                     *usecase.UserService
+	PermissionRepo                  repository.PermissionRepository
+	UploadDir                       string
+	JWTService                      *auth.JWTService
+	Blacklist                       *auth.Blacklist
 }
 
 func SetupRoutes(r *gin.Engine, deps AppDeps) {
@@ -85,6 +90,36 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/dashboard/quick-stats", perm("dashboard:read"), dashboardHandler.GetQuickStats)
 	api.GET("/dashboard/activity", perm("dashboard:read"), dashboardHandler.GetActivity)
 
+	// ─── Reports ─────────────────────────────────────────────────────────────
+	reportHandler := handlers.NewReportHandler(deps.ReportService, handlers.WithReportDigest(deps.ReportDigestService, deps.UserService))
+	api.GET("/reports/summary", perm("reports:read"), reportHandler.GetSummary)
+	api.GET("/reports/operations", perm("reports:read"), reportHandler.GetOperations)
+	api.GET("/reports/fields", perm("reports:read"), reportHandler.GetFields)
+	api.GET("/reports/fleet", perm("reports:read"), reportHandler.GetFleet)
+	api.GET("/reports/operators", perm("reports:read"), reportHandler.GetOperators)
+	api.GET("/reports/stocks", perm("reports:read"), reportHandler.GetStocks)
+	api.GET("/reports/crops", perm("reports:read"), reportHandler.GetCrops)
+	api.GET("/reports/weather", perm("reports:read"), reportHandler.GetWeather)
+	api.GET("/reports/subscription", perm("reports:read"), reportHandler.GetSubscription)
+	api.PUT("/reports/subscription", perm("reports:read"), reportHandler.UpsertSubscription)
+	api.DELETE("/reports/subscription", perm("reports:read"), reportHandler.DeleteSubscription)
+	api.POST("/reports/subscription/send-now", perm("reports:read"), reportHandler.SendDigestNow)
+
+	// ─── Seasons, crops, field crops ─────────────────────────────────────────
+	cropHandler := handlers.NewCropHandler(deps.CropService, deps.AuditService)
+	api.GET("/seasons", perm("crops:read"), cropHandler.GetSeasons)
+	api.POST("/seasons", perm("crops:write"), cropHandler.CreateSeason)
+	api.PATCH("/seasons/:id", perm("crops:write"), cropHandler.UpdateSeason)
+	api.DELETE("/seasons/:id", perm("crops:write"), cropHandler.DeleteSeason)
+	api.GET("/crops", perm("crops:read"), cropHandler.GetCrops)
+	api.POST("/crops", perm("crops:write"), cropHandler.CreateCrop)
+	api.PATCH("/crops/:id", perm("crops:write"), cropHandler.UpdateCrop)
+	api.DELETE("/crops/:id", perm("crops:write"), cropHandler.DeleteCrop)
+	api.GET("/field-crops", perm("crops:read"), cropHandler.ListFieldCrops)
+	api.POST("/field-crops", perm("crops:write"), cropHandler.CreateFieldCrop)
+	api.PATCH("/field-crops/:id", perm("crops:write"), cropHandler.UpdateFieldCrop)
+	api.DELETE("/field-crops/:id", perm("crops:write"), cropHandler.DeleteFieldCrop)
+
 	// ─── Machines ────────────────────────────────────────────────────────────
 	machineHandler := handlers.NewMachineHandler(
 		deps.MachineService,
@@ -126,6 +161,10 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.POST("/stocks", perm("stock.create"), stockHandler.Create)
 	api.PATCH("/stocks/:id", perm("stock.update"), stockHandler.Update)
 	api.DELETE("/stocks/:id", perm("stock.delete"), stockHandler.Delete)
+
+	stockMovementHandler := handlers.NewStockMovementHandler(deps.StockMovementService, deps.AuditService, deps.NotificationService)
+	api.GET("/stock-movements", perm("stock.view"), stockMovementHandler.List)
+	api.POST("/stock-movements", perm("stock.update"), stockMovementHandler.Create)
 
 	// ─── Implements ──────────────────────────────────────────────────────────
 	implementHandler := handlers.NewImplementHandler(
@@ -222,6 +261,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 		deps.FieldOperationService,
 		handlers.WithFieldOpAudit(deps.AuditService),
 		handlers.WithFieldOpNotif(deps.NotificationService),
+		handlers.WithFieldOpCompletion(deps.FieldOperationCompletionService),
 	)
 	api.GET("/field-operations", perm("field_operations:read"), fieldOperationHandler.GetAll)
 	api.GET("/field-operations/:id", perm("field_operations:read"), fieldOperationHandler.GetByID)
@@ -229,6 +269,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Update)
 	api.PATCH("/field-operations/:id/checklist", perm("field_operations:checklist"), fieldOperationHandler.UpdateChecklist)
 	api.PATCH("/field-operations/:id/start", perm("field_operations:start"), fieldOperationHandler.Start)
+	api.PATCH("/field-operations/:id/complete", perm("field_operations:complete"), fieldOperationHandler.Complete)
 	api.DELETE("/field-operations/:id", perm("field_operations:delete"), fieldOperationHandler.Delete)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────

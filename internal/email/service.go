@@ -101,3 +101,8 @@ func (s *EmailService) sendHTML(to, subject, htmlBody string) error {
 	}
 	return nil
 }
+
+// SendHTML trimite un e-mail HTML arbitrar (folosit de rapoartele programate).
+func (s *EmailService) SendHTML(to, subject, htmlBody string) error {
+	return s.sendHTML(to, subject, htmlBody)
+}

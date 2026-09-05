@@ -39,7 +39,11 @@ INSERT INTO permissions (name, description) VALUES
     ('dashboard:read',    'Vizualizare carduri dashboard'),
     ('operations:read',   'Vizualizare tipuri operațiuni și template-uri'),
     ('operations:write',  'Creare și editare tipuri operațiuni și template-uri'),
-    ('operations:delete', 'Ștergere tipuri operațiuni și template-uri')
+    ('operations:delete', 'Ștergere tipuri operațiuni și template-uri'),
+    ('reports:read',      'Vizualizare rapoarte'),
+    ('field_operations:complete', 'Finalizare operațiuni pe teren (timpi reali, consumuri)'),
+    ('crops:read',        'Vizualizare sezoane, culturi și culturi pe terenuri'),
+    ('crops:write',       'Administrare sezoane, culturi și culturi pe terenuri')
 
 ON CONFLICT (name) DO NOTHING;
 
@@ -81,8 +85,10 @@ WHERE r.code = 'manager'
       'assignments:read', 'assignments:write',
       'resources:read',   'resources:write',  'resources:delete',
       'stock.view',       'stock.create',      'stock.update', 'stock.delete',
-      'dashboard:read',
-      'operations:read',  'operations:write'
+      'dashboard:read',   'reports:read',
+      'operations:read',  'operations:write',
+      'field_operations:complete',
+      'crops:read',       'crops:write'
   )
 ON CONFLICT DO NOTHING;
 
@@ -99,6 +105,8 @@ WHERE r.code = 'viewer'
       'operators:read',
       'assignments:read',
       'dashboard:read',
+      'reports:read',
+      'crops:read',
       'operations:read'
   )
 ON CONFLICT DO NOTHING;
@@ -110,7 +118,9 @@ FROM roles r, permissions p
 WHERE r.code = 'operator'
   AND p.name IN (
       'dashboard:read',
-      'field_operations:read'
+      'field_operations:read',
+      'field_operations:complete',
+      'crops:read'
   )
 ON CONFLICT DO NOTHING;
 

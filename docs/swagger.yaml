@@ -45,6 +45,46 @@ definitions:
     x-enum-varnames:
     - AssigmentStatusActive
     - AssigmentStatusClosed
+  domain.Crop:
+    properties:
+      category:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      notes:
+        type: string
+      updated_at:
+        type: string
+      yield_unit:
+        type: string
+    type: object
+  domain.DashboardActivityItem:
+    properties:
+      action:
+        type: string
+      actor_name:
+        type: string
+      created_at:
+        type: string
+      entity_id:
+        type: string
+      entity_name:
+        type: string
+      entity_type:
+        type: string
+      id:
+        type: integer
+      old_status:
+        type: string
+      status:
+        type: string
+    type: object
   domain.DashboardCard:
     properties:
       key:
@@ -70,6 +110,71 @@ definitions:
     - DashboardCardActiveMachines
     - DashboardCardTotalOperators
     - DashboardCardActiveAssignments
+  domain.DashboardQuickStats:
+    properties:
+      active_fields:
+        type: integer
+      in_progress_operations:
+        type: integer
+      low_stocks:
+        type: integer
+      maintenance_implements:
+        type: integer
+      maintenance_machines:
+        type: integer
+      overdue_operations:
+        type: integer
+      total_fields:
+        type: integer
+      total_stocks:
+        type: integer
+    type: object
+  domain.FieldCrop:
+    properties:
+      created_at:
+        type: string
+      crop_id:
+        type: integer
+      crop_name:
+        type: string
+      expected_yield_per_ha:
+        type: number
+      field_area_ha:
+        type: number
+      field_id:
+        type: string
+      field_name:
+        type: string
+      harvested_at:
+        type: string
+      id:
+        type: integer
+      notes:
+        type: string
+      planted_area_ha:
+        type: number
+      planted_at:
+        type: string
+      production_total:
+        type: number
+      season_id:
+        type: integer
+      season_name:
+        type: string
+      updated_at:
+        type: string
+      yield_per_ha:
+        type: number
+      yield_unit:
+        type: string
+    type: object
+  domain.FieldOperationResourceUsage:
+    properties:
+      quantity:
+        type: number
+      resource_id:
+        type: integer
+    type: object
   domain.FuelType:
     enum:
     - diesel
@@ -228,6 +333,8 @@ definitions:
         $ref: '#/definitions/domain.OperatorStatus'
       updatedAt:
         type: string
+      user_id:
+        type: integer
     type: object
   domain.OperatorStatus:
     enum:
@@ -237,6 +344,690 @@ definitions:
     x-enum-varnames:
     - OperatorStatusActive
     - OperatorStatusInactive
+  domain.ReportCropStat:
+    properties:
+      cost_per_ha:
+        type: number
+      crop_id:
+        type: integer
+      crop_name:
+        type: string
+      estimated_cost:
+        type: number
+      expected_yield_per_ha:
+        type: number
+      fields_count:
+        type: integer
+      planted_area_ha:
+        type: number
+      production_total:
+        type: number
+      real_cost:
+        type: number
+      yield_per_ha:
+        type: number
+      yield_unit:
+        type: string
+    type: object
+  domain.ReportCrops:
+    properties:
+      by_crop:
+        items:
+          $ref: '#/definitions/domain.ReportCropStat'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/domain.ReportFieldCropRow'
+        type: array
+      season:
+        $ref: '#/definitions/domain.Season'
+      seasons:
+        items:
+          $ref: '#/definitions/domain.Season'
+        type: array
+      totals:
+        $ref: '#/definitions/domain.ReportCropsTotals'
+    type: object
+  domain.ReportCropsTotals:
+    properties:
+      estimated_cost:
+        type: number
+      fields_count:
+        type: integer
+      planted_area_ha:
+        type: number
+      production_total:
+        type: number
+      real_cost:
+        type: number
+      yield_per_ha:
+        type: number
+    type: object
+  domain.ReportFieldCropRow:
+    properties:
+      cost_per_ha:
+        type: number
+      created_at:
+        type: string
+      crop_id:
+        type: integer
+      crop_name:
+        type: string
+      estimated_cost:
+        type: number
+      expected_yield_per_ha:
+        type: number
+      field_area_ha:
+        type: number
+      field_id:
+        type: string
+      field_name:
+        type: string
+      harvested_at:
+        type: string
+      id:
+        type: integer
+      notes:
+        type: string
+      operations_count:
+        type: integer
+      planted_area_ha:
+        type: number
+      planted_at:
+        type: string
+      production_total:
+        type: number
+      real_cost:
+        type: number
+      season_id:
+        type: integer
+      season_name:
+        type: string
+      updated_at:
+        type: string
+      yield_per_ha:
+        type: number
+      yield_unit:
+        type: string
+    type: object
+  domain.ReportFieldRow:
+    properties:
+      area_ha:
+        type: number
+      cadastral_number:
+        type: string
+      completed_count:
+        type: integer
+      estimated_cost:
+        type: number
+      fuel_used_l:
+        type: number
+      geometry:
+        type: object
+      id:
+        type: string
+      last_operation_at:
+        type: string
+      name:
+        type: string
+      operations_count:
+        type: integer
+      planned_area_ha:
+        type: number
+      real_cost:
+        type: number
+      realized_area_ha:
+        type: number
+    type: object
+  domain.ReportFields:
+    properties:
+      fields_with_operations:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/domain.ReportFieldRow'
+        type: array
+      period:
+        $ref: '#/definitions/domain.ReportPeriod'
+      total_area_ha:
+        type: number
+      total_fields:
+        type: integer
+      worked_area_ha:
+        type: number
+    type: object
+  domain.ReportFleet:
+    properties:
+      implement_status:
+        items:
+          $ref: '#/definitions/domain.ReportNamedCount'
+        type: array
+      implements:
+        items:
+          $ref: '#/definitions/domain.ReportImplementRow'
+        type: array
+      machine_status:
+        items:
+          $ref: '#/definitions/domain.ReportNamedCount'
+        type: array
+      machines:
+        items:
+          $ref: '#/definitions/domain.ReportMachineRow'
+        type: array
+      machines_by_fuel:
+        items:
+          $ref: '#/definitions/domain.ReportNamedCount'
+        type: array
+      machines_by_type:
+        items:
+          $ref: '#/definitions/domain.ReportNamedCount'
+        type: array
+      machines_by_year:
+        items:
+          $ref: '#/definitions/domain.ReportNamedCount'
+        type: array
+      period:
+        $ref: '#/definitions/domain.ReportPeriod'
+    type: object
+  domain.ReportFrequency:
+    enum:
+    - daily
+    - weekly
+    - monthly
+    type: string
+    x-enum-varnames:
+    - ReportFrequencyDaily
+    - ReportFrequencyWeekly
+    - ReportFrequencyMonthly
+  domain.ReportImplementRow:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      operations_count:
+        type: integer
+      status:
+        type: string
+      type:
+        type: string
+      working_width:
+        type: number
+    type: object
+  domain.ReportInventorySnapshot:
+    properties:
+      active_machines:
+        type: integer
+      active_operators:
+        type: integer
+      low_stocks:
+        type: integer
+      maintenance_assets:
+        type: integer
+      stock_value:
+        type: number
+      total_area_ha:
+        type: number
+      total_fields:
+        type: integer
+      total_machines:
+        type: integer
+      total_operators:
+        type: integer
+      total_stocks:
+        type: integer
+    type: object
+  domain.ReportMachineRow:
+    properties:
+      active_assignments:
+        type: integer
+      code:
+        type: string
+      fuel_type:
+        type: string
+      fuel_used_l:
+        type: number
+      hours_in_period:
+        type: number
+      id:
+        type: integer
+      name:
+        type: string
+      operating_hours:
+        type: number
+      operations_count:
+        type: integer
+      planned_area_ha:
+        type: number
+      status:
+        type: string
+      type:
+        type: string
+      year:
+        type: integer
+    type: object
+  domain.ReportMovementTotals:
+    properties:
+      in_count:
+        type: integer
+      in_value:
+        type: number
+      out_count:
+        type: integer
+      out_value:
+        type: number
+    type: object
+  domain.ReportNamedCount:
+    properties:
+      count:
+        type: integer
+      key:
+        type: string
+    type: object
+  domain.ReportNamedValue:
+    properties:
+      key:
+        type: string
+      value:
+        type: number
+    type: object
+  domain.ReportOperationRow:
+    properties:
+      actual_duration_minutes:
+        type: integer
+      actual_end_at:
+        type: string
+      actual_start_at:
+        type: string
+      area_completed_ha:
+        type: number
+      area_planned_ha:
+        type: number
+      delay_minutes:
+        type: integer
+      estimated_cost:
+        type: number
+      field_id:
+        type: string
+      field_name:
+        type: string
+      fuel_used_l:
+        type: number
+      id:
+        type: integer
+      implement_name:
+        type: string
+      machine_hours:
+        type: number
+      machine_name:
+        type: string
+      operation_type_name:
+        type: string
+      operator_name:
+        type: string
+      planned_end_at:
+        type: string
+      planned_start_at:
+        type: string
+      real_cost:
+        type: number
+      status:
+        type: string
+      template_name:
+        type: string
+    type: object
+  domain.ReportOperationTypeStat:
+    properties:
+      area_ha:
+        type: number
+      completed:
+        type: integer
+      estimated_cost:
+        type: number
+      operation_type_id:
+        type: integer
+      operation_type_name:
+        type: string
+      total:
+        type: integer
+    type: object
+  domain.ReportOperations:
+    properties:
+      by_status:
+        items:
+          $ref: '#/definitions/domain.ReportNamedCount'
+        type: array
+      by_type:
+        items:
+          $ref: '#/definitions/domain.ReportOperationTypeStat'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/domain.ReportOperationRow'
+        type: array
+      metrics:
+        $ref: '#/definitions/domain.ReportOperationsMetrics'
+      period:
+        $ref: '#/definitions/domain.ReportPeriod'
+      timeline:
+        items:
+          $ref: '#/definitions/domain.ReportTimeBucket'
+        type: array
+    type: object
+  domain.ReportOperationsMetrics:
+    properties:
+      actual_duration_minutes:
+        type: integer
+      completed_area_ha:
+        type: number
+      completed_with_actuals:
+        description: 'Valori reale (faza 2): disponibile doar pentru operațiunile
+          finalizate cu date reale.'
+        type: integer
+      estimated_cost:
+        type: number
+      fields_worked:
+        type: integer
+      fuel_used_l:
+        type: number
+      machine_hours:
+        type: number
+      machines_used:
+        type: integer
+      on_time_completed:
+        type: integer
+      operations_canceled:
+        type: integer
+      operations_completed:
+        type: integer
+      operations_in_progress:
+        type: integer
+      operations_planned:
+        type: integer
+      operations_total:
+        type: integer
+      operators_used:
+        type: integer
+      overdue_operations:
+        type: integer
+      planned_area_ha:
+        type: number
+      real_cost:
+        type: number
+      realized_area_ha:
+        type: number
+    type: object
+  domain.ReportOperatorRow:
+    properties:
+      active_assignments:
+        type: integer
+      allowed_machine_types:
+        items:
+          type: string
+        type: array
+      completed_count:
+        type: integer
+      id:
+        type: integer
+      in_progress_count:
+        type: integer
+      name:
+        type: string
+      on_time_count:
+        type: integer
+      operations_count:
+        type: integer
+      overdue_count:
+        type: integer
+      planned_area_ha:
+        type: number
+      planned_count:
+        type: integer
+      status:
+        type: string
+    type: object
+  domain.ReportOperators:
+    properties:
+      active_operators:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/domain.ReportOperatorRow'
+        type: array
+      period:
+        $ref: '#/definitions/domain.ReportPeriod'
+      total_operators:
+        type: integer
+    type: object
+  domain.ReportPeriod:
+    properties:
+      from:
+        type: string
+      granularity:
+        type: string
+      previous_from:
+        type: string
+      previous_to:
+        type: string
+      to:
+        type: string
+    type: object
+  domain.ReportResourceConsumption:
+    properties:
+      category:
+        type: string
+      cost:
+        type: number
+      quantity:
+        type: number
+      resource_id:
+        type: integer
+      resource_name:
+        type: string
+      stock_quantity:
+        type: number
+      unit:
+        type: string
+    type: object
+  domain.ReportStockRow:
+    properties:
+      below_minimum:
+        type: boolean
+      category:
+        type: string
+      id:
+        type: integer
+      minimum_quantity:
+        type: number
+      price_per_unit:
+        type: number
+      quantity:
+        type: number
+      resource_name:
+        type: string
+      unit:
+        type: string
+      value:
+        type: number
+    type: object
+  domain.ReportStocks:
+    properties:
+      estimated_consumption:
+        items:
+          $ref: '#/definitions/domain.ReportResourceConsumption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/domain.ReportStockRow'
+        type: array
+      low_stocks:
+        type: integer
+      movement_totals:
+        $ref: '#/definitions/domain.ReportMovementTotals'
+      period:
+        $ref: '#/definitions/domain.ReportPeriod'
+      real_consumption:
+        items:
+          $ref: '#/definitions/domain.ReportResourceConsumption'
+        type: array
+      real_consumption_cost:
+        type: number
+      total_stocks:
+        type: integer
+      total_value:
+        type: number
+      value_by_category:
+        items:
+          $ref: '#/definitions/domain.ReportNamedValue'
+        type: array
+    type: object
+  domain.ReportSubscription:
+    properties:
+      created_at:
+        type: string
+      frequency:
+        $ref: '#/definitions/domain.ReportFrequency'
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      last_sent_at:
+        type: string
+      send_hour:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+      weekday:
+        type: integer
+    type: object
+  domain.ReportSummary:
+    properties:
+      current:
+        $ref: '#/definitions/domain.ReportOperationsMetrics'
+      inventory:
+        $ref: '#/definitions/domain.ReportInventorySnapshot'
+      period:
+        $ref: '#/definitions/domain.ReportPeriod'
+      previous:
+        $ref: '#/definitions/domain.ReportOperationsMetrics'
+    type: object
+  domain.ReportTimeBucket:
+    properties:
+      area_ha:
+        type: number
+      bucket:
+        type: string
+      canceled:
+        type: integer
+      completed:
+        type: integer
+      in_progress:
+        type: integer
+      planned:
+        type: integer
+    type: object
+  domain.ReportWeather:
+    properties:
+      latest:
+        items:
+          $ref: '#/definitions/domain.WeatherSnapshot'
+        type: array
+      period:
+        $ref: '#/definitions/domain.ReportPeriod'
+      series:
+        items:
+          $ref: '#/definitions/domain.WeatherDailyAggregate'
+        type: array
+      summary:
+        $ref: '#/definitions/domain.ReportWeatherSummary'
+    type: object
+  domain.ReportWeatherSummary:
+    properties:
+      avg_temperature_c:
+        type: number
+      fields_covered:
+        type: integer
+      max_temperature_c:
+        type: number
+      min_temperature_c:
+        type: number
+      rainy_days:
+        type: integer
+      samples:
+        type: integer
+      total_precipitation_mm:
+        type: number
+    type: object
+  domain.Season:
+    properties:
+      created_at:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      notes:
+        type: string
+      start_date:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  domain.StockMovement:
+    properties:
+      actor_id:
+        type: integer
+      actor_name:
+        type: string
+      category:
+        type: string
+      created_at:
+        type: string
+      field_operation_id:
+        type: integer
+      field_operation_label:
+        type: string
+      id:
+        type: integer
+      movement_type:
+        $ref: '#/definitions/domain.StockMovementType'
+      notes:
+        type: string
+      quantity_delta:
+        type: number
+      resource_id:
+        type: integer
+      resource_name:
+        type: string
+      resulting_quantity:
+        type: number
+      stock_id:
+        type: integer
+      total_cost:
+        type: number
+      unit:
+        type: string
+      unit_cost:
+        type: number
+    type: object
+  domain.StockMovementType:
+    enum:
+    - in
+    - out
+    - adjustment
+    type: string
+    x-enum-varnames:
+    - StockMovementIn
+    - StockMovementOut
+    - StockMovementAdjustment
   domain.UserProfile:
     properties:
       created_at:
@@ -261,6 +1052,58 @@ definitions:
         type: string
       user_id:
         type: integer
+    type: object
+  domain.WeatherDailyAggregate:
+    properties:
+      avg_humidity_percent:
+        type: number
+      avg_temperature_c:
+        type: number
+      avg_wind_speed_kmh:
+        type: number
+      day:
+        type: string
+      max_temperature_c:
+        type: number
+      min_temperature_c:
+        type: number
+      precipitation_mm:
+        type: number
+      samples:
+        type: integer
+    type: object
+  domain.WeatherSnapshot:
+    properties:
+      cloud_cover_percent:
+        type: integer
+      condition:
+        type: string
+      field_id:
+        type: string
+      field_name:
+        type: string
+      humidity_percent:
+        type: integer
+      id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      observed_at:
+        type: string
+      precipitation_mm:
+        type: number
+      source:
+        type: string
+      temperature_c:
+        type: number
+      weather_code:
+        type: integer
+      wind_direction_deg:
+        type: integer
+      wind_speed_kmh:
+        type: number
     type: object
   dto.AssigmentResponse:
     properties:
@@ -390,6 +1233,8 @@ definitions:
         type: string
       phone:
         type: string
+      user_id:
+        type: integer
     required:
     - name
     type: object
@@ -471,8 +1316,133 @@ definitions:
         type: string
       phone:
         type: string
+      user_id:
+        type: integer
     required:
     - name
+    type: object
+  handlers.completeFieldOperationRequest:
+    properties:
+      actual_end_at:
+        type: string
+      area_completed_ha:
+        type: number
+      consume_from_template:
+        type: boolean
+      fuel_used_l:
+        type: number
+      machine_hours:
+        type: number
+      notes:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/domain.FieldOperationResourceUsage'
+        type: array
+    type: object
+  handlers.completeFieldOperationResponse:
+    properties:
+      movements:
+        items:
+          $ref: '#/definitions/domain.StockMovement'
+        type: array
+      operation: {}
+    type: object
+  handlers.createStockMovementRequest:
+    properties:
+      field_operation_id:
+        type: integer
+      movement_type:
+        enum:
+        - in
+        - out
+        - adjustment
+        type: string
+      notes:
+        type: string
+      quantity:
+        type: number
+      stock_id:
+        type: integer
+      unit_cost:
+        type: number
+    required:
+    - movement_type
+    - stock_id
+    type: object
+  handlers.cropRequest:
+    properties:
+      category:
+        type: string
+      code:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      yield_unit:
+        type: string
+    required:
+    - name
+    type: object
+  handlers.fieldCropRequest:
+    properties:
+      crop_id:
+        type: integer
+      expected_yield_per_ha:
+        type: number
+      field_id:
+        type: string
+      harvested_at:
+        type: string
+      notes:
+        type: string
+      planted_area_ha:
+        type: number
+      planted_at:
+        type: string
+      production_total:
+        type: number
+      season_id:
+        type: integer
+    required:
+    - crop_id
+    - field_id
+    - season_id
+    type: object
+  handlers.reportSubscriptionRequest:
+    properties:
+      frequency:
+        enum:
+        - daily
+        - weekly
+        - monthly
+        type: string
+      is_active:
+        type: boolean
+      send_hour:
+        type: integer
+      weekday:
+        type: integer
+    required:
+    - frequency
+    type: object
+  handlers.seasonRequest:
+    properties:
+      end_date:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      notes:
+        type: string
+      start_date:
+        type: string
+    required:
+    - end_date
+    - name
+    - start_date
     type: object
 host: localhost:8080
 info:
@@ -1000,6 +1970,150 @@ paths:
       summary: Reset password
       tags:
       - auth
+  /crops:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Crop'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Culturi
+      tags:
+      - crops
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Cultura
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.cropRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Crop'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Creare cultură
+      tags:
+      - crops
+  /crops/{id}:
+    delete:
+      parameters:
+      - description: ID cultură
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ștergere cultură
+      tags:
+      - crops
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID cultură
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cultura
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.cropRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Crop'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizare cultură
+      tags:
+      - crops
+  /dashboard/activity:
+    get:
+      parameters:
+      - description: Număr maxim de intrări (implicit 5, maxim 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.DashboardActivityItem'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Activitate recentă dashboard
+      tags:
+      - dashboard
   /dashboard/cards:
     get:
       produces:
@@ -1021,6 +2135,205 @@ paths:
       summary: Carduri dashboard
       tags:
       - dashboard
+  /dashboard/quick-stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.DashboardQuickStats'
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Statistici rapide dashboard
+      tags:
+      - dashboard
+  /field-crops:
+    get:
+      parameters:
+      - description: Filtru sezon
+        in: query
+        name: season_id
+        type: integer
+      - description: Filtru cultură
+        in: query
+        name: crop_id
+        type: integer
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.FieldCrop'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Culturi pe terenuri
+      tags:
+      - crops
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Cultura pe teren
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.fieldCropRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.FieldCrop'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Creare cultură pe teren
+      tags:
+      - crops
+  /field-crops/{id}:
+    delete:
+      parameters:
+      - description: ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ștergere cultură pe teren
+      tags:
+      - crops
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cultura pe teren
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.fieldCropRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.FieldCrop'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizare cultură pe teren
+      tags:
+      - crops
+  /field-operations/{id}/complete:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID operațiune
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Datele reale ale finalizării
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.completeFieldOperationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.completeFieldOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Finalizare operațiune pe teren
+      tags:
+      - field-operations
   /health:
     get:
       produces:
@@ -1640,6 +2953,694 @@ paths:
       summary: Upload profile photo
       tags:
       - profile
+  /reports/crops:
+    get:
+      parameters:
+      - description: Sezon (implicit cel activ sau cel mai recent)
+        in: query
+        name: season_id
+        type: integer
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportCrops'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport culturi
+      tags:
+      - reports
+  /reports/fields:
+    get:
+      parameters:
+      - description: Data de început (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      - description: Filtru tip operațiune
+        in: query
+        name: operation_type_id
+        type: integer
+      - description: Filtru mașină
+        in: query
+        name: machine_id
+        type: integer
+      - description: Filtru operator
+        in: query
+        name: operator_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportFields'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport terenuri
+      tags:
+      - reports
+  /reports/fleet:
+    get:
+      parameters:
+      - description: Data de început (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      - description: Filtru tip operațiune
+        in: query
+        name: operation_type_id
+        type: integer
+      - description: Filtru mașină
+        in: query
+        name: machine_id
+        type: integer
+      - description: Filtru operator
+        in: query
+        name: operator_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportFleet'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport flotă
+      tags:
+      - reports
+  /reports/operations:
+    get:
+      parameters:
+      - description: Data de început (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      - description: Filtru tip operațiune
+        in: query
+        name: operation_type_id
+        type: integer
+      - description: Filtru mașină
+        in: query
+        name: machine_id
+        type: integer
+      - description: Filtru operator
+        in: query
+        name: operator_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportOperations'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport operațiuni
+      tags:
+      - reports
+  /reports/operators:
+    get:
+      parameters:
+      - description: Data de început (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      - description: Filtru tip operațiune
+        in: query
+        name: operation_type_id
+        type: integer
+      - description: Filtru mașină
+        in: query
+        name: machine_id
+        type: integer
+      - description: Filtru operator
+        in: query
+        name: operator_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportOperators'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport operatori
+      tags:
+      - reports
+  /reports/stocks:
+    get:
+      parameters:
+      - description: Data de început (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      - description: Filtru tip operațiune
+        in: query
+        name: operation_type_id
+        type: integer
+      - description: Filtru mașină
+        in: query
+        name: machine_id
+        type: integer
+      - description: Filtru operator
+        in: query
+        name: operator_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportStocks'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport stocuri
+      tags:
+      - reports
+  /reports/subscription:
+    delete:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Dezactivare abonament raport e-mail
+      tags:
+      - reports
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportSubscription'
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Abonament raport e-mail
+      tags:
+      - reports
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Abonamentul
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.reportSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportSubscription'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Setare abonament raport e-mail
+      tags:
+      - reports
+  /reports/subscription/send-now:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Trimitere imediată raport e-mail
+      tags:
+      - reports
+  /reports/summary:
+    get:
+      parameters:
+      - description: Data de început (YYYY-MM-DD, implicit ultimele 30 de zile)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD, implicit azi)
+        in: query
+        name: to
+        type: string
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      - description: Filtru tip operațiune
+        in: query
+        name: operation_type_id
+        type: integer
+      - description: Filtru mașină
+        in: query
+        name: machine_id
+        type: integer
+      - description: Filtru operator
+        in: query
+        name: operator_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportSummary'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport sumar
+      tags:
+      - reports
+  /reports/weather:
+    get:
+      parameters:
+      - description: Data de început (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - description: Filtru teren
+        in: query
+        name: field_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ReportWeather'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Raport meteo
+      tags:
+      - reports
+  /seasons:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Season'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Sezoane
+      tags:
+      - crops
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Sezonul
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.seasonRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Season'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Creare sezon
+      tags:
+      - crops
+  /seasons/{id}:
+    delete:
+      parameters:
+      - description: ID sezon
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ștergere sezon
+      tags:
+      - crops
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID sezon
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Sezonul
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.seasonRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Season'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Actualizare sezon
+      tags:
+      - crops
+  /stock-movements:
+    get:
+      parameters:
+      - description: Filtru stoc
+        in: query
+        name: stock_id
+        type: integer
+      - description: Filtru resursă
+        in: query
+        name: resource_id
+        type: integer
+      - description: Filtru operațiune pe teren
+        in: query
+        name: field_operation_id
+        type: integer
+      - description: De la (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Până la (YYYY-MM-DD, inclusiv)
+        in: query
+        name: to
+        type: string
+      - description: Număr maxim (implicit 200, maxim 500)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.StockMovement'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mișcări de stoc
+      tags:
+      - stocks
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Mișcarea de stoc
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createStockMovementRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.StockMovement'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Înregistrare mișcare de stoc
+      tags:
+      - stocks
   /weather/current:
     get:
       parameters:

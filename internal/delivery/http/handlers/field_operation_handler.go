@@ -15,9 +15,10 @@ import (
 )
 
 type FieldOperationHandler struct {
-	service *usecase.FieldOperationService
-	audit   *usecase.AuditService
-	notif   *usecase.NotificationService
+	service    *usecase.FieldOperationService
+	audit      *usecase.AuditService
+	notif      *usecase.NotificationService
+	completion *usecase.FieldOperationCompletionService
 }
 
 func NewFieldOperationHandler(service *usecase.FieldOperationService, opts ...func(*FieldOperationHandler)) *FieldOperationHandler {
@@ -331,4 +332,123 @@ func (h *FieldOperationHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// WithFieldOpCompletion injectează serviciul de finalizare (timpi reali și consumuri).
+func WithFieldOpCompletion(s *usecase.FieldOperationCompletionService) func(*FieldOperationHandler) {
+	return func(h *FieldOperationHandler) { h.completion = s }
+}
+
+type completeFieldOperationRequest struct {
+	ActualEndAt         *time.Time                           `json:"actual_end_at"`
+	AreaCompletedHa     *float64                             `json:"area_completed_ha"`
+	FuelUsedL           *float64                             `json:"fuel_used_l"`
+	MachineHours        *float64                             `json:"machine_hours"`
+	Notes               string                               `json:"notes"`
+	Resources           []domain.FieldOperationResourceUsage `json:"resources"`
+	ConsumeFromTemplate bool                                 `json:"consume_from_template"`
+}
+
+type completeFieldOperationResponse struct {
+	Operation interface{}            `json:"operation"`
+	Movements []domain.StockMovement `json:"movements"`
+}
+
+// Complete finalizează operațiunea cu datele reale și înregistrează consumul de resurse.
+// @Summary      Finalizare operațiune pe teren
+// @Tags         field-operations
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID operațiune"
+// @Param        payload body completeFieldOperationRequest true "Datele reale ale finalizării"
+// @Success      200 {object} completeFieldOperationResponse
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Failure      500 {object} object{error=string}
+// @Router       /field-operations/{id}/complete [patch]
+func (h *FieldOperationHandler) Complete(c *gin.Context) {
+	if h.completion == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "finalizarea nu este configurată"})
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req completeFieldOperationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	completion := domain.FieldOperationCompletion{
+		ActualEndAt:         req.ActualEndAt,
+		AreaCompletedHa:     req.AreaCompletedHa,
+		FuelUsedL:           req.FuelUsedL,
+		MachineHours:        req.MachineHours,
+		Notes:               req.Notes,
+		Resources:           req.Resources,
+		ConsumeFromTemplate: req.ConsumeFromTemplate,
+	}
+
+	oldItem, oldErr := h.service.GetByID(id)
+	actorID := currentActorID(c)
+	var result *usecase.CompletionResult
+	if isOperatorRequest(c) {
+		userID, ok := currentUserID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+			return
+		}
+		result, err = h.completion.CompleteForAssignedUser(id, userID, completion, actorID)
+	} else {
+		result, err = h.completion.Complete(id, completion, actorID)
+	}
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrFieldOperationNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		case errors.Is(err, usecase.ErrFieldOperationNotCompletable), errors.Is(err, usecase.ErrInvalidStockMovement):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, completeFieldOperationResponse{Operation: result.Operation, Movements: result.Movements})
+
+	if h.audit != nil {
+		changes := map[string]interface{}{
+			"status":            string(domain.FieldOperationStatusCompleted),
+			"area_completed_ha": req.AreaCompletedHa,
+			"fuel_used_l":       req.FuelUsedL,
+			"machine_hours":     req.MachineHours,
+			"movements":         len(result.Movements),
+		}
+		if oldErr == nil && oldItem != nil {
+			changes["old_status"] = string(oldItem.Status)
+		}
+		h.audit.Log("field_operation", strconv.FormatInt(id, 10), "complete", actorID, changes)
+	}
+	if h.notif != nil {
+		label := fmt.Sprintf("Lucrarea #%d", id)
+		if result.Operation != nil {
+			label = fmt.Sprintf("%s - %s", result.Operation.OperationTypeName, result.Operation.FieldName)
+		}
+		h.notif.Emit(
+			domain.NotifOperationCompleted,
+			"Lucrare finalizată",
+			fmt.Sprintf("%s a fost finalizată (%d mișcări de stoc)", label, len(result.Movements)),
+			"field_operation", strconv.FormatInt(id, 10),
+		)
+		for _, low := range result.LowStocks {
+			h.notif.Emit(
+				domain.NotifStockLow,
+				"Stoc scăzut",
+				fmt.Sprintf("Stocul #%d a atins nivelul minim (%.2f / %.2f) după finalizarea lucrării #%d", low.StockID, low.Quantity, low.Minimum, id),
+				"stock", strconv.FormatInt(low.StockID, 10),
+			)
+		}
+	}
 }

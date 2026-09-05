@@ -89,6 +89,9 @@ func main() {
 	// 2.4.1 Repository și serviciul pentru operațiuni pe teren
 	fieldOperationRepo := postgres.NewFieldOperationRepo(sqlDB)
 	fieldOperationService := usecase.NewFieldOperationService(fieldOperationRepo)
+	stockMovementRepo := postgres.NewStockMovementRepo(sqlDB)
+	stockMovementService := usecase.NewStockMovementService(sqlDB, stockMovementRepo)
+	fieldOperationCompletionService := usecase.NewFieldOperationCompletionService(sqlDB, fieldOperationRepo, stockMovementRepo)
 
 	// 2.6 Audit & Notifications
 	auditRepo := postgres.NewAuditRepo(sqlDB)
@@ -115,7 +118,23 @@ func main() {
 	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
 	dashboardRepo := postgres.NewDashboardRepo(sqlDB)
 	dashboardService := usecase.NewDashboardService(dashboardRepo, auditRepo)
+	reportRepo := postgres.NewReportRepo(sqlDB)
+	cropRepo := postgres.NewCropRepo(sqlDB)
+	cropService := usecase.NewCropService(cropRepo, fieldRepo)
+	weatherSnapshotRepo := postgres.NewWeatherSnapshotRepo(sqlDB)
+	reportSubscriptionRepo := postgres.NewReportSubscriptionRepo(sqlDB)
+	reportService := usecase.NewReportService(reportRepo).WithCrops(cropRepo).WithWeather(weatherSnapshotRepo)
 	weatherService := usecase.NewWeatherService(cfg.OpenWeatherAPIKey)
+
+	// 2.7 Monitor: salvează periodic observațiile meteo pentru terenuri (istoric meteo în rapoarte)
+	if cfg.WeatherSnapshotInterval != "0" {
+		snapshotInterval, err := time.ParseDuration(cfg.WeatherSnapshotInterval)
+		if err != nil || snapshotInterval <= 0 {
+			snapshotInterval = time.Hour
+		}
+		weatherSnapshotMonitor := usecase.NewWeatherSnapshotMonitor(fieldRepo, weatherService, weatherSnapshotRepo, log, snapshotInterval)
+		go weatherSnapshotMonitor.Start(context.Background())
+	}
 
 	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări
 	appStore := store.NewInitialiedStore(sqlDB)
@@ -150,6 +169,14 @@ func main() {
 		log,
 	)
 
+	// 5.1 Rapoarte programate pe e-mail (abonamente zilnice/săptămânale/lunare)
+	digestInterval, err := time.ParseDuration(cfg.ReportDigestCheckInterval)
+	if err != nil || digestInterval <= 0 {
+		digestInterval = time.Minute
+	}
+	reportDigestService := usecase.NewReportDigestService(reportSubscriptionRepo, reportService, emailService, cfg.ClientOrigin, log, digestInterval)
+	go reportDigestService.Start(context.Background())
+
 	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist, emailService, cfg.ClientOrigin)
 	rbacService := usecase.NewRBACService(appStore, jwtService, refreshRepo, blacklist)
 	userService := usecase.NewUserService(appStore)
@@ -182,30 +209,35 @@ func main() {
 
 	// Înregistrează toate rutele API
 	httpdelivery.SetupRoutes(server, httpdelivery.AppDeps{
-		Log:                        log,
-		MachineService:             machineService,
-		ResourceService:            resourceService,
-		StockService:               stockService,
-		ImplementService:           implementService,
-		OperatorService:            operatorService,
-		FieldService:               fieldService,
-		AssignmentService:          assigmentService,
-		OperationService:           operationService,
-		FieldOperationService:      fieldOperationService,
-		DashboardService:           dashboardService,
-		WeatherService:             weatherService,
-		AuditService:               auditService,
-		NotificationService:        notificationService,
-		AuditRepo:                  auditRepo,
-		ImplementCompatibilityRepo: implementCompatibilityRepo,
-		AuthService:                authService,
-		ProfileService:             profileService,
-		RBACService:                rbacService,
-		UserService:                userService,
-		PermissionRepo:             appStore.PermissionRepo,
-		UploadDir:                  uploadDir,
-		JWTService:                 jwtService,
-		Blacklist:                  blacklist,
+		Log:                             log,
+		MachineService:                  machineService,
+		ResourceService:                 resourceService,
+		StockService:                    stockService,
+		ImplementService:                implementService,
+		OperatorService:                 operatorService,
+		FieldService:                    fieldService,
+		AssignmentService:               assigmentService,
+		OperationService:                operationService,
+		FieldOperationService:           fieldOperationService,
+		DashboardService:                dashboardService,
+		ReportService:                   reportService,
+		StockMovementService:            stockMovementService,
+		CropService:                     cropService,
+		ReportDigestService:             reportDigestService,
+		FieldOperationCompletionService: fieldOperationCompletionService,
+		WeatherService:                  weatherService,
+		AuditService:                    auditService,
+		NotificationService:             notificationService,
+		AuditRepo:                       auditRepo,
+		ImplementCompatibilityRepo:      implementCompatibilityRepo,
+		AuthService:                     authService,
+		ProfileService:                  profileService,
+		RBACService:                     rbacService,
+		UserService:                     userService,
+		PermissionRepo:                  appStore.PermissionRepo,
+		UploadDir:                       uploadDir,
+		JWTService:                      jwtService,
+		Blacklist:                       blacklist,
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)

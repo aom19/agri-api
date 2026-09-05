@@ -5,11 +5,12 @@ import "time"
 type NotificationType string
 
 const (
-	NotifAssetUnavailable NotificationType = "asset_unavailable"
-	NotifOperationStarted NotificationType = "operation_started"
-	NotifStockLow         NotificationType = "stock_low"
-	NotifResourceIssue    NotificationType = "resource_issue"
-	NotifOperationOverdue NotificationType = "operation_overdue"
+	NotifAssetUnavailable   NotificationType = "asset_unavailable"
+	NotifOperationStarted   NotificationType = "operation_started"
+	NotifStockLow           NotificationType = "stock_low"
+	NotifResourceIssue      NotificationType = "resource_issue"
+	NotifOperationOverdue   NotificationType = "operation_overdue"
+	NotifOperationCompleted NotificationType = "operation_completed"
 )
 
 type Notification struct {

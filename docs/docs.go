@@ -839,6 +839,240 @@ const docTemplate = `{
                 }
             }
         },
+        "/crops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Culturi",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Crop"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Creare cultură",
+                "parameters": [
+                    {
+                        "description": "Cultura",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.cropRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Crop"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/crops/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Ștergere cultură",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID cultură",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Actualizare cultură",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID cultură",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cultura",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.cropRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Crop"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/activity": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Activitate recentă dashboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Număr maxim de intrări (implicit 5, maxim 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.DashboardActivityItem"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/dashboard/cards": {
             "get": {
                 "security": [
@@ -858,6 +1092,327 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.DashboardCardsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/quick-stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Statistici rapide dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.DashboardQuickStats"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/field-crops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Culturi pe terenuri",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Filtru sezon",
+                        "name": "season_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru cultură",
+                        "name": "crop_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.FieldCrop"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Creare cultură pe teren",
+                "parameters": [
+                    {
+                        "description": "Cultura pe teren",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.fieldCropRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.FieldCrop"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/field-crops/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Ștergere cultură pe teren",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Actualizare cultură pe teren",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cultura pe teren",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.fieldCropRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.FieldCrop"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/field-operations/{id}/complete": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "field-operations"
+                ],
+                "summary": "Finalizare operațiune pe teren",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID operațiune",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Datele reale ale finalizării",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.completeFieldOperationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.completeFieldOperationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -1875,6 +2430,1110 @@ const docTemplate = `{
                 }
             }
         },
+        "/reports/crops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport culturi",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Sezon (implicit cel activ sau cel mai recent)",
+                        "name": "season_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportCrops"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/fields": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport terenuri",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru tip operațiune",
+                        "name": "operation_type_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportFields"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/fleet": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport flotă",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru tip operațiune",
+                        "name": "operation_type_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportFleet"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/operations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport operațiuni",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru tip operațiune",
+                        "name": "operation_type_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportOperations"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/operators": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport operatori",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru tip operațiune",
+                        "name": "operation_type_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportOperators"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/stocks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport stocuri",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru tip operațiune",
+                        "name": "operation_type_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportStocks"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/subscription": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Abonament raport e-mail",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportSubscription"
+                        }
+                    },
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Setare abonament raport e-mail",
+                "parameters": [
+                    {
+                        "description": "Abonamentul",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.reportSubscriptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportSubscription"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Dezactivare abonament raport e-mail",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/reports/subscription/send-now": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Trimitere imediată raport e-mail",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport sumar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD, implicit ultimele 30 de zile)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD, implicit azi)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru tip operațiune",
+                        "name": "operation_type_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/weather": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Raport meteo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru teren",
+                        "name": "field_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ReportWeather"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/seasons": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Sezoane",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Season"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Creare sezon",
+                "parameters": [
+                    {
+                        "description": "Sezonul",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.seasonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Season"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/seasons/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Ștergere sezon",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID sezon",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Actualizare sezon",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID sezon",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Sezonul",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.seasonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Season"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/stock-movements": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stocks"
+                ],
+                "summary": "Mișcări de stoc",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Filtru stoc",
+                        "name": "stock_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru resursă",
+                        "name": "resource_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtru operațiune pe teren",
+                        "name": "field_operation_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "De la (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Până la (YYYY-MM-DD, inclusiv)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Număr maxim (implicit 200, maxim 500)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.StockMovement"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stocks"
+                ],
+                "summary": "Înregistrare mișcare de stoc",
+                "parameters": [
+                    {
+                        "description": "Mișcarea de stoc",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.createStockMovementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.StockMovement"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/weather/current": {
             "get": {
                 "produces": [
@@ -2000,6 +3659,67 @@ const docTemplate = `{
                 "AssigmentStatusClosed"
             ]
         },
+        "domain.Crop": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "yield_unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.DashboardActivityItem": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "actor_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "string"
+                },
+                "entity_name": {
+                    "type": "string"
+                },
+                "entity_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "old_status": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.DashboardCard": {
             "type": "object",
             "properties": {
@@ -2034,6 +3754,105 @@ const docTemplate = `{
                 "DashboardCardTotalOperators",
                 "DashboardCardActiveAssignments"
             ]
+        },
+        "domain.DashboardQuickStats": {
+            "type": "object",
+            "properties": {
+                "active_fields": {
+                    "type": "integer"
+                },
+                "in_progress_operations": {
+                    "type": "integer"
+                },
+                "low_stocks": {
+                    "type": "integer"
+                },
+                "maintenance_implements": {
+                    "type": "integer"
+                },
+                "maintenance_machines": {
+                    "type": "integer"
+                },
+                "overdue_operations": {
+                    "type": "integer"
+                },
+                "total_fields": {
+                    "type": "integer"
+                },
+                "total_stocks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.FieldCrop": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "crop_id": {
+                    "type": "integer"
+                },
+                "crop_name": {
+                    "type": "string"
+                },
+                "expected_yield_per_ha": {
+                    "type": "number"
+                },
+                "field_area_ha": {
+                    "type": "number"
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "harvested_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "planted_area_ha": {
+                    "type": "number"
+                },
+                "planted_at": {
+                    "type": "string"
+                },
+                "production_total": {
+                    "type": "number"
+                },
+                "season_id": {
+                    "type": "integer"
+                },
+                "season_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "yield_per_ha": {
+                    "type": "number"
+                },
+                "yield_unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.FieldOperationResourceUsage": {
+            "type": "object",
+            "properties": {
+                "quantity": {
+                    "type": "number"
+                },
+                "resource_id": {
+                    "type": "integer"
+                }
+            }
         },
         "domain.FuelType": {
             "type": "string",
@@ -2250,6 +4069,9 @@ const docTemplate = `{
                 },
                 "updatedAt": {
                     "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -2262,6 +4084,1041 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "OperatorStatusActive",
                 "OperatorStatusInactive"
+            ]
+        },
+        "domain.ReportCropStat": {
+            "type": "object",
+            "properties": {
+                "cost_per_ha": {
+                    "type": "number"
+                },
+                "crop_id": {
+                    "type": "integer"
+                },
+                "crop_name": {
+                    "type": "string"
+                },
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "expected_yield_per_ha": {
+                    "type": "number"
+                },
+                "fields_count": {
+                    "type": "integer"
+                },
+                "planted_area_ha": {
+                    "type": "number"
+                },
+                "production_total": {
+                    "type": "number"
+                },
+                "real_cost": {
+                    "type": "number"
+                },
+                "yield_per_ha": {
+                    "type": "number"
+                },
+                "yield_unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ReportCrops": {
+            "type": "object",
+            "properties": {
+                "by_crop": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportCropStat"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportFieldCropRow"
+                    }
+                },
+                "season": {
+                    "$ref": "#/definitions/domain.Season"
+                },
+                "seasons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Season"
+                    }
+                },
+                "totals": {
+                    "$ref": "#/definitions/domain.ReportCropsTotals"
+                }
+            }
+        },
+        "domain.ReportCropsTotals": {
+            "type": "object",
+            "properties": {
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "fields_count": {
+                    "type": "integer"
+                },
+                "planted_area_ha": {
+                    "type": "number"
+                },
+                "production_total": {
+                    "type": "number"
+                },
+                "real_cost": {
+                    "type": "number"
+                },
+                "yield_per_ha": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportFieldCropRow": {
+            "type": "object",
+            "properties": {
+                "cost_per_ha": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "crop_id": {
+                    "type": "integer"
+                },
+                "crop_name": {
+                    "type": "string"
+                },
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "expected_yield_per_ha": {
+                    "type": "number"
+                },
+                "field_area_ha": {
+                    "type": "number"
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "harvested_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "operations_count": {
+                    "type": "integer"
+                },
+                "planted_area_ha": {
+                    "type": "number"
+                },
+                "planted_at": {
+                    "type": "string"
+                },
+                "production_total": {
+                    "type": "number"
+                },
+                "real_cost": {
+                    "type": "number"
+                },
+                "season_id": {
+                    "type": "integer"
+                },
+                "season_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "yield_per_ha": {
+                    "type": "number"
+                },
+                "yield_unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ReportFieldRow": {
+            "type": "object",
+            "properties": {
+                "area_ha": {
+                    "type": "number"
+                },
+                "cadastral_number": {
+                    "type": "string"
+                },
+                "completed_count": {
+                    "type": "integer"
+                },
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "fuel_used_l": {
+                    "type": "number"
+                },
+                "geometry": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_operation_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operations_count": {
+                    "type": "integer"
+                },
+                "planned_area_ha": {
+                    "type": "number"
+                },
+                "real_cost": {
+                    "type": "number"
+                },
+                "realized_area_ha": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportFields": {
+            "type": "object",
+            "properties": {
+                "fields_with_operations": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportFieldRow"
+                    }
+                },
+                "period": {
+                    "$ref": "#/definitions/domain.ReportPeriod"
+                },
+                "total_area_ha": {
+                    "type": "number"
+                },
+                "total_fields": {
+                    "type": "integer"
+                },
+                "worked_area_ha": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportFleet": {
+            "type": "object",
+            "properties": {
+                "implement_status": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportNamedCount"
+                    }
+                },
+                "implements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportImplementRow"
+                    }
+                },
+                "machine_status": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportNamedCount"
+                    }
+                },
+                "machines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportMachineRow"
+                    }
+                },
+                "machines_by_fuel": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportNamedCount"
+                    }
+                },
+                "machines_by_type": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportNamedCount"
+                    }
+                },
+                "machines_by_year": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportNamedCount"
+                    }
+                },
+                "period": {
+                    "$ref": "#/definitions/domain.ReportPeriod"
+                }
+            }
+        },
+        "domain.ReportFrequency": {
+            "type": "string",
+            "enum": [
+                "daily",
+                "weekly",
+                "monthly"
+            ],
+            "x-enum-varnames": [
+                "ReportFrequencyDaily",
+                "ReportFrequencyWeekly",
+                "ReportFrequencyMonthly"
+            ]
+        },
+        "domain.ReportImplementRow": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operations_count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "working_width": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportInventorySnapshot": {
+            "type": "object",
+            "properties": {
+                "active_machines": {
+                    "type": "integer"
+                },
+                "active_operators": {
+                    "type": "integer"
+                },
+                "low_stocks": {
+                    "type": "integer"
+                },
+                "maintenance_assets": {
+                    "type": "integer"
+                },
+                "stock_value": {
+                    "type": "number"
+                },
+                "total_area_ha": {
+                    "type": "number"
+                },
+                "total_fields": {
+                    "type": "integer"
+                },
+                "total_machines": {
+                    "type": "integer"
+                },
+                "total_operators": {
+                    "type": "integer"
+                },
+                "total_stocks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ReportMachineRow": {
+            "type": "object",
+            "properties": {
+                "active_assignments": {
+                    "type": "integer"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "fuel_type": {
+                    "type": "string"
+                },
+                "fuel_used_l": {
+                    "type": "number"
+                },
+                "hours_in_period": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operating_hours": {
+                    "type": "number"
+                },
+                "operations_count": {
+                    "type": "integer"
+                },
+                "planned_area_ha": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ReportMovementTotals": {
+            "type": "object",
+            "properties": {
+                "in_count": {
+                    "type": "integer"
+                },
+                "in_value": {
+                    "type": "number"
+                },
+                "out_count": {
+                    "type": "integer"
+                },
+                "out_value": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportNamedCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ReportNamedValue": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportOperationRow": {
+            "type": "object",
+            "properties": {
+                "actual_duration_minutes": {
+                    "type": "integer"
+                },
+                "actual_end_at": {
+                    "type": "string"
+                },
+                "actual_start_at": {
+                    "type": "string"
+                },
+                "area_completed_ha": {
+                    "type": "number"
+                },
+                "area_planned_ha": {
+                    "type": "number"
+                },
+                "delay_minutes": {
+                    "type": "integer"
+                },
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "fuel_used_l": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "implement_name": {
+                    "type": "string"
+                },
+                "machine_hours": {
+                    "type": "number"
+                },
+                "machine_name": {
+                    "type": "string"
+                },
+                "operation_type_name": {
+                    "type": "string"
+                },
+                "operator_name": {
+                    "type": "string"
+                },
+                "planned_end_at": {
+                    "type": "string"
+                },
+                "planned_start_at": {
+                    "type": "string"
+                },
+                "real_cost": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "template_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ReportOperationTypeStat": {
+            "type": "object",
+            "properties": {
+                "area_ha": {
+                    "type": "number"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "operation_type_id": {
+                    "type": "integer"
+                },
+                "operation_type_name": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ReportOperations": {
+            "type": "object",
+            "properties": {
+                "by_status": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportNamedCount"
+                    }
+                },
+                "by_type": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportOperationTypeStat"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportOperationRow"
+                    }
+                },
+                "metrics": {
+                    "$ref": "#/definitions/domain.ReportOperationsMetrics"
+                },
+                "period": {
+                    "$ref": "#/definitions/domain.ReportPeriod"
+                },
+                "timeline": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportTimeBucket"
+                    }
+                }
+            }
+        },
+        "domain.ReportOperationsMetrics": {
+            "type": "object",
+            "properties": {
+                "actual_duration_minutes": {
+                    "type": "integer"
+                },
+                "completed_area_ha": {
+                    "type": "number"
+                },
+                "completed_with_actuals": {
+                    "description": "Valori reale (faza 2): disponibile doar pentru operațiunile finalizate cu date reale.",
+                    "type": "integer"
+                },
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "fields_worked": {
+                    "type": "integer"
+                },
+                "fuel_used_l": {
+                    "type": "number"
+                },
+                "machine_hours": {
+                    "type": "number"
+                },
+                "machines_used": {
+                    "type": "integer"
+                },
+                "on_time_completed": {
+                    "type": "integer"
+                },
+                "operations_canceled": {
+                    "type": "integer"
+                },
+                "operations_completed": {
+                    "type": "integer"
+                },
+                "operations_in_progress": {
+                    "type": "integer"
+                },
+                "operations_planned": {
+                    "type": "integer"
+                },
+                "operations_total": {
+                    "type": "integer"
+                },
+                "operators_used": {
+                    "type": "integer"
+                },
+                "overdue_operations": {
+                    "type": "integer"
+                },
+                "planned_area_ha": {
+                    "type": "number"
+                },
+                "real_cost": {
+                    "type": "number"
+                },
+                "realized_area_ha": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportOperatorRow": {
+            "type": "object",
+            "properties": {
+                "active_assignments": {
+                    "type": "integer"
+                },
+                "allowed_machine_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "completed_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "in_progress_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "on_time_count": {
+                    "type": "integer"
+                },
+                "operations_count": {
+                    "type": "integer"
+                },
+                "overdue_count": {
+                    "type": "integer"
+                },
+                "planned_area_ha": {
+                    "type": "number"
+                },
+                "planned_count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ReportOperators": {
+            "type": "object",
+            "properties": {
+                "active_operators": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportOperatorRow"
+                    }
+                },
+                "period": {
+                    "$ref": "#/definitions/domain.ReportPeriod"
+                },
+                "total_operators": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ReportPeriod": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "granularity": {
+                    "type": "string"
+                },
+                "previous_from": {
+                    "type": "string"
+                },
+                "previous_to": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ReportResourceConsumption": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "cost": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "stock_quantity": {
+                    "type": "number"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ReportStockRow": {
+            "type": "object",
+            "properties": {
+                "below_minimum": {
+                    "type": "boolean"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "minimum_quantity": {
+                    "type": "number"
+                },
+                "price_per_unit": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.ReportStocks": {
+            "type": "object",
+            "properties": {
+                "estimated_consumption": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportResourceConsumption"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportStockRow"
+                    }
+                },
+                "low_stocks": {
+                    "type": "integer"
+                },
+                "movement_totals": {
+                    "$ref": "#/definitions/domain.ReportMovementTotals"
+                },
+                "period": {
+                    "$ref": "#/definitions/domain.ReportPeriod"
+                },
+                "real_consumption": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportResourceConsumption"
+                    }
+                },
+                "real_consumption_cost": {
+                    "type": "number"
+                },
+                "total_stocks": {
+                    "type": "integer"
+                },
+                "total_value": {
+                    "type": "number"
+                },
+                "value_by_category": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportNamedValue"
+                    }
+                }
+            }
+        },
+        "domain.ReportSubscription": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "frequency": {
+                    "$ref": "#/definitions/domain.ReportFrequency"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "last_sent_at": {
+                    "type": "string"
+                },
+                "send_hour": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "weekday": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ReportSummary": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/domain.ReportOperationsMetrics"
+                },
+                "inventory": {
+                    "$ref": "#/definitions/domain.ReportInventorySnapshot"
+                },
+                "period": {
+                    "$ref": "#/definitions/domain.ReportPeriod"
+                },
+                "previous": {
+                    "$ref": "#/definitions/domain.ReportOperationsMetrics"
+                }
+            }
+        },
+        "domain.ReportTimeBucket": {
+            "type": "object",
+            "properties": {
+                "area_ha": {
+                    "type": "number"
+                },
+                "bucket": {
+                    "type": "string"
+                },
+                "canceled": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "in_progress": {
+                    "type": "integer"
+                },
+                "planned": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ReportWeather": {
+            "type": "object",
+            "properties": {
+                "latest": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.WeatherSnapshot"
+                    }
+                },
+                "period": {
+                    "$ref": "#/definitions/domain.ReportPeriod"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.WeatherDailyAggregate"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/domain.ReportWeatherSummary"
+                }
+            }
+        },
+        "domain.ReportWeatherSummary": {
+            "type": "object",
+            "properties": {
+                "avg_temperature_c": {
+                    "type": "number"
+                },
+                "fields_covered": {
+                    "type": "integer"
+                },
+                "max_temperature_c": {
+                    "type": "number"
+                },
+                "min_temperature_c": {
+                    "type": "number"
+                },
+                "rainy_days": {
+                    "type": "integer"
+                },
+                "samples": {
+                    "type": "integer"
+                },
+                "total_precipitation_mm": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.Season": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.StockMovement": {
+            "type": "object",
+            "properties": {
+                "actor_id": {
+                    "type": "integer"
+                },
+                "actor_name": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "field_operation_id": {
+                    "type": "integer"
+                },
+                "field_operation_label": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "movement_type": {
+                    "$ref": "#/definitions/domain.StockMovementType"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "quantity_delta": {
+                    "type": "number"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "resulting_quantity": {
+                    "type": "number"
+                },
+                "stock_id": {
+                    "type": "integer"
+                },
+                "total_cost": {
+                    "type": "number"
+                },
+                "unit": {
+                    "type": "string"
+                },
+                "unit_cost": {
+                    "type": "number"
+                }
+            }
+        },
+        "domain.StockMovementType": {
+            "type": "string",
+            "enum": [
+                "in",
+                "out",
+                "adjustment"
+            ],
+            "x-enum-varnames": [
+                "StockMovementIn",
+                "StockMovementOut",
+                "StockMovementAdjustment"
             ]
         },
         "domain.UserProfile": {
@@ -2299,6 +5156,85 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "domain.WeatherDailyAggregate": {
+            "type": "object",
+            "properties": {
+                "avg_humidity_percent": {
+                    "type": "number"
+                },
+                "avg_temperature_c": {
+                    "type": "number"
+                },
+                "avg_wind_speed_kmh": {
+                    "type": "number"
+                },
+                "day": {
+                    "type": "string"
+                },
+                "max_temperature_c": {
+                    "type": "number"
+                },
+                "min_temperature_c": {
+                    "type": "number"
+                },
+                "precipitation_mm": {
+                    "type": "number"
+                },
+                "samples": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.WeatherSnapshot": {
+            "type": "object",
+            "properties": {
+                "cloud_cover_percent": {
+                    "type": "integer"
+                },
+                "condition": {
+                    "type": "string"
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "humidity_percent": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "observed_at": {
+                    "type": "string"
+                },
+                "precipitation_mm": {
+                    "type": "number"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "temperature_c": {
+                    "type": "number"
+                },
+                "weather_code": {
+                    "type": "integer"
+                },
+                "wind_direction_deg": {
+                    "type": "integer"
+                },
+                "wind_speed_kmh": {
+                    "type": "number"
                 }
             }
         },
@@ -2495,6 +5431,9 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -2616,6 +5555,192 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.completeFieldOperationRequest": {
+            "type": "object",
+            "properties": {
+                "actual_end_at": {
+                    "type": "string"
+                },
+                "area_completed_ha": {
+                    "type": "number"
+                },
+                "consume_from_template": {
+                    "type": "boolean"
+                },
+                "fuel_used_l": {
+                    "type": "number"
+                },
+                "machine_hours": {
+                    "type": "number"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.FieldOperationResourceUsage"
+                    }
+                }
+            }
+        },
+        "handlers.completeFieldOperationResponse": {
+            "type": "object",
+            "properties": {
+                "movements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.StockMovement"
+                    }
+                },
+                "operation": {}
+            }
+        },
+        "handlers.createStockMovementRequest": {
+            "type": "object",
+            "required": [
+                "movement_type",
+                "stock_id"
+            ],
+            "properties": {
+                "field_operation_id": {
+                    "type": "integer"
+                },
+                "movement_type": {
+                    "type": "string",
+                    "enum": [
+                        "in",
+                        "out",
+                        "adjustment"
+                    ]
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "stock_id": {
+                    "type": "integer"
+                },
+                "unit_cost": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.cropRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "yield_unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.fieldCropRequest": {
+            "type": "object",
+            "required": [
+                "crop_id",
+                "field_id",
+                "season_id"
+            ],
+            "properties": {
+                "crop_id": {
+                    "type": "integer"
+                },
+                "expected_yield_per_ha": {
+                    "type": "number"
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "harvested_at": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "planted_area_ha": {
+                    "type": "number"
+                },
+                "planted_at": {
+                    "type": "string"
+                },
+                "production_total": {
+                    "type": "number"
+                },
+                "season_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.reportSubscriptionRequest": {
+            "type": "object",
+            "required": [
+                "frequency"
+            ],
+            "properties": {
+                "frequency": {
+                    "type": "string",
+                    "enum": [
+                        "daily",
+                        "weekly",
+                        "monthly"
+                    ]
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "send_hour": {
+                    "type": "integer"
+                },
+                "weekday": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.seasonRequest": {
+            "type": "object",
+            "required": [
+                "end_date",
+                "name",
+                "start_date"
+            ],
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "start_date": {
                     "type": "string"
                 }
             }

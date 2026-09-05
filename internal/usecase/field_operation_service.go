@@ -6,6 +6,7 @@ import (
 	"agri-api/internal/repository"
 	"errors"
 	"strings"
+	"time"
 )
 
 var (
@@ -132,7 +133,7 @@ func (s *FieldOperationService) Start(id int64) (*dto.FieldOperationResponse, er
 	if existing.Status == string(domain.FieldOperationStatusInProgress) {
 		return existing, nil
 	}
-	if err := s.repo.UpdateStatus(id, domain.FieldOperationStatusInProgress); err != nil {
+	if err := s.repo.MarkStarted(id, time.Now()); err != nil {
 		return nil, err
 	}
 	return s.repo.GetByID(id)
@@ -152,7 +153,7 @@ func (s *FieldOperationService) StartForAssignedUser(id int64, userID int64) (*d
 	if existing.Status == string(domain.FieldOperationStatusInProgress) {
 		return existing, nil
 	}
-	if err := s.repo.UpdateStatus(id, domain.FieldOperationStatusInProgress); err != nil {
+	if err := s.repo.MarkStarted(id, time.Now()); err != nil {
 		return nil, err
 	}
 	return s.repo.GetByIDForAssignedUser(id, userID)

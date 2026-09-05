@@ -24,6 +24,12 @@ type FieldOperation struct {
 	AreaPlannedHa       *float64             `json:"area_planned_ha,omitempty"`
 	Notes               string               `json:"notes"`
 	Status              FieldOperationStatus `json:"status"`
+	ActualStartAt       *time.Time           `json:"actual_start_at,omitempty"`
+	ActualEndAt         *time.Time           `json:"actual_end_at,omitempty"`
+	AreaCompletedHa     *float64             `json:"area_completed_ha,omitempty"`
+	FuelUsedL           *float64             `json:"fuel_used_l,omitempty"`
+	MachineHours        *float64             `json:"machine_hours,omitempty"`
+	CompletionNotes     string               `json:"completion_notes"`
 
 	Auditfields
 }

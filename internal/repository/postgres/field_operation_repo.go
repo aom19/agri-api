@@ -32,6 +32,12 @@ const fieldOperationBaseSelect = `
 		fo.area_planned_ha,
 		fo.notes,
 		fo.status,
+		fo.actual_start_at,
+		fo.actual_end_at,
+		fo.area_completed_ha,
+		fo.fuel_used_l,
+		fo.machine_hours,
+		fo.completion_notes,
 		fo.check_machine_status,
 		fo.check_implement_status,
 		fo.check_field_area,
@@ -67,6 +73,12 @@ func scanFieldOperationRow(row interface {
 		&r.AreaPlannedHa,
 		&r.Notes,
 		&r.Status,
+		&r.ActualStartAt,
+		&r.ActualEndAt,
+		&r.AreaCompletedHa,
+		&r.FuelUsedL,
+		&r.MachineHours,
+		&r.CompletionNotes,
 		&r.Checklist.MachineStatus,
 		&r.Checklist.ImplementStatus,
 		&r.Checklist.FieldArea,
@@ -78,6 +90,10 @@ func scanFieldOperationRow(row interface {
 		return nil, err
 	}
 	r.FieldGeometry = fieldGeometry
+	if r.ActualStartAt != nil && r.ActualEndAt != nil && r.ActualEndAt.After(*r.ActualStartAt) {
+		minutes := int64(r.ActualEndAt.Sub(*r.ActualStartAt).Minutes())
+		r.ActualDurationMin = &minutes
+	}
 	return &r, nil
 }
 
@@ -233,6 +249,15 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 			area_planned_ha       = $9,
 			notes                 = $10,
 			status                = $11,
+			actual_start_at       = CASE
+				WHEN $11 IN ('in_progress', 'completed') AND actual_start_at IS NULL THEN COALESCE(planned_start_at, NOW())
+				ELSE actual_start_at
+			END,
+			actual_end_at         = CASE
+				WHEN $11 = 'completed' AND actual_end_at IS NULL THEN NOW()
+				WHEN $11 <> 'completed' THEN NULL
+				ELSE actual_end_at
+			END,
 			overdue_notified_at   = CASE
 				WHEN planned_end_at IS DISTINCT FROM $8 THEN NULL
 				ELSE overdue_notified_at
@@ -366,5 +391,76 @@ func (repo *FieldOperationRepo) MarkOverdueNotified(id int64, at time.Time) erro
 			overdue_notified_at = $1
 		WHERE id = $2 AND deleted_at IS NULL
 	`, at, id)
+	return err
+}
+
+// MarkStarted trece operațiunea în lucru și păstrează momentul primei porniri.
+func (repo *FieldOperationRepo) MarkStarted(id int64, at time.Time) error {
+	query := `
+		UPDATE field_operations SET
+			status          = $1,
+			actual_start_at = COALESCE(actual_start_at, $2),
+			updated_at      = NOW()
+		WHERE id = $3 AND deleted_at IS NULL
+	`
+	_, err := repo.db.Exec(query, domain.FieldOperationStatusInProgress, at, id)
+	return err
+}
+
+// Complete înregistrează datele reale ale finalizării. Dacă operațiunea nu a fost pornită
+// explicit, momentul pornirii devine începutul planificat (sau momentul finalizării).
+func (repo *FieldOperationRepo) Complete(tx *sql.Tx, id int64, completion domain.FieldOperationCompletion, at time.Time) error {
+	query := `
+		UPDATE field_operations SET
+			status            = $1,
+			actual_start_at   = COALESCE(actual_start_at, planned_start_at, $2),
+			actual_end_at     = $2,
+			area_completed_ha = COALESCE($3, area_completed_ha, area_planned_ha),
+			fuel_used_l       = COALESCE($4, fuel_used_l),
+			machine_hours     = COALESCE($5, machine_hours),
+			completion_notes  = $6,
+			updated_at        = NOW()
+		WHERE id = $7 AND deleted_at IS NULL
+	`
+	_, err := tx.Exec(query,
+		domain.FieldOperationStatusCompleted,
+		at,
+		completion.AreaCompletedHa,
+		completion.FuelUsedL,
+		completion.MachineHours,
+		completion.Notes,
+		id,
+	)
+	return err
+}
+
+func (repo *FieldOperationRepo) GetTemplateResources(templateID int64) ([]domain.TemplateResourceUsage, error) {
+	rows, err := repo.db.Query(`
+		SELECT tr.resource_id, r.name, tr.quantity_per_unit, r.price_per_unit
+		FROM template_resources tr
+		JOIN resources r ON r.id = tr.resource_id
+		WHERE tr.template_id = $1
+		ORDER BY r.name`, templateID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []domain.TemplateResourceUsage{}
+	for rows.Next() {
+		var item domain.TemplateResourceUsage
+		if err := rows.Scan(&item.ResourceID, &item.ResourceName, &item.QuantityPerUnit, &item.PricePerUnit); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (repo *FieldOperationRepo) AddMachineHours(tx *sql.Tx, machineID int64, hours float64) error {
+	_, err := tx.Exec(`
+		UPDATE machines
+		SET operating_hours = COALESCE(operating_hours, 0) + $1, updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL`, hours, machineID)
 	return err
 }

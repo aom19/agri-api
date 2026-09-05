@@ -44,6 +44,11 @@ type Config struct {
 
 	// Intervalul la care se verifică operațiunile pe teren care au depășit timpul estimat de lucru
 	FieldOperationOverdueCheckInterval string
+
+	// Intervalul la care se salvează observațiile meteo pentru terenuri ("0" dezactivează)
+	WeatherSnapshotInterval string
+	// Intervalul la care se verifică abonamentele la rapoartele pe e-mail
+	ReportDigestCheckInterval string
 }
 
 func LoadConfig() *Config {
@@ -80,6 +85,8 @@ func LoadConfig() *Config {
 		OpenWeatherAPIKey: getEnv("OPENWEATHER_API_KEY", ""),
 
 		FieldOperationOverdueCheckInterval: getEnv("FIELD_OPERATION_OVERDUE_CHECK_INTERVAL", "1m"),
+		WeatherSnapshotInterval:            getEnv("WEATHER_SNAPSHOT_INTERVAL", "1h"),
+		ReportDigestCheckInterval:          getEnv("REPORT_DIGEST_CHECK_INTERVAL", "1m"),
 	}
 }
 

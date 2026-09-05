@@ -28,6 +28,13 @@ type FieldOperationResponse struct {
 	AreaPlannedHa       *float64                        `json:"area_planned_ha,omitempty"`
 	Notes               string                          `json:"notes"`
 	Status              string                          `json:"status"`
+	ActualStartAt       *time.Time                      `json:"actual_start_at,omitempty"`
+	ActualEndAt         *time.Time                      `json:"actual_end_at,omitempty"`
+	ActualDurationMin   *int64                          `json:"actual_duration_minutes,omitempty"`
+	AreaCompletedHa     *float64                        `json:"area_completed_ha,omitempty"`
+	FuelUsedL           *float64                        `json:"fuel_used_l,omitempty"`
+	MachineHours        *float64                        `json:"machine_hours,omitempty"`
+	CompletionNotes     string                          `json:"completion_notes"`
 	Checklist           FieldOperationChecklistResponse `json:"checklist"`
 	CreatedAt           time.Time                       `json:"created_at"`
 	UpdatedAt           time.Time                       `json:"updated_at"`
