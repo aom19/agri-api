@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -95,10 +96,25 @@ func main() {
 	notificationRepo := postgres.NewNotificationRepo(sqlDB)
 	notificationService := usecase.NewNotificationService(notificationRepo)
 
+	// 2.6.1 Monitor: notifică admin/manager și operatorul când o operațiune în lucru
+	// depășește timpul estimat de lucru (sfârșitul planificat)
+	overdueInterval, err := time.ParseDuration(cfg.FieldOperationOverdueCheckInterval)
+	if err != nil || overdueInterval <= 0 {
+		overdueInterval = time.Minute
+	}
+	overdueMonitor := usecase.NewFieldOperationOverdueMonitor(
+		fieldOperationRepo,
+		notificationService,
+		auditService,
+		log,
+		overdueInterval,
+	)
+	go overdueMonitor.Start(context.Background())
+
 	// 2.5 Repository pentru compatibilitățile utilaj ↔ echipament
 	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
 	dashboardRepo := postgres.NewDashboardRepo(sqlDB)
-	dashboardService := usecase.NewDashboardService(dashboardRepo)
+	dashboardService := usecase.NewDashboardService(dashboardRepo, auditRepo)
 	weatherService := usecase.NewWeatherService(cfg.OpenWeatherAPIKey)
 
 	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări

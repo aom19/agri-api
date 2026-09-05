@@ -7,10 +7,62 @@ import (
 
 type DashboardService struct {
 	dashboardRepo repository.DashboardRepository
+	auditRepo     repository.AuditRepository
 }
 
-func NewDashboardService(dashboardRepo repository.DashboardRepository) *DashboardService {
-	return &DashboardService{dashboardRepo: dashboardRepo}
+func NewDashboardService(dashboardRepo repository.DashboardRepository, auditRepo repository.AuditRepository) *DashboardService {
+	return &DashboardService{dashboardRepo: dashboardRepo, auditRepo: auditRepo}
+}
+
+// GetQuickStats returnează indicatorii rapizi calculați din datele reale.
+func (service *DashboardService) GetQuickStats() (*domain.DashboardQuickStats, error) {
+	return service.dashboardRepo.GetQuickStats()
+}
+
+// GetRecentActivity returnează ultimele intrări din jurnalul de audit, simplificate pentru dashboard.
+func (service *DashboardService) GetRecentActivity(limit int) ([]domain.DashboardActivityItem, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	if service.auditRepo == nil {
+		return []domain.DashboardActivityItem{}, nil
+	}
+
+	entries, err := service.auditRepo.GetAll(limit, "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]domain.DashboardActivityItem, 0, len(entries))
+	for _, entry := range entries {
+		items = append(items, domain.DashboardActivityItem{
+			ID:         entry.ID,
+			EntityType: entry.EntityType,
+			EntityID:   entry.EntityID,
+			EntityName: entry.EntityName,
+			Action:     entry.Action,
+			ActorName:  entry.ActorName,
+			Status:     changeString(entry.Changes, "status"),
+			OldStatus:  changeString(entry.Changes, "old_status"),
+			CreatedAt:  entry.CreatedAt,
+		})
+	}
+	return items, nil
+}
+
+// changeString extrage o valoare text din harta de modificări a unei intrări de audit.
+func changeString(changes map[string]interface{}, key string) *string {
+	if changes == nil {
+		return nil
+	}
+	value, ok := changes[key].(string)
+	if !ok || value == "" {
+		return nil
+	}
+	return &value
 }
 
 func (service *DashboardService) GetCards() ([]domain.DashboardCard, error) {

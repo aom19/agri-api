@@ -47,3 +47,44 @@ func (repo *DashboardRepo) GetCardStats() (*domain.DashboardCardStats, error) {
 
 	return stats, nil
 }
+
+// GetQuickStats calculează indicatorii rapizi din dashboard direct din baza de date.
+func (repo *DashboardRepo) GetQuickStats() (*domain.DashboardQuickStats, error) {
+	query := `
+		SELECT
+			(SELECT COUNT(*) FROM fields WHERE deleted_at IS NULL) AS total_fields,
+			(SELECT COUNT(DISTINCT field_id) FROM field_operations
+				WHERE deleted_at IS NULL AND status IN ('planned', 'in_progress')) AS active_fields,
+			(SELECT COUNT(*) FROM field_operations
+				WHERE deleted_at IS NULL AND status = 'in_progress') AS in_progress_operations,
+			(SELECT COUNT(*) FROM field_operations
+				WHERE deleted_at IS NULL
+				  AND status IN ('planned', 'in_progress')
+				  AND planned_end_at IS NOT NULL
+				  AND planned_end_at < NOW()) AS overdue_operations,
+			(SELECT COUNT(*) FROM machines
+				WHERE deleted_at IS NULL AND asset_status = 'maintenance') AS maintenance_machines,
+			(SELECT COUNT(*) FROM implements
+				WHERE deleted_at IS NULL AND status = 'maintenance') AS maintenance_implements,
+			(SELECT COUNT(*) FROM stocks
+				WHERE minimum_quantity > 0 AND quantity <= minimum_quantity) AS low_stocks,
+			(SELECT COUNT(*) FROM stocks) AS total_stocks
+	`
+
+	stats := &domain.DashboardQuickStats{}
+	err := repo.db.QueryRow(query).Scan(
+		&stats.TotalFields,
+		&stats.ActiveFields,
+		&stats.InProgressOperations,
+		&stats.OverdueOperations,
+		&stats.MaintenanceMachines,
+		&stats.MaintenanceImplements,
+		&stats.LowStocks,
+		&stats.TotalStocks,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return stats, nil
+}

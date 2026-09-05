@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type FieldOperationRepo struct {
@@ -232,6 +233,10 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 			area_planned_ha       = $9,
 			notes                 = $10,
 			status                = $11,
+			overdue_notified_at   = CASE
+				WHEN planned_end_at IS DISTINCT FROM $8 THEN NULL
+				ELSE overdue_notified_at
+			END,
 			updated_at            = NOW()
 		WHERE id = $12 AND deleted_at IS NULL
 	`
@@ -288,5 +293,78 @@ func (repo *FieldOperationRepo) UpdateStatus(id int64, status domain.FieldOperat
 func (repo *FieldOperationRepo) Delete(id int64) error {
 	_, err := repo.db.Exec(
 		`UPDATE field_operations SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
+}
+
+// GetOverdueInProgress returnează operațiunile în lucru care au depășit sfârșitul planificat
+// și nu au fost încă notificate. Utilizatorul operatorului este rezolvat din operators.user_id
+// sau, ca fallback, după e-mail (aceeași regulă ca la filtrarea pe utilizatorul asignat).
+func (repo *FieldOperationRepo) GetOverdueInProgress(now time.Time) ([]dto.OverdueFieldOperation, error) {
+	query := `
+		SELECT
+			fo.id,
+			f.name,
+			ot.name,
+			fo.operator_id,
+			op.name,
+			COALESCE(
+				op.user_id,
+				(
+					SELECT u.id
+					FROM users u
+					WHERE u.deleted_at IS NULL
+					  AND op.email IS NOT NULL
+					  AND btrim(op.email) <> ''
+					  AND LOWER(u.email) = LOWER(op.email)
+					ORDER BY u.id
+					LIMIT 1
+				)
+			),
+			fo.planned_start_at,
+			fo.planned_end_at
+		FROM field_operations fo
+		JOIN fields f           ON f.id  = fo.field_id
+		JOIN operation_types ot ON ot.id = fo.operation_type_id
+		LEFT JOIN operators op  ON op.id = fo.operator_id
+		WHERE fo.deleted_at IS NULL
+		  AND fo.status = $1
+		  AND fo.planned_end_at IS NOT NULL
+		  AND fo.planned_end_at < $2
+		  AND fo.overdue_notified_at IS NULL
+		ORDER BY fo.planned_end_at ASC, fo.id ASC
+	`
+	rows, err := repo.db.Query(query, domain.FieldOperationStatusInProgress, now)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make([]dto.OverdueFieldOperation, 0)
+	for rows.Next() {
+		var item dto.OverdueFieldOperation
+		if err := rows.Scan(
+			&item.ID,
+			&item.FieldName,
+			&item.OperationTypeName,
+			&item.OperatorID,
+			&item.OperatorName,
+			&item.OperatorUserID,
+			&item.PlannedStartAt,
+			&item.PlannedEndAt,
+		); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+// MarkOverdueNotified reține momentul în care s-a trimis notificarea de depășire.
+func (repo *FieldOperationRepo) MarkOverdueNotified(id int64, at time.Time) error {
+	_, err := repo.db.Exec(`
+		UPDATE field_operations SET
+			overdue_notified_at = $1
+		WHERE id = $2 AND deleted_at IS NULL
+	`, at, id)
 	return err
 }

@@ -82,6 +82,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	// ─── Dashboard ────────────────────────────────────────────────────────────
 	dashboardHandler := handlers.NewDashboardHandler(deps.DashboardService)
 	api.GET("/dashboard/cards", perm("dashboard:read"), dashboardHandler.GetCards)
+	api.GET("/dashboard/quick-stats", perm("dashboard:read"), dashboardHandler.GetQuickStats)
+	api.GET("/dashboard/activity", perm("dashboard:read"), dashboardHandler.GetActivity)
 
 	// ─── Machines ────────────────────────────────────────────────────────────
 	machineHandler := handlers.NewMachineHandler(

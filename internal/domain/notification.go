@@ -9,6 +9,7 @@ const (
 	NotifOperationStarted NotificationType = "operation_started"
 	NotifStockLow         NotificationType = "stock_low"
 	NotifResourceIssue    NotificationType = "resource_issue"
+	NotifOperationOverdue NotificationType = "operation_overdue"
 )
 
 type Notification struct {

@@ -40,3 +40,16 @@ type FieldOperationChecklistResponse struct {
 	NotesConfirmed  bool       `json:"notes_confirmed"`
 	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
 }
+
+// OverdueFieldOperation descrie o operațiune pe teren aflată în lucru care a depășit
+// sfârșitul planificat (timpul estimat de lucru); folosită de monitorul de notificări.
+type OverdueFieldOperation struct {
+	ID                int64
+	FieldName         string
+	OperationTypeName string
+	OperatorID        *int64
+	OperatorName      *string
+	OperatorUserID    *int64
+	PlannedStartAt    *time.Time
+	PlannedEndAt      time.Time
+}

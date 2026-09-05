@@ -26,12 +26,35 @@ func NewNotificationService(repo repository.NotificationRepository) *Notificatio
 	}
 }
 
-// Emit creates a notification and delivers it to all admin/manager users
+// Emit creates a notification and delivers it (asynchronously) to all admin/manager users
 func (s *NotificationService) Emit(notifType domain.NotificationType, title, message, entityType, entityID string) {
-	go s.emitAsync(notifType, title, message, entityType, entityID)
+	go func() {
+		_ = s.EmitToAudience(notifType, title, message, entityType, entityID)
+	}()
 }
 
-func (s *NotificationService) emitAsync(notifType domain.NotificationType, title, message, entityType, entityID string) {
+// EmitToAudience creates a single notification and delivers it synchronously to all
+// admin/manager users plus the given extra users (e.g. the assigned operator), without duplicates.
+// It returns an error only if the notification itself could not be created or the audience
+// could not be resolved.
+func (s *NotificationService) EmitToAudience(notifType domain.NotificationType, title, message, entityType, entityID string, extraUserIDs ...int64) error {
+	userIDs, err := s.repo.GetManagerAndAdminUserIDs()
+	if err != nil {
+		return err
+	}
+	return s.deliver(notifType, title, message, entityType, entityID, append(userIDs, extraUserIDs...))
+}
+
+// EmitToUser sends notification to a specific user
+func (s *NotificationService) EmitToUser(userID int64, notifType domain.NotificationType, title, message, entityType, entityID string) {
+	go func() {
+		_ = s.deliver(notifType, title, message, entityType, entityID, []int64{userID})
+	}()
+}
+
+// deliver persists one notification and fans it out to the given users (deduplicated),
+// pushing it to connected WebSocket subscribers as well.
+func (s *NotificationService) deliver(notifType domain.NotificationType, title, message, entityType, entityID string, userIDs []int64) error {
 	n := &domain.Notification{
 		Type:       notifType,
 		Title:      title,
@@ -39,21 +62,23 @@ func (s *NotificationService) emitAsync(notifType domain.NotificationType, title
 		EntityType: entityType,
 		EntityID:   entityID,
 	}
-
 	if err := s.repo.Create(n); err != nil {
-		return
+		return err
 	}
 
-	userIDs, err := s.repo.GetManagerAndAdminUserIDs()
-	if err != nil {
-		return
-	}
-
+	seen := make(map[int64]struct{}, len(userIDs))
 	for _, uid := range userIDs {
+		if uid <= 0 {
+			continue
+		}
+		if _, duplicate := seen[uid]; duplicate {
+			continue
+		}
+		seen[uid] = struct{}{}
+
 		if err := s.repo.CreateUserNotification(n.ID, uid); err != nil {
 			continue
 		}
-		// push to connected WebSocket subscribers
 		s.pushToSubscribers(uid, domain.UserNotification{
 			NotificationID: n.ID,
 			UserID:         uid,
@@ -61,31 +86,7 @@ func (s *NotificationService) emitAsync(notifType domain.NotificationType, title
 			CreatedAt:      n.CreatedAt,
 		})
 	}
-}
-
-// EmitToUser sends notification to a specific user
-func (s *NotificationService) EmitToUser(userID int64, notifType domain.NotificationType, title, message, entityType, entityID string) {
-	go func() {
-		n := &domain.Notification{
-			Type:       notifType,
-			Title:      title,
-			Message:    message,
-			EntityType: entityType,
-			EntityID:   entityID,
-		}
-		if err := s.repo.Create(n); err != nil {
-			return
-		}
-		if err := s.repo.CreateUserNotification(n.ID, userID); err != nil {
-			return
-		}
-		s.pushToSubscribers(userID, domain.UserNotification{
-			NotificationID: n.ID,
-			UserID:         userID,
-			Notification:   *n,
-			CreatedAt:      n.CreatedAt,
-		})
-	}()
+	return nil
 }
 
 func (s *NotificationService) GetByUser(userID int64, onlyUnread bool, limit int) ([]domain.UserNotification, error) {
