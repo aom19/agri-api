@@ -21,6 +21,7 @@ type StockMovement struct {
 	Unit                string            `json:"unit"`
 	FieldOperationID    *int64            `json:"field_operation_id,omitempty"`
 	FieldOperationLabel *string           `json:"field_operation_label,omitempty"`
+	FieldCropID         *int64            `json:"field_crop_id,omitempty"`
 	MovementType        StockMovementType `json:"movement_type"`
 	QuantityDelta       float64           `json:"quantity_delta"`
 	ResultingQuantity   float64           `json:"resulting_quantity"`

@@ -18,6 +18,8 @@ type OperationTemplate struct {
 	Name            string     `json:"name"`
 	Description     string     `json:"description,omitempty"`
 	Unit            string     `json:"unit"`
+	CropID          *int64     `json:"crop_id,omitempty"`
+	CropName        *string    `json:"crop_name,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 	DeletedAt       *time.Time `json:"-"`

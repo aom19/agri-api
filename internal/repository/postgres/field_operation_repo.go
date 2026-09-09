@@ -32,6 +32,7 @@ const fieldOperationBaseSelect = `
 		fo.area_planned_ha,
 		fo.notes,
 		fo.status,
+		fo.field_crop_id, cr.name, se.name,
 		fo.actual_start_at,
 		fo.actual_end_at,
 		fo.area_completed_ha,
@@ -52,6 +53,9 @@ const fieldOperationBaseSelect = `
 	LEFT JOIN machines m       ON m.id  = fo.machine_id
 	LEFT JOIN implements imp   ON imp.id = fo.implement_id
 	LEFT JOIN operators op     ON op.id = fo.operator_id
+	LEFT JOIN field_crops fc   ON fc.id = fo.field_crop_id
+	LEFT JOIN crops cr         ON cr.id = fc.crop_id
+	LEFT JOIN seasons se       ON se.id = fc.season_id
 	WHERE fo.deleted_at IS NULL
 `
 
@@ -73,6 +77,7 @@ func scanFieldOperationRow(row interface {
 		&r.AreaPlannedHa,
 		&r.Notes,
 		&r.Status,
+		&r.FieldCropID, &r.CropName, &r.SeasonName,
 		&r.ActualStartAt,
 		&r.ActualEndAt,
 		&r.AreaCompletedHa,
@@ -216,8 +221,17 @@ func (repo *FieldOperationRepo) Create(op *domain.FieldOperation) error {
 			field_id, operation_type_id, operation_template_id,
 			machine_id, implement_id, operator_id,
 			planned_start_at, planned_end_at, area_planned_ha,
-			notes, status
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			notes, status, field_crop_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, (
+				SELECT fc.id
+				FROM field_crops fc
+				JOIN seasons s ON s.id = fc.season_id
+				WHERE fc.field_id = $1
+				  AND COALESCE($7, NOW()) >= s.start_date
+				  AND COALESCE($7, NOW()) < s.end_date + INTERVAL '1 day'
+				ORDER BY s.is_active DESC, s.start_date DESC
+				LIMIT 1
+			)))
 		RETURNING id, created_at, updated_at
 	`
 	return repo.db.QueryRow(query,
@@ -232,6 +246,7 @@ func (repo *FieldOperationRepo) Create(op *domain.FieldOperation) error {
 		op.AreaPlannedHa,
 		op.Notes,
 		op.Status,
+		op.FieldCropID,
 	).Scan(&op.ID, &op.CreatedAt, &op.UpdatedAt)
 }
 
@@ -248,14 +263,24 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 			planned_end_at        = $8,
 			area_planned_ha       = $9,
 			notes                 = $10,
-			status                = $11,
+			status                = $11::text,
+			field_crop_id         = COALESCE($13, (
+				SELECT fc.id
+				FROM field_crops fc
+				JOIN seasons s ON s.id = fc.season_id
+				WHERE fc.field_id = $1
+				  AND COALESCE($7, NOW()) >= s.start_date
+				  AND COALESCE($7, NOW()) < s.end_date + INTERVAL '1 day'
+				ORDER BY s.is_active DESC, s.start_date DESC
+				LIMIT 1
+			)),
 			actual_start_at       = CASE
-				WHEN $11 IN ('in_progress', 'completed') AND actual_start_at IS NULL THEN COALESCE(planned_start_at, NOW())
+				WHEN $11::text IN ('in_progress', 'completed') AND actual_start_at IS NULL THEN COALESCE(planned_start_at, NOW())
 				ELSE actual_start_at
 			END,
 			actual_end_at         = CASE
-				WHEN $11 = 'completed' AND actual_end_at IS NULL THEN NOW()
-				WHEN $11 <> 'completed' THEN NULL
+				WHEN $11::text = 'completed' AND actual_end_at IS NULL THEN NOW()
+				WHEN $11::text <> 'completed' THEN NULL
 				ELSE actual_end_at
 			END,
 			overdue_notified_at   = CASE
@@ -278,6 +303,7 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 		op.Notes,
 		op.Status,
 		id,
+		op.FieldCropID,
 	)
 	return err
 }

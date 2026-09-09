@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"time"
 
 	"agri-api/internal/domain"
@@ -25,6 +26,12 @@ type CropRepository interface {
 	CreateFieldCrop(item *domain.FieldCrop) error
 	UpdateFieldCrop(id int64, item *domain.FieldCrop) error
 	DeleteFieldCrop(id int64) error
+
+	// Legături cu operațiunile și recolta.
+	RelinkOperations(seasonID int64) error
+	EnsureHarvestResource(tx *sql.Tx, crop *domain.Crop) (int64, error)
+	EnsureStock(tx *sql.Tx, resourceID int64) error
+	MarkHarvestRecorded(tx *sql.Tx, fieldCropID int64, quantity float64) error
 }
 
 type WeatherSnapshotRepository interface {

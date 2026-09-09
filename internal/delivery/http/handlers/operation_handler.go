@@ -57,6 +57,7 @@ type createTemplateRequest struct {
 	Name            string                    `json:"name" binding:"required"`
 	Description     string                    `json:"description"`
 	Unit            string                    `json:"unit" binding:"required"`
+	CropID          *int64                    `json:"crop_id"`
 	Resources       []templateResourceRequest `json:"resources"`
 	MachineTypes    []string                  `json:"machine_types"`
 	ImplementTypes  []string                  `json:"implement_types"`
@@ -67,6 +68,7 @@ type updateTemplateRequest struct {
 	Name            string                    `json:"name" binding:"required"`
 	Description     string                    `json:"description"`
 	Unit            string                    `json:"unit" binding:"required"`
+	CropID          *int64                    `json:"crop_id"`
 	Resources       []templateResourceRequest `json:"resources"`
 	MachineTypes    []string                  `json:"machine_types"`
 	ImplementTypes  []string                  `json:"implement_types"`
@@ -248,6 +250,7 @@ func (h *OperationHandler) CreateTemplate(c *gin.Context) {
 		Name:            req.Name,
 		Description:     req.Description,
 		Unit:            req.Unit,
+		CropID:          req.CropID,
 		Resources:       resources,
 		MachineTypes:    req.MachineTypes,
 		ImplementTypes:  req.ImplementTypes,
@@ -295,6 +298,7 @@ func (h *OperationHandler) UpdateTemplate(c *gin.Context) {
 		Name:            req.Name,
 		Description:     req.Description,
 		Unit:            req.Unit,
+		CropID:          req.CropID,
 		Resources:       resources,
 		MachineTypes:    req.MachineTypes,
 		ImplementTypes:  req.ImplementTypes,

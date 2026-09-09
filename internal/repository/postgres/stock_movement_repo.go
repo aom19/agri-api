@@ -54,8 +54,8 @@ func (repo *StockMovementRepo) ApplyMovement(tx *sql.Tx, movement *domain.StockM
 	return tx.QueryRow(`
 		INSERT INTO stock_movements (
 			stock_id, resource_id, field_operation_id, movement_type,
-			quantity_delta, resulting_quantity, unit_cost, total_cost, notes, actor_id
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			quantity_delta, resulting_quantity, unit_cost, total_cost, notes, actor_id, field_crop_id
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, created_at`,
 		movement.StockID,
 		movement.ResourceID,
@@ -67,6 +67,7 @@ func (repo *StockMovementRepo) ApplyMovement(tx *sql.Tx, movement *domain.StockM
 		movement.TotalCost,
 		movement.Notes,
 		movement.ActorID,
+		movement.FieldCropID,
 	).Scan(&movement.ID, &movement.CreatedAt)
 }
 
@@ -103,7 +104,12 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 		SELECT
 			sm.id, sm.stock_id, sm.resource_id, r.name, rt.category, rt.default_unit,
 			sm.field_operation_id,
-			CASE WHEN fo.id IS NULL THEN NULL ELSE CONCAT_WS(' - ', ot.name, f.name) END,
+			CASE
+				WHEN fo.id IS NOT NULL THEN CONCAT_WS(' - ', ot.name, f.name)
+				WHEN hc.id IS NOT NULL THEN CONCAT_WS(' - ', 'Recoltă ' || hcr.name, hf.name)
+				ELSE NULL
+			END,
+			sm.field_crop_id,
 			sm.movement_type, sm.quantity_delta, sm.resulting_quantity, sm.unit_cost, sm.total_cost,
 			sm.notes, sm.actor_id,
 			NULLIF(BTRIM(CONCAT_WS(' ', up.first_name, up.last_name)), ''),
@@ -115,6 +121,9 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 		LEFT JOIN operation_types ot ON ot.id = fo.operation_type_id
 		LEFT JOIN fields f ON f.id = fo.field_id
 		LEFT JOIN user_profiles up ON up.user_id = sm.actor_id
+		LEFT JOIN field_crops hc ON hc.id = sm.field_crop_id
+		LEFT JOIN crops hcr ON hcr.id = hc.crop_id
+		LEFT JOIN fields hf ON hf.id = hc.field_id
 		WHERE %s
 		ORDER BY sm.created_at DESC, sm.id DESC
 		LIMIT $%d`, where.String(), len(args))
@@ -136,7 +145,7 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 		)
 		if err := rows.Scan(
 			&item.ID, &item.StockID, &item.ResourceID, &item.ResourceName, &item.Category, &item.Unit,
-			&item.FieldOperationID, &opLabel,
+			&item.FieldOperationID, &opLabel, &item.FieldCropID,
 			&item.MovementType, &item.QuantityDelta, &item.ResultingQuantity, &unitCost, &totalCost,
 			&item.Notes, &item.ActorID, &actorName, &item.CreatedAt,
 		); err != nil {

@@ -53,6 +53,8 @@ definitions:
         type: string
       created_at:
         type: string
+      harvest_resource_id:
+        type: integer
       id:
         type: integer
       name:
@@ -145,6 +147,10 @@ definitions:
         type: string
       field_name:
         type: string
+      harvest_recorded_at:
+        type: string
+      harvest_recorded_quantity:
+        type: number
       harvested_at:
         type: string
       id:
@@ -423,6 +429,10 @@ definitions:
         type: string
       field_name:
         type: string
+      harvest_recorded_at:
+        type: string
+      harvest_recorded_quantity:
+        type: number
       harvested_at:
         type: string
       id:
@@ -991,6 +1001,8 @@ definitions:
         type: string
       created_at:
         type: string
+      field_crop_id:
+        type: integer
       field_operation_id:
         type: integer
       field_operation_label:
@@ -1409,6 +1421,13 @@ definitions:
     - crop_id
     - field_id
     - season_id
+    type: object
+  handlers.harvestResponse:
+    properties:
+      field_crop:
+        $ref: '#/definitions/domain.FieldCrop'
+      movement:
+        $ref: '#/definitions/domain.StockMovement'
     type: object
   handlers.reportSubscriptionRequest:
     properties:
@@ -2283,6 +2302,40 @@ paths:
       security:
       - BearerAuth: []
       summary: Actualizare cultură pe teren
+      tags:
+      - crops
+  /field-crops/{id}/harvest:
+    post:
+      parameters:
+      - description: ID cultură pe teren
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.harvestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Recoltă în stoc
       tags:
       - crops
   /field-operations/{id}/complete:

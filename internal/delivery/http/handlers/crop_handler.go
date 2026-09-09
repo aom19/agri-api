@@ -54,7 +54,7 @@ func respondCropError(c *gin.Context, err error) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	case errors.Is(err, usecase.ErrCropDuplicate):
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-	case errors.Is(err, usecase.ErrCropInvalid):
+	case errors.Is(err, usecase.ErrCropInvalid), errors.Is(err, usecase.ErrHarvestNotRecordable):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -393,4 +393,40 @@ func (h *CropHandler) DeleteFieldCrop(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 	h.log(c, "field_crop", id, "delete", nil)
+}
+
+type harvestResponse struct {
+	FieldCrop *domain.FieldCrop     `json:"field_crop"`
+	Movement  *domain.StockMovement `json:"movement,omitempty"`
+}
+
+// RecordHarvest înregistrează producția obținută ca intrare în stoc (resursa de recoltă a culturii).
+// @Summary      Recoltă în stoc
+// @Tags         crops
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID cultură pe teren"
+// @Success      200 {object} harvestResponse
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /field-crops/{id}/harvest [post]
+func (h *CropHandler) RecordHarvest(c *gin.Context) {
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	result, err := h.service.RecordHarvest(id, currentActorID(c))
+	if err != nil {
+		respondCropError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, harvestResponse{FieldCrop: result.FieldCrop, Movement: result.Movement})
+	if result.Movement != nil {
+		h.log(c, "field_crop", id, "harvest", map[string]interface{}{
+			"crop":           result.FieldCrop.CropName,
+			"field":          result.FieldCrop.FieldName,
+			"quantity_delta": result.Movement.QuantityDelta,
+			"stock_id":       result.Movement.StockID,
+		})
+	}
 }

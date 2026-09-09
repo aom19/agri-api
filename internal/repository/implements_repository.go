@@ -1,10 +1,8 @@
-package repository 
+package repository
 
-
-import(
+import (
 	"agri-api/internal/domain"
 	"database/sql"
-
 )
 
 type ImplementRepository interface {

@@ -1,11 +1,9 @@
 package postgres
 
-import(
+import (
 	"agri-api/internal/domain"
 	"database/sql"
-
 )
-
 
 type ImplementRepo struct {
 	db *sql.DB
@@ -15,7 +13,6 @@ type ImplementRepo struct {
 func NewImplementRepo(db *sql.DB) *ImplementRepo {
 	return &ImplementRepo{db: db}
 }
-
 
 // GetAll returneaza toate utilajele a
 func (implementRepo *ImplementRepo) GetAll() ([]domain.Implement, error) {
@@ -27,7 +24,7 @@ func (implementRepo *ImplementRepo) GetAll() ([]domain.Implement, error) {
 	defer func() { _ = rows.Close() }()
 
 	var implements []domain.Implement
-	//parcurgem toate randurile returnate 
+	//parcurgem toate randurile returnate
 	for rows.Next() {
 		var m domain.Implement
 		var year sql.NullInt64
@@ -41,7 +38,7 @@ func (implementRepo *ImplementRepo) GetAll() ([]domain.Implement, error) {
 			y := int(year.Int64)
 			m.Year = &y
 		}
-	
+
 		if workingWidth.Valid {
 			w := float64(workingWidth.Float64)
 			m.WorkingWidth = &w
@@ -60,7 +57,7 @@ func (implementRepo *ImplementRepo) GetAll() ([]domain.Implement, error) {
 	return implements, nil
 }
 
-// GetByID returneaza un utilaj agricol dupa ID 
+// GetByID returneaza un utilaj agricol dupa ID
 
 func (implementRepo *ImplementRepo) GetByID(id int64) (*domain.Implement, error) {
 	var m domain.Implement
@@ -93,11 +90,10 @@ func (implementRepo *ImplementRepo) GetByID(id int64) (*domain.Implement, error)
 	}
 
 	return &m, nil
-}	
+}
 
 // Create creeaza un utilaj agricol nou
 func (implementRepo *ImplementRepo) Create(implement *domain.Implement) error {
-
 
 	var workingWidth any
 	if implement.WorkingWidth != nil {
@@ -119,7 +115,7 @@ func (implementRepo *ImplementRepo) Create(implement *domain.Implement) error {
 		workingWidth,
 		capacity,
 	).Scan(&implement.ID)
-}	
+}
 
 // Update actualizeaza un utilaj agricol existent
 func (implementRepo *ImplementRepo) Update(id int64, implement *domain.Implement) error {
@@ -136,10 +132,10 @@ func (implementRepo *ImplementRepo) Update(id int64, implement *domain.Implement
 		implement.Code,
 		implement.Type,
 		implement.Brand,
-		implement.Model,				
-		implement.Year,	
+		implement.Model,
+		implement.Year,
 		implement.Status,
-		implement.Notes,	
+		implement.Notes,
 		workingWidth,
 		capacity,
 		id,
@@ -157,7 +153,7 @@ func (implementRepo *ImplementRepo) Delete(id int64) error {
 func (implementRepo *ImplementRepo) Activate(id int64) error {
 	_, err := implementRepo.db.Exec("UPDATE implements SET status = 'active', updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL", id)
 	return err
-}	
+}
 
 // Deactivate dezactiveaza un utilaj agricol existent
 func (implementRepo *ImplementRepo) Deactivate(id int64) error {
@@ -169,4 +165,3 @@ func (implementRepo *ImplementRepo) Deactivate(id int64) error {
 func (implementRepo *ImplementRepo) DB() *sql.DB {
 	return implementRepo.db
 }
-

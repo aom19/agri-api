@@ -18,13 +18,22 @@ var (
 )
 
 type CropService struct {
-	repo   repository.CropRepository
-	fields repository.FieldRepository
+	repo      repository.CropRepository
+	fields    repository.FieldRepository
+	db        *sql.DB
+	movements repository.StockMovementRepository
 }
 
-func NewCropService(repo repository.CropRepository, fields repository.FieldRepository) *CropService {
-	return &CropService{repo: repo, fields: fields}
+func NewCropService(
+	repo repository.CropRepository,
+	fields repository.FieldRepository,
+	db *sql.DB,
+	movements repository.StockMovementRepository,
+) *CropService {
+	return &CropService{repo: repo, fields: fields, db: db, movements: movements}
 }
+
+var ErrHarvestNotRecordable = errors.New("recolta nu poate fi înregistrată")
 
 func mapCropRepoError(err error) error {
 	switch {
@@ -84,6 +93,9 @@ func (service *CropService) UpdateSeason(id int64, season *domain.Season) (*doma
 	}
 	if err := service.repo.UpdateSeason(id, season); err != nil {
 		return nil, mapCropRepoError(err)
+	}
+	if err := service.repo.RelinkOperations(id); err != nil {
+		return nil, err
 	}
 	return service.repo.GetSeasonByID(id)
 }
@@ -201,6 +213,9 @@ func (service *CropService) CreateFieldCrop(item *domain.FieldCrop) (*domain.Fie
 	if err := service.repo.CreateFieldCrop(item); err != nil {
 		return nil, mapCropRepoError(err)
 	}
+	if err := service.repo.RelinkOperations(item.SeasonID); err != nil {
+		return nil, err
+	}
 	return service.repo.GetFieldCropByID(item.ID)
 }
 
@@ -211,9 +226,101 @@ func (service *CropService) UpdateFieldCrop(id int64, item *domain.FieldCrop) (*
 	if err := service.repo.UpdateFieldCrop(id, item); err != nil {
 		return nil, mapCropRepoError(err)
 	}
+	if err := service.repo.RelinkOperations(item.SeasonID); err != nil {
+		return nil, err
+	}
 	return service.repo.GetFieldCropByID(id)
 }
 
 func (service *CropService) DeleteFieldCrop(id int64) error {
 	return mapCropRepoError(service.repo.DeleteFieldCrop(id))
+}
+
+// HarvestResult conține cultura pe teren actualizată și mișcarea de stoc generată (dacă a fost nevoie).
+type HarvestResult struct {
+	FieldCrop *domain.FieldCrop
+	Movement  *domain.StockMovement
+}
+
+// RecordHarvest înregistrează producția obținută ca intrare în stoc, pe resursa de recoltă a
+// culturii. La o nouă apelare, doar diferența față de cantitatea deja înregistrată este mutată.
+func (service *CropService) RecordHarvest(fieldCropID int64, actorID *int64) (*HarvestResult, error) {
+	item, err := service.repo.GetFieldCropByID(fieldCropID)
+	if err != nil {
+		return nil, err
+	}
+	if item == nil {
+		return nil, ErrCropNotFound
+	}
+	if item.ProductionTotal == nil || *item.ProductionTotal <= 0 {
+		return nil, fmt.Errorf("%w: introdu mai întâi producția obținută", ErrHarvestNotRecordable)
+	}
+	crop, err := service.repo.GetCropByID(item.CropID)
+	if err != nil {
+		return nil, err
+	}
+	if crop == nil {
+		return nil, ErrCropNotFound
+	}
+
+	recorded := 0.0
+	if item.HarvestRecordedQty != nil {
+		recorded = *item.HarvestRecordedQty
+	}
+	delta := *item.ProductionTotal - recorded
+	if delta == 0 {
+		return &HarvestResult{FieldCrop: item}, nil
+	}
+
+	tx, err := service.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	resourceID, err := service.repo.EnsureHarvestResource(tx, crop)
+	if err != nil {
+		return nil, err
+	}
+	if err := service.repo.EnsureStock(tx, resourceID); err != nil {
+		return nil, err
+	}
+	lock, err := service.movements.LockStockByResource(tx, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	if lock == nil {
+		return nil, fmt.Errorf("%w: stocul de recoltă nu a putut fi creat", ErrHarvestNotRecordable)
+	}
+
+	movementType := domain.StockMovementIn
+	quantity := delta
+	if delta < 0 {
+		movementType = domain.StockMovementOut
+		quantity = -delta
+	}
+	notes := fmt.Sprintf("Recoltă %s - %s (%s)", crop.Name, item.FieldName, item.SeasonName)
+	if recorded > 0 {
+		notes = fmt.Sprintf("Corecție recoltă %s - %s (%s)", crop.Name, item.FieldName, item.SeasonName)
+	}
+	movement, err := buildMovement(lock, movementType, quantity, nil, nil, notes, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrHarvestNotRecordable, err)
+	}
+	movement.FieldCropID = &item.ID
+	if err := service.movements.ApplyMovement(tx, movement); err != nil {
+		return nil, err
+	}
+	if err := service.repo.MarkHarvestRecorded(tx, item.ID, *item.ProductionTotal); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	updated, err := service.repo.GetFieldCropByID(item.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &HarvestResult{FieldCrop: updated, Movement: movement}, nil
 }

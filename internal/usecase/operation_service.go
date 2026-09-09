@@ -152,6 +152,7 @@ func (s *OperationService) CreateTemplate(input *domain.OperationTemplate) (*dom
 		Name:            input.Name,
 		Description:     input.Description,
 		Unit:            input.Unit,
+		CropID:          input.CropID,
 	}
 	if err := s.templateRepo.Create(t); err != nil {
 		return nil, err
@@ -201,6 +202,7 @@ func (s *OperationService) UpdateTemplate(id int64, input *domain.OperationTempl
 		Name:            input.Name,
 		Description:     input.Description,
 		Unit:            input.Unit,
+		CropID:          input.CropID,
 	}
 	if err := s.templateRepo.Update(id, t); err != nil {
 		return nil, err

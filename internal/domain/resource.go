@@ -11,6 +11,7 @@ const (
 	ResourceCategorySeed       ResourceCategory = "seed"
 	ResourceCategoryPesticide  ResourceCategory = "pesticide"
 	ResourceCategoryWater      ResourceCategory = "water"
+	ResourceCategoryHarvest    ResourceCategory = "harvest"
 	ResourceCategoryOther      ResourceCategory = "other"
 )
 
@@ -20,6 +21,7 @@ var validResourceCategories = map[ResourceCategory]struct{}{
 	ResourceCategorySeed:       {},
 	ResourceCategoryPesticide:  {},
 	ResourceCategoryWater:      {},
+	ResourceCategoryHarvest:    {},
 	ResourceCategoryOther:      {},
 }
 

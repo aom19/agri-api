@@ -120,7 +120,7 @@ func main() {
 	dashboardService := usecase.NewDashboardService(dashboardRepo, auditRepo)
 	reportRepo := postgres.NewReportRepo(sqlDB)
 	cropRepo := postgres.NewCropRepo(sqlDB)
-	cropService := usecase.NewCropService(cropRepo, fieldRepo)
+	cropService := usecase.NewCropService(cropRepo, fieldRepo, sqlDB, stockMovementRepo)
 	weatherSnapshotRepo := postgres.NewWeatherSnapshotRepo(sqlDB)
 	reportSubscriptionRepo := postgres.NewReportSubscriptionRepo(sqlDB)
 	reportService := usecase.NewReportService(reportRepo).WithCrops(cropRepo).WithWeather(weatherSnapshotRepo)

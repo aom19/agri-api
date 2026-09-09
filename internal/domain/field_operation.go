@@ -24,6 +24,7 @@ type FieldOperation struct {
 	AreaPlannedHa       *float64             `json:"area_planned_ha,omitempty"`
 	Notes               string               `json:"notes"`
 	Status              FieldOperationStatus `json:"status"`
+	FieldCropID         *int64               `json:"field_crop_id,omitempty"`
 	ActualStartAt       *time.Time           `json:"actual_start_at,omitempty"`
 	ActualEndAt         *time.Time           `json:"actual_end_at,omitempty"`
 	AreaCompletedHa     *float64             `json:"area_completed_ha,omitempty"`

@@ -784,19 +784,20 @@ func (repo *ReportRepo) GetFieldCropRows(seasonID int64, fieldID string) ([]doma
 		args = append(args, fieldID)
 		fieldClause = fmt.Sprintf(" AND fc.field_id = $%d", len(args))
 	}
+	// Operațiunile sunt legate explicit de cultura pe teren (field_operations.field_crop_id).
 	seasonOps := `FROM field_operations fo
-				WHERE fo.field_id = fc.field_id AND fo.deleted_at IS NULL
-				  AND ` + reportOperationDateExpr + ` >= s.start_date
-				  AND ` + reportOperationDateExpr + ` < s.end_date + INTERVAL '1 day'`
+				WHERE fo.field_crop_id = fc.id AND fo.deleted_at IS NULL`
 	query := fmt.Sprintf(`
 		SELECT
 			fc.id, fc.field_id, f.name, f.area_ha,
-			fc.season_id, s.name,
+			fc.season_id, s.name, to_char(s.start_date, 'YYYY-MM-DD'), to_char(s.end_date, 'YYYY-MM-DD'),
 			fc.crop_id, c.name, c.yield_unit,
 			fc.planted_area_ha,
 			to_char(fc.planted_at, 'YYYY-MM-DD'),
 			to_char(fc.harvested_at, 'YYYY-MM-DD'),
-			fc.production_total, fc.expected_yield_per_ha, fc.notes, fc.created_at, fc.updated_at,
+			fc.production_total, fc.expected_yield_per_ha, fc.notes,
+			fc.harvest_recorded_quantity, fc.harvest_recorded_at,
+			fc.created_at, fc.updated_at,
 			(SELECT COUNT(*) %[1]s),
 			(SELECT COALESCE(SUM(%[2]s), 0) %[1]s),
 			(SELECT COALESCE(SUM(%[3]s), 0) %[1]s)
@@ -823,15 +824,23 @@ func (repo *ReportRepo) GetFieldCropRows(seasonID int64, fieldID string) ([]doma
 			harvestedAt sql.NullString
 			production  sql.NullFloat64
 			expected    sql.NullFloat64
+			recordedQty sql.NullFloat64
+			recordedAt  sql.NullTime
 		)
 		if err := rows.Scan(
 			&row.ID, &row.FieldID, &row.FieldName, &fieldArea,
-			&row.SeasonID, &row.SeasonName,
+			&row.SeasonID, &row.SeasonName, &row.SeasonStart, &row.SeasonEnd,
 			&row.CropID, &row.CropName, &row.YieldUnit,
-			&plantedArea, &plantedAt, &harvestedAt, &production, &expected, &row.Notes, &row.CreatedAt, &row.UpdatedAt,
+			&plantedArea, &plantedAt, &harvestedAt, &production, &expected, &row.Notes,
+			&recordedQty, &recordedAt, &row.CreatedAt, &row.UpdatedAt,
 			&row.OperationsCount, &row.EstimatedCost, &row.RealCost,
 		); err != nil {
 			return nil, err
+		}
+		row.HarvestRecordedQty = nullFloatPtr(recordedQty)
+		if recordedAt.Valid {
+			value := recordedAt.Time
+			row.HarvestRecordedAt = &value
 		}
 		row.FieldAreaHa = nullFloatPtr(fieldArea)
 		row.PlantedAreaHa = nullFloatPtr(plantedArea)

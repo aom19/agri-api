@@ -142,19 +142,24 @@ func (repo *CropRepo) DeleteSeason(id int64) error {
 
 // ─── Crops ───────────────────────────────────────────────────────────────────
 
-const cropSelect = `SELECT id, name, code, category, yield_unit, notes, created_at, updated_at FROM crops`
+const cropSelect = `SELECT id, name, code, category, yield_unit, notes, harvest_resource_id, created_at, updated_at FROM crops`
 
 func scanCrop(row interface {
 	Scan(dest ...interface{}) error
 }) (*domain.Crop, error) {
 	var (
-		crop domain.Crop
-		code sql.NullString
+		crop    domain.Crop
+		code    sql.NullString
+		harvest sql.NullInt64
 	)
-	if err := row.Scan(&crop.ID, &crop.Name, &code, &crop.Category, &crop.YieldUnit, &crop.Notes, &crop.CreatedAt, &crop.UpdatedAt); err != nil {
+	if err := row.Scan(&crop.ID, &crop.Name, &code, &crop.Category, &crop.YieldUnit, &crop.Notes, &harvest, &crop.CreatedAt, &crop.UpdatedAt); err != nil {
 		return nil, err
 	}
 	crop.Code = nullStringPtr(code)
+	if harvest.Valid {
+		value := harvest.Int64
+		crop.HarvestResourceID = &value
+	}
 	return &crop, nil
 }
 
@@ -230,12 +235,14 @@ func (repo *CropRepo) DeleteCrop(id int64) error {
 const fieldCropSelect = `
 	SELECT
 		fc.id, fc.field_id, f.name, f.area_ha,
-		fc.season_id, s.name,
+		fc.season_id, s.name, to_char(s.start_date, 'YYYY-MM-DD'), to_char(s.end_date, 'YYYY-MM-DD'),
 		fc.crop_id, c.name, c.yield_unit,
 		fc.planted_area_ha,
 		to_char(fc.planted_at, 'YYYY-MM-DD'),
 		to_char(fc.harvested_at, 'YYYY-MM-DD'),
-		fc.production_total, fc.expected_yield_per_ha, fc.notes, fc.created_at, fc.updated_at
+		fc.production_total, fc.expected_yield_per_ha, fc.notes,
+		fc.harvest_recorded_quantity, fc.harvest_recorded_at,
+		fc.created_at, fc.updated_at
 	FROM field_crops fc
 	JOIN fields f ON f.id = fc.field_id
 	JOIN seasons s ON s.id = fc.season_id
@@ -252,14 +259,22 @@ func scanFieldCrop(row interface {
 		harvestedAt sql.NullString
 		production  sql.NullFloat64
 		expected    sql.NullFloat64
+		recordedQty sql.NullFloat64
+		recordedAt  sql.NullTime
 	)
 	if err := row.Scan(
 		&item.ID, &item.FieldID, &item.FieldName, &fieldArea,
-		&item.SeasonID, &item.SeasonName,
+		&item.SeasonID, &item.SeasonName, &item.SeasonStart, &item.SeasonEnd,
 		&item.CropID, &item.CropName, &item.YieldUnit,
-		&plantedArea, &plantedAt, &harvestedAt, &production, &expected, &item.Notes, &item.CreatedAt, &item.UpdatedAt,
+		&plantedArea, &plantedAt, &harvestedAt, &production, &expected, &item.Notes,
+		&recordedQty, &recordedAt, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return nil, err
+	}
+	item.HarvestRecordedQty = nullFloatPtr(recordedQty)
+	if recordedAt.Valid {
+		value := recordedAt.Time
+		item.HarvestRecordedAt = &value
 	}
 	item.FieldAreaHa = nullFloatPtr(fieldArea)
 	item.PlantedAreaHa = nullFloatPtr(plantedArea)
@@ -369,4 +384,95 @@ func nullFloatPtr(value sql.NullFloat64) *float64 {
 	}
 	result := value.Float64
 	return &result
+}
+
+// RelinkOperations leagă operațiunile terenurilor din sezon de cultura corespunzătoare
+// (după data planificată) și desface legăturile către culturi care nu mai corespund.
+func (repo *CropRepo) RelinkOperations(seasonID int64) error {
+	if _, err := repo.db.Exec(`
+		UPDATE field_operations fo
+		SET field_crop_id = NULL
+		FROM field_crops fc
+		JOIN seasons s ON s.id = fc.season_id
+		WHERE fo.field_crop_id = fc.id AND s.id = $1
+		  AND (fo.field_id <> fc.field_id
+		       OR COALESCE(fo.planned_start_at, fo.created_at) < s.start_date
+		       OR COALESCE(fo.planned_start_at, fo.created_at) >= s.end_date + INTERVAL '1 day')`, seasonID); err != nil {
+		return err
+	}
+	_, err := repo.db.Exec(`
+		UPDATE field_operations fo
+		SET field_crop_id = fc.id
+		FROM field_crops fc
+		JOIN seasons s ON s.id = fc.season_id
+		WHERE s.id = $1
+		  AND fo.deleted_at IS NULL
+		  AND fo.field_id = fc.field_id
+		  AND fo.field_crop_id IS NULL
+		  AND COALESCE(fo.planned_start_at, fo.created_at) >= s.start_date
+		  AND COALESCE(fo.planned_start_at, fo.created_at) < s.end_date + INTERVAL '1 day'`, seasonID)
+	return err
+}
+
+// EnsureHarvestResource garantează că cultura are o resursă de stoc pentru recoltă
+// (tip de resursă cu categoria "harvest" și unitatea culturii) și întoarce id-ul resursei.
+func (repo *CropRepo) EnsureHarvestResource(tx *sql.Tx, crop *domain.Crop) (int64, error) {
+	if crop.HarvestResourceID != nil {
+		var exists int64
+		err := tx.QueryRow(`SELECT id FROM resources WHERE id = $1`, *crop.HarvestResourceID).Scan(&exists)
+		if err == nil {
+			return exists, nil
+		}
+		if err != sql.ErrNoRows {
+			return 0, err
+		}
+	}
+
+	unit := strings.TrimSpace(crop.YieldUnit)
+	if unit == "" {
+		unit = "t"
+	}
+	var typeID int64
+	err := tx.QueryRow(`SELECT id FROM resource_types WHERE category = 'harvest' AND default_unit = $1 ORDER BY id LIMIT 1`, unit).Scan(&typeID)
+	if err == sql.ErrNoRows {
+		typeName := "Recoltă"
+		if unit != "t" {
+			typeName = fmt.Sprintf("Recoltă (%s)", unit)
+		}
+		err = tx.QueryRow(`INSERT INTO resource_types (name, category, default_unit) VALUES ($1, 'harvest', $2) RETURNING id`, typeName, unit).Scan(&typeID)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	var resourceID int64
+	if err := tx.QueryRow(`
+		INSERT INTO resources (name, resource_type_id, price_per_unit, notes)
+		VALUES ($1, $2, 0, $3)
+		RETURNING id`,
+		"Recoltă "+crop.Name, typeID, "Creată automat la înregistrarea recoltei. Setează prețul unitar pentru valoarea stocului.",
+	).Scan(&resourceID); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`UPDATE crops SET harvest_resource_id = $1, updated_at = NOW() WHERE id = $2`, resourceID, crop.ID); err != nil {
+		return 0, err
+	}
+	return resourceID, nil
+}
+
+// EnsureStock creează rândul de stoc al resursei dacă nu există.
+func (repo *CropRepo) EnsureStock(tx *sql.Tx, resourceID int64) error {
+	_, err := tx.Exec(`
+		INSERT INTO stocks (resource_id, quantity, minimum_quantity)
+		SELECT $1, 0, 0
+		WHERE NOT EXISTS (SELECT 1 FROM stocks WHERE resource_id = $1)`, resourceID)
+	return err
+}
+
+func (repo *CropRepo) MarkHarvestRecorded(tx *sql.Tx, fieldCropID int64, quantity float64) error {
+	_, err := tx.Exec(`
+		UPDATE field_crops
+		SET harvest_recorded_quantity = $1, harvest_recorded_at = NOW(), updated_at = NOW()
+		WHERE id = $2`, quantity, fieldCropID)
+	return err
 }

@@ -28,6 +28,9 @@ type FieldOperationResponse struct {
 	AreaPlannedHa       *float64                        `json:"area_planned_ha,omitempty"`
 	Notes               string                          `json:"notes"`
 	Status              string                          `json:"status"`
+	FieldCropID         *int64                          `json:"field_crop_id,omitempty"`
+	CropName            *string                         `json:"crop_name,omitempty"`
+	SeasonName          *string                         `json:"season_name,omitempty"`
 	ActualStartAt       *time.Time                      `json:"actual_start_at,omitempty"`
 	ActualEndAt         *time.Time                      `json:"actual_end_at,omitempty"`
 	ActualDurationMin   *int64                          `json:"actual_duration_minutes,omitempty"`

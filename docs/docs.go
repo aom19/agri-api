@@ -1351,6 +1351,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/field-crops/{id}/harvest": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Recoltă în stoc",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID cultură pe teren",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.harvestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/field-operations/{id}/complete": {
             "patch": {
                 "security": [
@@ -3671,6 +3726,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "harvest_resource_id": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -3807,6 +3865,12 @@ const docTemplate = `{
                 },
                 "field_name": {
                     "type": "string"
+                },
+                "harvest_recorded_at": {
+                    "type": "string"
+                },
+                "harvest_recorded_quantity": {
+                    "type": "number"
                 },
                 "harvested_at": {
                     "type": "string"
@@ -4205,6 +4269,12 @@ const docTemplate = `{
                 },
                 "field_name": {
                     "type": "string"
+                },
+                "harvest_recorded_at": {
+                    "type": "string"
+                },
+                "harvest_recorded_quantity": {
+                    "type": "number"
                 },
                 "harvested_at": {
                     "type": "string"
@@ -5067,6 +5137,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "field_crop_id": {
+                    "type": "integer"
+                },
                 "field_operation_id": {
                     "type": "integer"
                 },
@@ -5692,6 +5765,17 @@ const docTemplate = `{
                 },
                 "season_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "handlers.harvestResponse": {
+            "type": "object",
+            "properties": {
+                "field_crop": {
+                    "$ref": "#/definitions/domain.FieldCrop"
+                },
+                "movement": {
+                    "$ref": "#/definitions/domain.StockMovement"
                 }
             }
         },

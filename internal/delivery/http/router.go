@@ -119,6 +119,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.POST("/field-crops", perm("crops:write"), cropHandler.CreateFieldCrop)
 	api.PATCH("/field-crops/:id", perm("crops:write"), cropHandler.UpdateFieldCrop)
 	api.DELETE("/field-crops/:id", perm("crops:write"), cropHandler.DeleteFieldCrop)
+	api.POST("/field-crops/:id/harvest", perm("crops:write"), cropHandler.RecordHarvest)
 
 	// ─── Machines ────────────────────────────────────────────────────────────
 	machineHandler := handlers.NewMachineHandler(
