@@ -31,3 +31,6 @@ uploads/avatars/*
 # Jurnal local de modificări
 updates.md
 
+
+# Analiză SonarQube (fișiere temporare ale scanner-ului)
+.scannerwork/

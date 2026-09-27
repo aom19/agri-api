@@ -145,6 +145,37 @@ make run
 
 ---
 
+## Analiză de cod (SonarQube)
+
+SonarQube Community (26.9) rulează local în `docker-compose.yml` și analizează atât API-ul (Go, Dockerfile, șabloane HTML), cât și frontend-ul (TypeScript). Serviciul e în profilul `sonar`, deci **nu** pornește cu `docker compose up` / `make docker-infra`, pentru că ocupă ~2 GB RAM.
+
+**Prima configurare (o singură dată):**
+
+```bash
+make sonar-up      # pornește SonarQube și așteaptă să fie gata (~45s)
+# deschide http://localhost:9000, intră cu admin / admin și schimbă parola
+make sonar-token   # generează un token de analiză și îl salvează în .env (SONAR_TOKEN)
+```
+
+**Utilizare:**
+
+| Comandă | Descriere |
+|---|---|
+| `make sonar-up` | Pornește SonarQube (după un restart de Docker) |
+| `make sonar` | Analizează API-ul și frontend-ul |
+| `make sonar-api` | Analizează doar API-ul |
+| `make sonar-front` | Analizează doar frontend-ul (din `../agri-front`) |
+| `make sonar-down` | Oprește SonarQube; datele rămân în volume |
+
+Rezultatele se văd la http://localhost:9000. Scanner-ul rulează din Docker, deci nu trebuie instalat nimic.
+
+**De știut:**
+- `SONAR_TOKEN` e personal pentru fiecare instalare și stă doar în `.env` (necomis). Se regenerează cu `make sonar-token` dacă ștergi volumele SonarQube.
+- Configurarea analizei e în `sonar-project.properties`. Excepțiile de reguli se pun tot acolo, cu motivul scris în comentariu, nu în interfața SonarQube: fiecare dezvoltator are propriul server local, deci ce marchezi în UI rămâne doar la tine.
+- Excepție existentă: regulile despre atribute HTML învechite și tabele de layout sunt dezactivate pentru `internal/email/templates/`, pentru că Outlook și mulți clienți de e-mail nu suportă layout CSS.
+
+---
+
 ## Endpoints
 
 ### Profil utilizator (protejate)

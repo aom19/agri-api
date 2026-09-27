@@ -20,16 +20,24 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.20
 
-# Certificate SSL + timezone data
-RUN apk --no-cache add ca-certificates tzdata
+# Certificate SSL + timezone data, plus un utilizator fără privilegii: serverul nu are
+# nevoie de root. UID fix, ca permisiunile pe volume să fie previzibile.
+RUN apk --no-cache add ca-certificates tzdata \
+    && addgroup -S -g 10001 app \
+    && adduser -S -D -H -u 10001 -G app app
 
 WORKDIR /app
 
-# Copiază binarul compilat din stage-ul de build
+# Copiază binarul compilat din stage-ul de build (rămâne al lui root, deci read-only pentru app)
 COPY --from=builder /app/server .
 
 # Copiază migratiile (necesare dacă rulezi migrate în container)
 COPY --from=builder /app/migrations ./migrations
+
+# Singurul director în care scrie aplicația (poze de profil)
+RUN mkdir -p uploads/avatars && chown -R app:app uploads
+
+USER app
 
 EXPOSE 8080
 

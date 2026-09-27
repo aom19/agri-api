@@ -34,6 +34,30 @@ services:
       MP_SMTP_AUTH_ALLOW_INSECURE: "true"
       MP_UI_HTML_CHECK_BROWSER_ONLY: "true"
 
+  # Analiză statică de cod (Go + TypeScript). Nu pornește cu `make docker-infra`,
+  # doar cu `make sonar-up` (profilul "sonar"), pentru că ocupă ~2 GB RAM.
+  # Versiunea e fixată: baza H2 internă nu suportă upgrade între versiuni.
+  sonarqube:
+    image: sonarqube:26.9.0.129388-community
+    container_name: agri_sonarqube
+    profiles: ["sonar"]
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
 volumes:
   pgdata:
   redisdata:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
