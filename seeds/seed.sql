@@ -1,32 +1,34 @@
--- Curăță datele existente (CASCADE șterge și asignările dependente)
-TRUNCATE TABLE fields, assignments, operators, machines RESTART IDENTITY CASCADE;
-
+-- Curăță datele existente. Toate tabelele sunt golite într-un singur TRUNCATE, fără CASCADE,
+-- ca tabelele care se referă între ele (ex. field_operations -> implements) să nu blocheze ștergerea,
+-- iar datele care nu sunt populate de acest seed (ex. crops) să rămână neatinse.
 DO $$
+DECLARE
+    tables text;
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'implement_compatibilities') THEN
-        EXECUTE 'TRUNCATE TABLE implement_compatibilities RESTART IDENTITY';
+    SELECT string_agg(quote_ident(t), ', ')
+    INTO tables
+    FROM unnest(ARRAY[
+        'field_operations', 'field_crops', 'weather_snapshots', 'stock_movements',
+        'assignments', 'fields', 'operators',
+        'implement_compatibilities', 'implements', 'machines',
+        'template_resources', 'template_machine_types', 'template_implement_types',
+        'operation_templates', 'operation_types',
+        'stocks'
+    ]) AS t
+    WHERE to_regclass('public.' || t) IS NOT NULL;
+
+    EXECUTE 'TRUNCATE TABLE ' || tables || ' RESTART IDENTITY';
+
+    -- crops.harvest_resource_id -> resources (ON DELETE SET NULL): DELETE păstrează culturile,
+    -- TRUNCATE le-ar șterge sau ar eșua.
+    IF to_regclass('public.resources') IS NOT NULL THEN
+        DELETE FROM resources;
+        PERFORM setval(pg_get_serial_sequence('resources', 'id'), 1, false);
     END IF;
 
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'implements') THEN
-        EXECUTE 'TRUNCATE TABLE implements RESTART IDENTITY';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'operation_types')
-       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'operation_templates')
-       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_resources')
-       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_machine_types')
-       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_implement_types') THEN
-        EXECUTE 'TRUNCATE TABLE template_resources, template_machine_types, template_implement_types, operation_templates, operation_types RESTART IDENTITY';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resource_types')
-       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resources')
-       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stocks') THEN
-        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'template_resources') THEN
-            EXECUTE 'TRUNCATE TABLE template_resources, stocks, resources, resource_types RESTART IDENTITY';
-        ELSE
-            EXECUTE 'TRUNCATE TABLE stocks, resources, resource_types RESTART IDENTITY';
-        END IF;
+    IF to_regclass('public.resource_types') IS NOT NULL THEN
+        DELETE FROM resource_types;
+        PERFORM setval(pg_get_serial_sequence('resource_types', 'id'), 1, false);
     END IF;
 END $$;
 
