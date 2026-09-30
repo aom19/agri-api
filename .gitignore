@@ -34,3 +34,7 @@ updates.md
 
 # Analiză SonarQube (fișiere temporare ale scanner-ului)
 .scannerwork/
+
+# Rapoarte de teste și coverage (generate de: make test-cover)
+coverage.out
+test-report.json
