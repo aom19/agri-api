@@ -33,6 +33,10 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 
+	// Cache-ul Redis pentru rutele de citire
+	CacheEnabled bool
+	CacheTTL     string
+
 	SMTPHost     string
 	SMTPPort     int
 	SMTPUser     string
@@ -76,6 +80,8 @@ func LoadConfig() *Config {
 		RedisAddr:         getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:     getEnv("REDIS_PASSWORD", ""),
 		RedisDB:           getEnvInt("REDIS_DB", 0),
+		CacheEnabled:      getEnv("CACHE_ENABLED", "true") != "false",
+		CacheTTL:          getEnv("CACHE_TTL", "5m"),
 		SMTPHost:          getEnv("SMTP_HOST", "localhost"),
 		SMTPPort:          getEnvInt("SMTP_PORT", 1025),
 		SMTPUser:          getEnv("SMTP_USER", ""),
