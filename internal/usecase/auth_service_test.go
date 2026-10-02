@@ -184,15 +184,22 @@ func TestAuthService_RefreshAndLogout(t *testing.T) {
 func TestAuthService_Register(t *testing.T) {
 	svc, users, roles, mock := newAuthService(t, nil)
 
-	if err := svc.Register("ana@x.ro", "Parola1!", ""); err == nil {
+	if err := svc.Register("ana@x.ro", "Parola1!"); err == nil {
 		t.Error("emailul deja confirmat trebuie să dea eroare")
 	}
 	// utilizator neconfirmat → retrimite confirmarea; fără serviciu de e-mail configurat
-	if err := svc.Register("nou@x.ro", "Parola1!", ""); err == nil || !strings.Contains(err.Error(), "email service") {
+	if err := svc.Register("nou@x.ro", "Parola1!"); err == nil || !strings.Contains(err.Error(), "email service") {
 		t.Errorf("fără serviciu de e-mail: %v", err)
 	}
-	if err := svc.Register("alt@x.ro", "Parola1!", "inexistent"); err == nil {
-		t.Error("rolul inexistent trebuie să dea eroare")
+	roles.getByCode = func(string) (*domain.Role, error) { return nil, nil }
+	if err := svc.Register("alt@x.ro", "Parola1!"); err == nil {
+		t.Error("lipsa rolului viewer trebuie să dea eroare")
+	}
+	roles.getByCode = func(code string) (*domain.Role, error) {
+		if code != "viewer" {
+			t.Errorf("înregistrarea trebuie să ceară mereu rolul viewer, nu %q", code)
+		}
+		return &domain.Role{ID: 2, Code: "viewer", Name: "Vizitator"}, nil
 	}
 
 	// utilizator nou, rol implicit „viewer”; SMTP-ul e inaccesibil în teste, deci verificăm
@@ -202,7 +209,7 @@ func TestAuthService_Register(t *testing.T) {
 	users.create = func(u *domain.User) error { u.ID = 3; created = u; return nil }
 	mock.ExpectExec("UPDATE email_confirmation_tokens SET used = TRUE WHERE user_id").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("INSERT INTO email_confirmation_tokens").WillReturnResult(sqlmock.NewResult(1, 1))
-	err := svc.Register("alt@x.ro", "Parola1!", "")
+	err := svc.Register("alt@x.ro", "Parola1!")
 	if err == nil || strings.Contains(err.Error(), "email service") {
 		t.Errorf("mă așteptam la eroare de SMTP, nu: %v", err)
 	}
@@ -212,20 +219,20 @@ func TestAuthService_Register(t *testing.T) {
 
 	mock.ExpectExec("UPDATE email_confirmation_tokens SET used = TRUE WHERE user_id").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("INSERT INTO email_confirmation_tokens").WillReturnError(errors.New("db down"))
-	if err := svc.Register("alt@x.ro", "Parola1!", ""); err == nil || strings.Contains(err.Error(), "connect") {
+	if err := svc.Register("alt@x.ro", "Parola1!"); err == nil || strings.Contains(err.Error(), "connect") {
 		t.Errorf("eroarea la salvarea token-ului trebuie propagată: %v", err)
 	}
 
 	users.create = func(*domain.User) error { return errors.New("db down") }
-	if err := svc.Register("alt@x.ro", "Parola1!", ""); err == nil {
+	if err := svc.Register("alt@x.ro", "Parola1!"); err == nil {
 		t.Error("eroarea de creare trebuie propagată")
 	}
 	roles.getByCode = func(string) (*domain.Role, error) { return nil, errors.New("db down") }
-	if err := svc.Register("alt@x.ro", "Parola1!", ""); err == nil {
+	if err := svc.Register("alt@x.ro", "Parola1!"); err == nil {
 		t.Error("eroarea de citire a rolului trebuie propagată")
 	}
 	users.getByEmail = func(string) (*domain.User, error) { return nil, errors.New("db down") }
-	if err := svc.Register("alt@x.ro", "Parola1!", ""); err == nil {
+	if err := svc.Register("alt@x.ro", "Parola1!"); err == nil {
 		t.Error("eroarea de citire trebuie propagată")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

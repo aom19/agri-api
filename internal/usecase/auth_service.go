@@ -15,6 +15,9 @@ import (
 
 var ErrEmailNotConfirmed = errors.New("email not confirmed")
 
+// defaultRegisterRole e rolul atribuit oricărui cont creat prin înregistrare publică
+const defaultRegisterRole = "viewer"
+
 // AuthService conține logica de business pentru autentificare
 type AuthService struct {
 	store        *store.Store
@@ -129,7 +132,8 @@ func (service *AuthService) Logout(refreshToken, accessToken string) error {
 	return nil
 }
 
-func (service *AuthService) Register(email, password, role string) error {
+// Register creează mereu un cont cu rolul viewer; rolurile se schimbă doar din administrarea utilizatorilor.
+func (service *AuthService) Register(email, password string) error {
 	existing, err := service.store.UserRepo.GetByEmail(email)
 	if err != nil {
 		return err
@@ -145,17 +149,12 @@ func (service *AuthService) Register(email, password, role string) error {
 	if err != nil {
 		return err
 	}
-	if role == "" {
-		role = "viewer"
-	}
-
-	// Găsește role_id după nume
-	roleEntity, err := service.store.RoleRepo.GetByCode(role)
+	roleEntity, err := service.store.RoleRepo.GetByCode(defaultRegisterRole)
 	if err != nil {
 		return err
 	}
 	if roleEntity == nil {
-		return errors.New("role not found: " + role)
+		return errors.New("role not found: " + defaultRegisterRole)
 	}
 
 	user := &domain.User{Email: email, PasswordHash: hash, RoleID: roleEntity.ID, RoleCode: roleEntity.Code, RoleName: roleEntity.Name}

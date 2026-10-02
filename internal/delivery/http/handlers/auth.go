@@ -122,7 +122,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        body body object{email=string,password=string,role=string} true "Date utilizator"
+// @Param        body body object{email=string,password=string} true "Date utilizator"
 // @Success      201 {object} object{message=string}
 // @Failure      400 {object} object{error=string}
 // @Router       /auth/register [post]
@@ -130,14 +130,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required,min=8"`
-		Role     string `json:"role"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors(err)})
 		return
 	}
 
-	err := h.authService.Register(req.Email, req.Password, req.Role)
+	err := h.authService.Register(req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Înregistrare eșuată: " + err.Error()})
 		return

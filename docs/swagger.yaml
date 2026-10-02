@@ -1891,8 +1891,6 @@ paths:
               type: string
             password:
               type: string
-            role:
-              type: string
           type: object
       produces:
       - application/json
