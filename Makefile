@@ -1,10 +1,14 @@
 include .env
 export
 
+# /bin/sh e dash pe Debian/Ubuntu, iar dash nu suportă `read -s` (citire fără ecou),
+# folosit de sonar-token pentru parolă. Forțăm bash ca să funcționeze corect.
+SHELL := /bin/bash
+
 DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 MIGRATE=migrate -path ./migrations -database "$(DB_URL)"
 
-.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger \
+.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger test test-cover \
         docker-infra docker-dev docker-prod docker-build seed \
         sonar-up sonar-down sonar-token sonar sonar-api sonar-front sonar-check
 
@@ -72,6 +76,24 @@ seed:
 seed-rbac:
 	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) < seeds/rbac_seed.sql
 
+## ─── Teste ───────────────────────────────────────────────────────────────────
+
+# Doar pachetele care au fișiere de test. Celelalte sunt instrumentate prin -coverpkg
+# și apar cu 0% în raport, fără să fie nevoie de unealta `covdata` (lipsește din
+# toolchain-ul Go descărcat automat).
+TEST_PKGS=$(shell go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./...)
+
+## Rulează testele unitare (nu au nevoie de Postgres, Redis sau SMTP)
+test:
+	go test $(TEST_PKGS)
+
+## Rulează testele și generează coverage.out + test-report.json (citite de SonarQube)
+test-cover:
+	@go test $(TEST_PKGS) -coverpkg=./... -covermode=atomic -coverprofile=coverage.out -json > test-report.json \
+		|| { echo "Teste eșuate — rulează 'make test' pentru detalii"; exit 1; }
+	@echo "Coverage total (toate pachetele, inclusiv cele excluse din Sonar):"
+	@go tool cover -func=coverage.out | tail -1
+
 ## ─── SonarQube ───────────────────────────────────────────────────────────────
 
 # Scanner-ul rulează în rețeaua containerului SonarQube, deci vede serverul pe localhost:9000
@@ -104,12 +126,13 @@ sonar-token:
 ## Analizează API-ul și frontend-ul
 sonar: sonar-api sonar-front
 
-## Analizează doar API-ul (Go)
-sonar-api: sonar-check
+## Analizează doar API-ul (Go); rulează întâi testele cu coverage
+sonar-api: sonar-check test-cover
 	$(call sonar_scan,$(CURDIR))
 
-## Analizează doar frontend-ul (TypeScript)
+## Analizează doar frontend-ul (TypeScript); rulează întâi testele cu coverage
 sonar-front: sonar-check
+	cd ../agri-front && npm run test:coverage
 	$(call sonar_scan,$(abspath $(CURDIR)/../agri-front))
 
 sonar-check:

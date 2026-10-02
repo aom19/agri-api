@@ -142,6 +142,30 @@ make run
 | `make migrate-status` | Afișează versiunea curentă a migrațiilor |
 | `make migrate-create name=nume` | Creează fișiere `.up.sql` și `.down.sql` noi |
 | `make lint` | Rulează linter-ul |
+| `make test` | Rulează testele unitare |
+| `make test-cover` | Rulează testele și generează `coverage.out` + `test-report.json` (pentru SonarQube) |
+
+---
+
+## Teste
+
+Testele sunt unitare și rulează fără Postgres, Redis sau SMTP:
+
+```bash
+make test          # toate testele
+make test-cover    # + coverage.out și test-report.json, citite de SonarQube
+go test ./internal/usecase/ -run TestMachineService   # un singur serviciu
+```
+
+**Cum sunt scrise:**
+- Serviciile din `internal/usecase/` primesc mock-uri ale repository-urilor (`internal/usecase/mocks_test.go`): fiecare mock are câmpuri-funcție, iar testul setează doar metodele de care are nevoie.
+- Serviciile care deschid tranzacții (`*sql.DB`) folosesc [go-sqlmock](https://github.com/DATA-DOG/go-sqlmock) pentru `Begin`/`Commit`/`Rollback` și pentru query-urile din `internal/auth/refresh_service.go`.
+- Redis și SMTP sunt înlocuite cu adrese inaccesibile (`127.0.0.1:1`): blacklist-ul și e-mailurile sunt best-effort, deci testele verifică că eroarea e tratată, nu că mesajul a ajuns.
+- Handler-ele HTTP se testează cu `httptest` și `gin` peste servicii construite pe mock-uri (`internal/delivery/http/handlers/*_test.go`); `router_test.go` verifică tabela de rutare.
+
+**Ce nu intră în coverage** (vezi `sonar.coverage.exclusions`): `cmd/` (pornirea aplicației), `internal/db`, `internal/redis` și `internal/repository/postgres` (SQL care are nevoie de o bază reală). Restul e măsurat, inclusiv handler-ele HTTP, care au deocamdată doar câteva teste; adăugarea de teste pentru restul handler-elor e cel mai simplu mod de a crește procentul.
+
+> `make test` rulează doar pachetele care au fișiere de test. Motivul: toolchain-ul Go 1.25 descărcat automat (`GOTOOLCHAIN=auto`) nu include unealta `covdata`, de care `go test -cover` are nevoie pentru pachetele fără teste. Pachetele fără teste apar oricum în `coverage.out` cu 0%, prin `-coverpkg=./...`.
 
 ---
 
@@ -173,6 +197,7 @@ Rezultatele se văd la http://localhost:9000. Scanner-ul rulează din Docker, de
 - `SONAR_TOKEN` e personal pentru fiecare instalare și stă doar în `.env` (necomis). Se regenerează cu `make sonar-token` dacă ștergi volumele SonarQube.
 - Configurarea analizei e în `sonar-project.properties`. Excepțiile de reguli se pun tot acolo, cu motivul scris în comentariu, nu în interfața SonarQube: fiecare dezvoltator are propriul server local, deci ce marchezi în UI rămâne doar la tine.
 - Excepție existentă: regulile despre atribute HTML învechite și tabele de layout sunt dezactivate pentru `internal/email/templates/`, pentru că Outlook și mulți clienți de e-mail nu suportă layout CSS.
+- `make sonar-api` rulează întâi `make test-cover`, iar `make sonar-front` rulează `npm run test:coverage` în `../agri-front`, ca SonarQube să primească și coverage-ul. Ce e exclus din procent e listat (cu motiv) în `sonar-project.properties`.
 
 ---
 
