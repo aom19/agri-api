@@ -44,9 +44,11 @@ func TestSetupRoutes(t *testing.T) {
 	}
 
 	// rutele din /api sunt protejate de middleware-ul de autentificare
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/machines", nil))
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("fără token mă așteptam la 401, am %d", rec.Code)
+	for _, path := range []string{"/api/machines", "/api/weather/current?lat=47&lng=28"} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("%s fără token: mă așteptam la 401, am %d", path, rec.Code)
+		}
 	}
 }

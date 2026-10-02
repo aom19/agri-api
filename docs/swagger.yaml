@@ -3728,6 +3728,8 @@ paths:
               error:
                 type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Vreme curenta
       tags:
       - weather

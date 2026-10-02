@@ -3588,6 +3588,11 @@ const docTemplate = `{
         },
         "/weather/current": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],

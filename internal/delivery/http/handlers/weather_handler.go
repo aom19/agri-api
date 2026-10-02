@@ -24,6 +24,7 @@ func NewWeatherHandler(service *usecase.WeatherService) *WeatherHandler {
 // @Summary      Vreme curenta
 // @Tags         weather
 // @Produce      json
+// @Security     BearerAuth
 // @Param        lat query number false "Latitudine WGS84"
 // @Param        lng query number false "Longitudine WGS84"
 // @Param        location query string false "Numele locatiei afisat in raspuns"

@@ -65,11 +65,12 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	authGroup.POST("/forgot-password", authHandler.ForgotPassword)
 	authGroup.POST("/reset-password/:token", authHandler.ResetPassword)
 
-	weatherHandler := handlers.NewWeatherHandler(deps.WeatherService)
-	r.GET("/api/weather/current", weatherHandler.GetCurrent)
-
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist))
+
+	// autentificat, ca să nu poată fi folosit de oricine drept proxy către cheia OpenWeather
+	weatherHandler := handlers.NewWeatherHandler(deps.WeatherService)
+	api.GET("/weather/current", weatherHandler.GetCurrent)
 
 	api.POST("/auth/logout", authHandler.Logout)
 	api.POST("/auth/change-password", authHandler.ChangePassword)
