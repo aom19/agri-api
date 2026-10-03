@@ -3,6 +3,7 @@ package http_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	httpdelivery "agri-api/internal/delivery/http"
@@ -38,6 +39,12 @@ func TestSetupRoutes(t *testing.T) {
 	for key, found := range expected {
 		if !found {
 			t.Errorf("ruta %s nu este înregistrată", key)
+		}
+	}
+	// modulul assignments a fost șters: alocările sunt operațiunile pe teren active
+	for _, route := range routes {
+		if strings.HasPrefix(route.Path, "/api/assignments") {
+			t.Errorf("ruta ștearsă %s %s e încă înregistrată", route.Method, route.Path)
 		}
 	}
 	if len(routes) < 100 {

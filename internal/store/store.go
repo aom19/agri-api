@@ -11,7 +11,6 @@ type Store struct {
 	MachineRepo    repository.MachineRepository
 	OperatorRepo   repository.OperatorRepository
 	FieldRepo      repository.FieldRepository
-	AssigmentRepo  repository.AssigmentRepository
 	UserRepo       repository.UserRepository
 	RoleRepo       repository.RoleRepository
 	PermissionRepo repository.PermissionRepository

@@ -65,14 +65,14 @@ func seedReportData(t *testing.T, db *sql.DB) reportFixture {
 		op.PlannedStart, op.AreaPlannedHa, op.FuelUsedL = day(-60), 100, ptr(999.0)
 	}))
 	insertFieldOperation(t, db, with(func(op *fieldOperation) {
-		op.MachineID, op.OperatorID, op.Status = &f.machine1, &f.operator1, "completed"
-		op.PlannedStart, op.AreaPlannedHa, op.FuelUsedL, op.Deleted = day(-3), 100, ptr(999.0), true
+		op.MachineID, op.OperatorID, op.Status = &f.machine1, &f.operator1, "in_progress"
+		op.PlannedStart, op.AreaPlannedHa, op.Deleted = day(-3), 100, true
 	}))
-
-	// „alocări active” vin azi din tabelul assignments; doar prima e activă și neștearsă
-	insertAssignment(t, db, f.machine1, f.operator1, "active", false)
-	insertAssignment(t, db, f.machine1, f.operator2, "completed", false)
-	insertAssignment(t, db, f.machine2, f.operator2, "active", true)
+	// planificată după perioadă: nu intră în cifrele perioadei, dar e o alocare activă
+	insertFieldOperation(t, db, with(func(op *fieldOperation) {
+		op.MachineID, op.OperatorID, op.Status = &f.machine2, &f.op3, "planned"
+		op.PlannedStart, op.AreaPlannedHa = day(5), 7
+	}))
 	return f
 }
 
@@ -96,9 +96,9 @@ func TestReportFleet_MachineRows(t *testing.T) {
 	if m2.ID != f.machine2 || m2.OperationsCount != 1 || m2.PlannedAreaHa != 3 || m2.FuelUsedL != 10 || m2.HoursInPeriod != 1 {
 		t.Errorf("mașina 2: %+v", m2)
 	}
-	// TODO(T4): după ștergerea assignments, alocările active vor fi operațiunile planned/in_progress (mașina 1: 2)
-	if m1.ActiveAssignments != 1 || m2.ActiveAssignments != 0 {
-		t.Errorf("alocări active din assignments: mașina 1 = %d, mașina 2 = %d", m1.ActiveAssignments, m2.ActiveAssignments)
+	// alocări active = operațiuni planned/in_progress neșterse, indiferent de perioadă (ca în dashboard)
+	if m1.ActiveAssignments != 2 || m2.ActiveAssignments != 1 {
+		t.Errorf("alocări active: mașina 1 = %d (aștept 2), mașina 2 = %d (aștept 1)", m1.ActiveAssignments, m2.ActiveAssignments)
 	}
 
 	filtered, err := repo.GetMachineRows(domain.ReportFilter{From: f.filter.From, To: f.filter.To, MachineID: f.machine2})
@@ -140,9 +140,10 @@ func TestReportOperators_OperatorRows(t *testing.T) {
 	if o3.OperationsCount != 0 || o3.PlannedAreaHa != 0 || o3.AllowedMachineTypes == nil {
 		t.Errorf("operatorul fără operațiuni: %+v", o3)
 	}
-	// TODO(T4): la fel ca la flotă, alocările active vor veni din field_operations
-	if o1.ActiveAssignments != 1 || o2.ActiveAssignments != 0 {
-		t.Errorf("alocări active din assignments: operator 1 = %d, operator 2 = %d", o1.ActiveAssignments, o2.ActiveAssignments)
+	// operatorul 3 nu are operațiuni în perioadă, dar are una planificată după ea
+	if o1.ActiveAssignments != 1 || o2.ActiveAssignments != 1 || o3.ActiveAssignments != 1 {
+		t.Errorf("alocări active: operator 1 = %d, operator 2 = %d, operator 3 = %d (aștept 1 la fiecare)",
+			o1.ActiveAssignments, o2.ActiveAssignments, o3.ActiveAssignments)
 	}
 	// operatorii cu același număr de operațiuni sunt ordonați după nume
 	if rows[0].ID != f.operator1 || rows[1].ID != f.operator2 || rows[2].ID != f.op3 {

@@ -24,7 +24,7 @@ const migrationsDir = "../../../../migrations"
 var dataTables = []string{
 	"stock_movements", "stocks", "resources", "resource_types",
 	"field_operations", "field_crops", "seasons", "crops",
-	"assignments", "machines", "operators", "fields", "operation_types",
+	"machines", "operators", "fields", "operation_types",
 }
 
 var testDB *sql.DB
@@ -147,19 +147,6 @@ func insertMachine(t *testing.T, db *sql.DB, name, code string) int64 {
 func insertOperator(t *testing.T, db *sql.DB, name string) int64 {
 	t.Helper()
 	return insertID(t, db, `INSERT INTO operators (name) VALUES ($1) RETURNING id`, name)
-}
-
-func insertAssignment(t *testing.T, db *sql.DB, machineID, operatorID int64, status string, deleted bool) {
-	t.Helper()
-	var deletedAt interface{}
-	if deleted {
-		deletedAt = time.Now()
-	}
-	if _, err := db.Exec(`
-		INSERT INTO assignments (machine_id, operator_id, start_date, status, deleted_at)
-		VALUES ($1, $2, NOW(), $3, $4)`, machineID, operatorID, status, deletedAt); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // fieldOperation descrie o operațiune pe teren; câmpurile nil rămân NULL în baza de date.

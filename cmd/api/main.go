@@ -138,7 +138,6 @@ func main() {
 
 	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări
 	appStore := store.NewInitialiedStore(sqlDB)
-	assigmentService := usecase.NewAssigmentService(appStore)
 
 	// 4. Inițializează serviciile de autentificare
 	accessTTL, err := time.ParseDuration(cfg.AccessTokenTTL)
@@ -216,7 +215,6 @@ func main() {
 		ImplementService:                implementService,
 		OperatorService:                 operatorService,
 		FieldService:                    fieldService,
-		AssignmentService:               assigmentService,
 		OperationService:                operationService,
 		FieldOperationService:           fieldOperationService,
 		DashboardService:                dashboardService,

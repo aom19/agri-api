@@ -16,35 +16,6 @@ definitions:
     - MachineStatusActive
     - MachineStatusMaintenance
     - MachineStatusInactive
-  domain.Assigment:
-    properties:
-      createdAt:
-        type: string
-      deletedAt:
-        type: string
-      end_date:
-        type: string
-      id:
-        type: integer
-      machine_id:
-        type: integer
-      operator_id:
-        type: integer
-      start_date:
-        type: string
-      status:
-        $ref: '#/definitions/domain.AssigmentStatus'
-      updatedAt:
-        type: string
-    type: object
-  domain.AssigmentStatus:
-    enum:
-    - active
-    - closed
-    type: string
-    x-enum-varnames:
-    - AssigmentStatusActive
-    - AssigmentStatusClosed
   domain.Crop:
     properties:
       category:
@@ -163,9 +134,13 @@ definitions:
         type: string
       production_total:
         type: number
+      season_end:
+        type: string
       season_id:
         type: integer
       season_name:
+        type: string
+      season_start:
         type: string
       updated_at:
         type: string
@@ -449,9 +424,13 @@ definitions:
         type: number
       real_cost:
         type: number
+      season_end:
+        type: string
       season_id:
         type: integer
       season_name:
+        type: string
+      season_start:
         type: string
       updated_at:
         type: string
@@ -1117,64 +1096,6 @@ definitions:
       wind_speed_kmh:
         type: number
     type: object
-  dto.AssigmentResponse:
-    properties:
-      end_date:
-        type: string
-      id:
-        type: integer
-      machine_id:
-        type: integer
-      machine_name:
-        type: string
-      operator_id:
-        type: integer
-      operator_name:
-        type: string
-      start_date:
-        type: string
-      status:
-        type: string
-    type: object
-  dto.PaginatedAssignmentsResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/dto.AssigmentResponse'
-        type: array
-      meta:
-        $ref: '#/definitions/dto.PaginationMeta'
-    type: object
-  dto.PaginationMeta:
-    properties:
-      limit:
-        type: integer
-      page:
-        type: integer
-      total:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
-  handlers.CreateAssigmentRequest:
-    properties:
-      end_date:
-        type: string
-      machine_id:
-        type: integer
-      operator_id:
-        type: integer
-      start_date:
-        type: string
-      status:
-        $ref: '#/definitions/domain.AssigmentStatus'
-    required:
-    - end_date
-    - machine_id
-    - operator_id
-    - start_date
-    - status
-    type: object
   handlers.CreateImplementRequest:
     properties:
       brand:
@@ -1470,205 +1391,6 @@ info:
   title: Agri API
   version: "1.0"
 paths:
-  /assignments:
-    get:
-      parameters:
-      - default: 1
-        description: Numar pagina
-        in: query
-        name: page
-        type: integer
-      - default: 10
-        description: Rezultate per pagina
-        in: query
-        name: limit
-        type: integer
-      - description: Filtru status
-        in: query
-        name: status
-        type: string
-      - description: Filtru operator
-        in: query
-        name: operator_id
-        type: integer
-      - description: Filtru masina
-        in: query
-        name: machine_id
-        type: integer
-      - default: start_date
-        description: Camp sortare
-        in: query
-        name: sort_by
-        type: string
-      - default: asc
-        description: Ordine
-        enum:
-        - asc
-        - desc
-        in: query
-        name: order
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.PaginatedAssignmentsResponse'
-      security:
-      - BearerAuth: []
-      summary: Listare asignari
-      tags:
-      - assignments
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Date asignare
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.CreateAssigmentRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/domain.Assigment'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Creare asignare
-      tags:
-      - assignments
-  /assignments/{id}:
-    delete:
-      parameters:
-      - description: ID asignare
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Stergere asignare
-      tags:
-      - assignments
-    get:
-      parameters:
-      - description: ID asignare
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.Assigment'
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Obtinere asignare
-      tags:
-      - assignments
-    patch:
-      consumes:
-      - application/json
-      parameters:
-      - description: ID asignare
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Date actualizare
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.CreateAssigmentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.Assigment'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Actualizare asignare
-      tags:
-      - assignments
-  /assignments/{id}/close:
-    patch:
-      parameters:
-      - description: ID asignare
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Inchidere asignare
-      tags:
-      - assignments
   /auth/change-password:
     post:
       consumes:

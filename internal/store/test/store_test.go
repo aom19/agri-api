@@ -54,7 +54,7 @@ func TestNewInitialiedStore(t *testing.T) {
 	defer db.Close()
 	st := store.NewInitialiedStore(db)
 	if st.DB != db || st.MachineRepo == nil || st.OperatorRepo == nil || st.FieldRepo == nil ||
-		st.AssigmentRepo == nil || st.UserRepo == nil || st.RoleRepo == nil || st.PermissionRepo == nil {
+		st.UserRepo == nil || st.RoleRepo == nil || st.PermissionRepo == nil {
 		t.Error("toate repository-urile trebuie inițializate")
 	}
 }

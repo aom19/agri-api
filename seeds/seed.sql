@@ -9,7 +9,7 @@ BEGIN
     INTO tables
     FROM unnest(ARRAY[
         'field_operations', 'field_crops', 'weather_snapshots', 'stock_movements',
-        'assignments', 'fields', 'operators',
+        'fields', 'operators',
         'implement_compatibilities', 'implements', 'machines',
         'template_resources', 'template_machine_types', 'template_implement_types',
         'operation_templates', 'operation_types',
@@ -120,36 +120,6 @@ INSERT INTO operators (name, phone, email, status, allowed_machine_types) VALUES
     ('Bogdan Stoica',     '+37369100013', 'bogdan.stoica@agri.ro',     'active',   '{combine,tractor}'),
     ('Radu Nistor',       '+37369100014', NULL,                        'active',   '{tractor}'),
     ('Sorin Enache',      '+37369100015', 'sorin.enache@agri.ro',      'active',   '{tractor,sprayer}')
-ON CONFLICT DO NOTHING;
-
--- Seed: 15 asignări — referință după nume, nu ID hardcodat
-INSERT INTO assignments (machine_id, operator_id, start_date, end_date, status)
-SELECT
-    m.id,
-    o.id,
-    NOW() - (l.start_days || ' days')::interval,
-    CASE WHEN l.status = 'closed' THEN NOW() - (l.end_days || ' days')::interval ELSE NULL END,
-    l.status
-FROM (
-    VALUES
-        ('MCH-0001', 'Alexandru Ionescu', 30, 25, 'closed'),
-        ('MCH-0002', 'Mihai Popescu', 20, 15, 'closed'),
-        ('MCH-0003', 'Gheorghe Dănilă', 10, NULL, 'active'),
-        ('MCH-0004', 'Ion Constantin', 5, NULL, 'active'),
-        ('MCH-0005', 'Vasile Marin', 60, 50, 'closed'),
-        ('MCH-0006', 'Dumitru Florescu', 45, 40, 'closed'),
-        ('MCH-0007', 'Nicolae Stancu', 3, NULL, 'active'),
-        ('MCH-0008', 'Florin Gheorghiu', 90, 80, 'closed'),
-        ('MCH-0009', 'Octavian Rus', 7, NULL, 'active'),
-        ('MCH-0010', 'Petru Moldovan', 15, 10, 'closed'),
-        ('MCH-0011', 'Bogdan Stoica', 120, 100, 'closed'),
-        ('MCH-0012', 'Radu Nistor', 2, NULL, 'active'),
-        ('MCH-0013', 'Sorin Enache', 50, 45, 'closed'),
-        ('MCH-0014', 'Nicolae Stancu', 1, NULL, 'active'),
-        ('MCH-0015', 'Petru Moldovan', 8, 3, 'closed')
-) AS l(machine_code, operator_name, start_days, end_days, status)
-JOIN machines m ON m.code = l.machine_code
-JOIN operators o ON o.name = l.operator_name
 ON CONFLICT DO NOTHING;
 
 -- Seed: tipuri de resurse agricole

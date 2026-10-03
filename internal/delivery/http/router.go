@@ -22,7 +22,6 @@ type AppDeps struct {
 	ImplementService                *usecase.ImplementService
 	OperatorService                 *usecase.OperatorService
 	FieldService                    *usecase.FieldService
-	AssignmentService               *usecase.AssigmentService
 	OperationService                *usecase.OperationService
 	FieldOperationService           *usecase.FieldOperationService
 	DashboardService                *usecase.DashboardService
@@ -208,19 +207,6 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.POST("/fields", perm("fields:write"), fieldHandler.Create)
 	api.PATCH("/fields/:id", perm("fields:write"), fieldHandler.Update)
 	api.DELETE("/fields/:id", perm("fields:delete"), fieldHandler.Delete)
-
-	// ─── Assignments ──────────────────────────────────────────────────────────
-	assignmentHandler := handlers.NewAssigmentHandler(
-		deps.AssignmentService,
-		handlers.WithAssigmentAudit(deps.AuditService),
-		handlers.WithAssigmentNotif(deps.NotificationService),
-	)
-	api.GET("/assignments", perm("assignments:read"), assignmentHandler.GetAll)
-	api.GET("/assignments/:id", perm("assignments:read"), assignmentHandler.GetByID)
-	api.POST("/assignments", perm("assignments:write"), assignmentHandler.Create)
-	api.PATCH("/assignments/:id", perm("assignments:write"), assignmentHandler.Update)
-	api.DELETE("/assignments/:id", perm("assignments:delete"), assignmentHandler.Delete)
-	api.PATCH("/assignments/:id/close", perm("assignments:write"), assignmentHandler.Close)
 
 	// ─── RBAC — Roles & Permissions ──────────────────────────────────────────
 	rbacHandler := handlers.NewRBACHandler(deps.RBACService)

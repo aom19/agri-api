@@ -25,6 +25,9 @@ const (
 	reportOperationDateExpr = "COALESCE(fo.planned_start_at, fo.created_at)"
 	// Operațiune întârziată: încă activă, dar cu sfârșitul planificat depășit.
 	reportOverdueExpr = "fo.status IN ('planned', 'in_progress') AND fo.planned_end_at IS NOT NULL AND fo.planned_end_at < NOW()"
+	// Alocare activă (alias `fa`): operațiune planificată sau în lucru. Starea de acum, nu a perioadei
+	// raportate, la fel ca „alocări active” din dashboard.
+	reportActiveAllocationExpr = "fa.deleted_at IS NULL AND fa.status IN ('planned', 'in_progress')"
 	// Operațiune finalizată la timp: ultima modificare (finalizarea) nu depășește sfârșitul planificat.
 	reportOnTimeExpr = "fo.status = 'completed' AND (fo.planned_end_at IS NULL OR COALESCE(fo.actual_end_at, fo.updated_at) <= fo.planned_end_at)"
 	// Costul real = valoarea ieșirilor din stoc legate de operațiune.
@@ -485,12 +488,12 @@ func (repo *ReportRepo) GetMachineRows(filter domain.ReportFilter) ([]domain.Rep
 			m.operating_hours,
 			(SELECT COUNT(*) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s),
 			(SELECT COALESCE(SUM(fo.area_planned_ha), 0) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s),
-			(SELECT COUNT(*) FROM assignments a WHERE a.machine_id = m.id AND a.status = 'active' AND a.deleted_at IS NULL),
+			(SELECT COUNT(*) FROM field_operations fa WHERE fa.machine_id = m.id AND %[3]s),
 			(SELECT COALESCE(SUM(fo.fuel_used_l), 0) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s),
 			(SELECT COALESCE(SUM(fo.machine_hours), 0) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s)
 		FROM machines m
 		WHERE m.deleted_at IS NULL%[2]s
-		ORDER BY 9 DESC, m.name`, where, machineClause)
+		ORDER BY 9 DESC, m.name`, where, machineClause, reportActiveAllocationExpr)
 
 	rows, err := repo.db.Query(query, args...)
 	if err != nil {
@@ -585,12 +588,12 @@ func (repo *ReportRepo) GetOperatorRows(filter domain.ReportFilter) ([]domain.Re
 			COUNT(fo.id) FILTER (WHERE %s),
 			COUNT(fo.id) FILTER (WHERE %s),
 			COALESCE(SUM(fo.area_planned_ha), 0),
-			(SELECT COUNT(*) FROM assignments a WHERE a.operator_id = o.id AND a.status = 'active' AND a.deleted_at IS NULL)
+			(SELECT COUNT(*) FROM field_operations fa WHERE fa.operator_id = o.id AND %s)
 		FROM operators o
 		LEFT JOIN field_operations fo ON fo.operator_id = o.id AND %s
 		WHERE o.deleted_at IS NULL%s
 		GROUP BY o.id, o.name, o.status, o.allowed_machine_types
-		ORDER BY COUNT(fo.id) DESC, o.name`, reportOnTimeExpr, reportOverdueExpr, where, operatorClause)
+		ORDER BY COUNT(fo.id) DESC, o.name`, reportOnTimeExpr, reportOverdueExpr, reportActiveAllocationExpr, where, operatorClause)
 
 	rows, err := repo.db.Query(query, args...)
 	if err != nil {

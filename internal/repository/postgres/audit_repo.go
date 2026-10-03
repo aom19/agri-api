@@ -46,7 +46,6 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 				rt.name,
 				r.name,
 				sr.name,
-				NULLIF(BTRIM(CONCAT_WS(' - ', am.name, ao.name)), ''),
 				o.name,
 				opt.name,
 				pl.name,
@@ -68,9 +67,6 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 		LEFT JOIN resources r ON al.entity_type = 'resource' AND r.id::text = al.entity_id
 		LEFT JOIN stocks s ON al.entity_type = 'stock' AND s.id::text = al.entity_id
 		LEFT JOIN resources sr ON sr.id = s.resource_id
-		LEFT JOIN assignments a ON al.entity_type = 'assignment' AND a.id::text = al.entity_id
-		LEFT JOIN machines am ON am.id = a.machine_id
-		LEFT JOIN operators ao ON ao.id = a.operator_id
 		LEFT JOIN operators o ON al.entity_type = 'operator' AND o.id::text = al.entity_id
 		LEFT JOIN operation_types opt ON al.entity_type = 'operation_type' AND opt.id::text = al.entity_id
 		LEFT JOIN operation_templates pl ON al.entity_type = 'operation_template' AND pl.id::text = al.entity_id

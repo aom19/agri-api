@@ -18,9 +18,6 @@ INSERT INTO permissions (name, description) VALUES
     ('operators:write',   'Creare și editare operatori'),
     ('operators:delete',  'Ștergere operatori'),
     ('operators:disable', 'Dezactivare și reactivare operatori'),
-    ('assignments:read',  'Vizualizare asignări'),
-    ('assignments:write', 'Creare și editare asignări'),
-    ('assignments:delete','Ștergere asignări'),
     ('resources:read',    'Vizualizare resurse'),
     ('resources:write',   'Creare și editare resurse'),
     ('resources:delete',  'Ștergere resurse'),
@@ -72,7 +69,7 @@ WHERE r.code = 'admin'
   AND p.name = 'users:enable'
 ON CONFLICT DO NOTHING;
 
--- manager: read+write pe machines/operators/assignments
+-- manager: read+write pe machines/operators
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
@@ -82,7 +79,6 @@ WHERE r.code = 'manager'
       'implements:read',  'implements:write', 'implements:delete',
       'fields:read',      'fields:write',
       'operators:read',   'operators:write',  'operators:disable',
-      'assignments:read', 'assignments:write',
       'resources:read',   'resources:write',  'resources:delete',
       'stock.view',       'stock.create',      'stock.update', 'stock.delete',
       'dashboard:read',   'reports:read',
@@ -103,7 +99,6 @@ WHERE r.code = 'viewer'
       'stock.view',
       'fields:read',
       'operators:read',
-      'assignments:read',
       'dashboard:read',
       'reports:read',
       'crops:read',

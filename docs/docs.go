@@ -15,323 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/assignments": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assignments"
-                ],
-                "summary": "Listare asignari",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Numar pagina",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Rezultate per pagina",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filtru status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Filtru operator",
-                        "name": "operator_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Filtru masina",
-                        "name": "machine_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "default": "start_date",
-                        "description": "Camp sortare",
-                        "name": "sort_by",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "asc",
-                            "desc"
-                        ],
-                        "type": "string",
-                        "default": "asc",
-                        "description": "Ordine",
-                        "name": "order",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.PaginatedAssignmentsResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assignments"
-                ],
-                "summary": "Creare asignare",
-                "parameters": [
-                    {
-                        "description": "Date asignare",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.CreateAssigmentRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/domain.Assigment"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/assignments/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assignments"
-                ],
-                "summary": "Obtinere asignare",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID asignare",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/domain.Assigment"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assignments"
-                ],
-                "summary": "Stergere asignare",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID asignare",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assignments"
-                ],
-                "summary": "Actualizare asignare",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID asignare",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Date actualizare",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.CreateAssigmentRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/domain.Assigment"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/assignments/{id}/close": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assignments"
-                ],
-                "summary": "Inchidere asignare",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID asignare",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/auth/change-password": {
             "post": {
                 "security": [
@@ -3673,49 +3356,6 @@ const docTemplate = `{
                 "MachineStatusInactive"
             ]
         },
-        "domain.Assigment": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "type": "string"
-                },
-                "end_date": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "machine_id": {
-                    "type": "integer"
-                },
-                "operator_id": {
-                    "type": "integer"
-                },
-                "start_date": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/domain.AssigmentStatus"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.AssigmentStatus": {
-            "type": "string",
-            "enum": [
-                "active",
-                "closed"
-            ],
-            "x-enum-varnames": [
-                "AssigmentStatusActive",
-                "AssigmentStatusClosed"
-            ]
-        },
         "domain.Crop": {
             "type": "object",
             "properties": {
@@ -3892,10 +3532,16 @@ const docTemplate = `{
                 "production_total": {
                     "type": "number"
                 },
+                "season_end": {
+                    "type": "string"
+                },
                 "season_id": {
                     "type": "integer"
                 },
                 "season_name": {
+                    "type": "string"
+                },
+                "season_start": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -4302,10 +3948,16 @@ const docTemplate = `{
                 "real_cost": {
                     "type": "number"
                 },
+                "season_end": {
+                    "type": "string"
+                },
                 "season_id": {
                     "type": "integer"
                 },
                 "season_name": {
+                    "type": "string"
+                },
+                "season_start": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -5310,93 +4962,6 @@ const docTemplate = `{
                 },
                 "wind_speed_kmh": {
                     "type": "number"
-                }
-            }
-        },
-        "dto.AssigmentResponse": {
-            "type": "object",
-            "properties": {
-                "end_date": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "machine_id": {
-                    "type": "integer"
-                },
-                "machine_name": {
-                    "type": "string"
-                },
-                "operator_id": {
-                    "type": "integer"
-                },
-                "operator_name": {
-                    "type": "string"
-                },
-                "start_date": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.PaginatedAssignmentsResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.AssigmentResponse"
-                    }
-                },
-                "meta": {
-                    "$ref": "#/definitions/dto.PaginationMeta"
-                }
-            }
-        },
-        "dto.PaginationMeta": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer"
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.CreateAssigmentRequest": {
-            "type": "object",
-            "required": [
-                "end_date",
-                "machine_id",
-                "operator_id",
-                "start_date",
-                "status"
-            ],
-            "properties": {
-                "end_date": {
-                    "type": "string"
-                },
-                "machine_id": {
-                    "type": "integer"
-                },
-                "operator_id": {
-                    "type": "integer"
-                },
-                "start_date": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/domain.AssigmentStatus"
                 }
             }
         },
