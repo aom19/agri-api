@@ -414,12 +414,37 @@ func (repo *CropRepo) RelinkOperations(seasonID int64) error {
 	return err
 }
 
+// LockFieldCropHarvest blochează cultura pe teren până la finalul tranzacției și întoarce
+// producția și cantitatea deja mutată în stoc (0 dacă recolta nu a fost înregistrată).
+func (repo *CropRepo) LockFieldCropHarvest(tx *sql.Tx, fieldCropID int64) (*float64, float64, error) {
+	var production, recorded sql.NullFloat64
+	err := tx.QueryRow(`
+		SELECT production_total, harvest_recorded_quantity
+		FROM field_crops
+		WHERE id = $1
+		FOR UPDATE`, fieldCropID).Scan(&production, &recorded)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !production.Valid {
+		return nil, recorded.Float64, nil
+	}
+	value := production.Float64
+	return &value, recorded.Float64, nil
+}
+
 // EnsureHarvestResource garantează că cultura are o resursă de stoc pentru recoltă
 // (tip de resursă cu categoria "harvest" și unitatea culturii) și întoarce id-ul resursei.
 func (repo *CropRepo) EnsureHarvestResource(tx *sql.Tx, crop *domain.Crop) (int64, error) {
-	if crop.HarvestResourceID != nil {
+	// Rândul culturii e blocat: cererile simultane pentru aceeași cultură așteaptă aici și
+	// găsesc resursa creată de prima, în loc să creeze fiecare câte una.
+	var current sql.NullInt64
+	if err := tx.QueryRow(`SELECT harvest_resource_id FROM crops WHERE id = $1 FOR UPDATE`, crop.ID).Scan(&current); err != nil {
+		return 0, err
+	}
+	if current.Valid {
 		var exists int64
-		err := tx.QueryRow(`SELECT id FROM resources WHERE id = $1`, *crop.HarvestResourceID).Scan(&exists)
+		err := tx.QueryRow(`SELECT id FROM resources WHERE id = $1`, current.Int64).Scan(&exists)
 		if err == nil {
 			return exists, nil
 		}

@@ -6,9 +6,11 @@ export
 SHELL := /bin/bash
 
 DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+# Baza testelor de integrare: ștearsă și recreată din migrații la fiecare `make test-db`
+TEST_DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)_test?sslmode=$(DB_SSLMODE)
 MIGRATE=migrate -path ./migrations -database "$(DB_URL)"
 
-.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger test test-cover \
+.PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger test test-cover test-db \
         docker-infra docker-dev docker-prod docker-build seed \
         sonar-up sonar-down sonar-token sonar sonar-api sonar-front sonar-check
 
@@ -86,6 +88,11 @@ TEST_PKGS=$(shell go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}
 ## Rulează testele unitare (nu au nevoie de Postgres, Redis sau SMTP)
 test:
 	go test $(TEST_PKGS)
+
+## Rulează testele de integrare pe Postgres real (cere `make docker-infra`). Baza $(DB_NAME)_test
+## e ștearsă și recreată din migrații la fiecare rulare; baza de dezvoltare nu e atinsă.
+test-db:
+	TEST_DATABASE_URL="$(TEST_DB_URL)" go test -count=1 ./internal/repository/postgres/test/
 
 ## Rulează testele și generează coverage.out + test-report.json (citite de SonarQube)
 test-cover:

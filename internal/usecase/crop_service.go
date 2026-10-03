@@ -278,6 +278,29 @@ func (service *CropService) RecordHarvest(fieldCropID int64, actorID *int64) (*H
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// Producția și cantitatea înregistrată se recitesc sub blocare: cererile simultane pentru
+	// aceeași cultură pe teren (ex. dublu-click) sunt serializate și nu mută recolta de două ori.
+	production, recorded, err := service.repo.LockFieldCropHarvest(tx, item.ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCropNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if production == nil || *production <= 0 {
+		return nil, fmt.Errorf("%w: introdu mai întâi producția obținută", ErrHarvestNotRecordable)
+	}
+	delta = *production - recorded
+	if delta == 0 {
+		// o cerere simultană a înregistrat deja aceeași producție
+		_ = tx.Rollback()
+		updated, err := service.repo.GetFieldCropByID(item.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &HarvestResult{FieldCrop: updated}, nil
+	}
+
 	resourceID, err := service.repo.EnsureHarvestResource(tx, crop)
 	if err != nil {
 		return nil, err
@@ -311,7 +334,7 @@ func (service *CropService) RecordHarvest(fieldCropID int64, actorID *int64) (*H
 	if err := service.movements.ApplyMovement(tx, movement); err != nil {
 		return nil, err
 	}
-	if err := service.repo.MarkHarvestRecorded(tx, item.ID, *item.ProductionTotal); err != nil {
+	if err := service.repo.MarkHarvestRecorded(tx, item.ID, *production); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

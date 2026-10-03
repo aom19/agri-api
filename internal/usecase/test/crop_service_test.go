@@ -230,6 +230,14 @@ func TestCropService_RecordHarvest(t *testing.T) {
 		},
 		ensureHarvestResource: func(*sql.Tx, *domain.Crop) (int64, error) { return 77, nil },
 	}
+	// în tranzacție, producția și cantitatea înregistrată sunt recitite sub blocare
+	repo.lockFieldCropHarvest = func(*sql.Tx, int64) (*float64, float64, error) {
+		recorded := 0.0
+		if item.HarvestRecordedQty != nil {
+			recorded = *item.HarvestRecordedQty
+		}
+		return item.ProductionTotal, recorded, nil
+	}
 	lock := &repository.StockLock{StockID: 3, ResourceID: 77, Quantity: 10, PriceUnit: 1}
 	movements := &stockMovementRepoMock{
 		lockStockByResource: func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
@@ -301,6 +309,28 @@ func TestCropService_RecordHarvest(t *testing.T) {
 	mock.ExpectBegin().WillReturnError(boom)
 	if _, err := svc.RecordHarvest(5, nil); !errors.Is(err, boom) {
 		t.Errorf("eroarea la begin trebuie propagată: %v", err)
+	}
+
+	// ce se vede sub blocare are prioritate față de citirea de dinaintea tranzacției
+	underLock := func(production *float64, recorded float64, err error) {
+		repo.lockFieldCropHarvest = func(*sql.Tx, int64) (*float64, float64, error) { return production, recorded, err }
+		mock.ExpectBegin()
+	}
+	underLock(nil, 0, boom)
+	if _, err := svc.RecordHarvest(5, nil); !errors.Is(err, boom) {
+		t.Errorf("eroarea la blocare trebuie propagată: %v", err)
+	}
+	underLock(nil, 0, sql.ErrNoRows)
+	if _, err := svc.RecordHarvest(5, nil); !errors.Is(err, usecase.ErrCropNotFound) {
+		t.Errorf("cultura pe teren ștearsă între timp: %v", err)
+	}
+	underLock(nil, 0, nil)
+	if _, err := svc.RecordHarvest(5, nil); !errors.Is(err, usecase.ErrHarvestNotRecordable) {
+		t.Errorf("producția ștearsă între timp: %v", err)
+	}
+	underLock(ptr(35.0), 35, nil)
+	if res, err := svc.RecordHarvest(5, nil); err != nil || res.Movement != nil || res.FieldCrop == nil {
+		t.Errorf("o cerere simultană a înregistrat deja producția: %v, %+v", err, res)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("așteptări sqlmock: %v", err)

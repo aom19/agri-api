@@ -144,6 +144,7 @@ make run
 | `make lint` | Rulează linter-ul |
 | `make test` | Rulează testele unitare |
 | `make test-cover` | Rulează testele și generează `coverage.out` + `test-report.json` (pentru SonarQube) |
+| `make test-db` | Rulează testele de integrare pe Postgres real, într-o bază `<DB_NAME>_test` recreată la fiecare rulare |
 
 ---
 
@@ -165,7 +166,21 @@ go test ./internal/usecase/test/ -run TestMachineService   # un singur serviciu
 - Redis și SMTP sunt înlocuite cu adrese inaccesibile (`127.0.0.1:1`): blacklist-ul și e-mailurile sunt best-effort, deci testele verifică că eroarea e tratată, nu că mesajul a ajuns.
 - Handler-ele HTTP se testează cu `httptest` și `gin` peste servicii construite pe mock-uri (`internal/delivery/http/handlers/test/`); `internal/delivery/http/test/router_test.go` verifică tabela de rutare.
 
-**Ce nu intră în coverage** (vezi `sonar.coverage.exclusions`): `cmd/` (pornirea aplicației), `internal/db`, `internal/redis` și `internal/repository/postgres` (SQL care are nevoie de o bază reală). Restul e măsurat, inclusiv handler-ele HTTP, care au deocamdată doar câteva teste; adăugarea de teste pentru restul handler-elor e cel mai simplu mod de a crește procentul.
+### Teste de integrare (Postgres real)
+
+SQL-ul din `internal/repository/postgres` se testează pe o bază reală, în `internal/repository/postgres/test/`:
+
+```bash
+make docker-infra   # dacă Postgres nu rulează deja
+make test-db
+```
+
+- Baza `<DB_NAME>_test` (implicit `agri_db_test`) e ștearsă și recreată din `migrations/*.up.sql` la fiecare rulare, deci testele verifică și că migrațiile merg pe o bază nouă. Baza de dezvoltare nu e atinsă: testele refuză orice bază al cărei nume nu se termină în `_test`.
+- Fiecare test golește tabelele de date și își inserează singur datele, direct în SQL.
+- Testele trec prin serviciile reale, nu doar prin repository: mișcările de stoc (inclusiv ieșiri simultane, care verifică blocarea pe rând), recolta în stoc (doar diferența, corecții refuzate fără urme, cereri simultane) și rapoartele Flotă și Operatori.
+- Fără `TEST_DATABASE_URL`, testele sunt sărite, deci `make test` rămâne fără dependențe externe.
+
+**Ce nu intră în coverage** (vezi `sonar.coverage.exclusions`): `cmd/` (pornirea aplicației), `internal/db`, `internal/redis` și `internal/repository/postgres` (SQL care are nevoie de o bază reală; e acoperit de `make test-db`, care nu intră în raportul Sonar). Restul e măsurat, inclusiv handler-ele HTTP, care au deocamdată doar câteva teste; adăugarea de teste pentru restul handler-elor e cel mai simplu mod de a crește procentul.
 
 > `make test` rulează doar pachetele care au fișiere de test. Motivul: toolchain-ul Go 1.25 descărcat automat (`GOTOOLCHAIN=auto`) nu include unealta `covdata`, de care `go test -cover` are nevoie pentru pachetele fără teste. Pachetele fără teste apar oricum în `coverage.out` cu 0%, prin `-coverpkg=./...`.
 >

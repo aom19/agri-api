@@ -1022,6 +1022,7 @@ type cropRepoMock struct {
 	updateFieldCrop         func(int64, *domain.FieldCrop) error
 	deleteFieldCrop         func(int64) error
 	relinkOperations        func(int64) error
+	lockFieldCropHarvest    func(*sql.Tx, int64) (*float64, float64, error)
 	ensureHarvestResource   func(*sql.Tx, *domain.Crop) (int64, error)
 	ensureStock             func(*sql.Tx, int64) error
 	markHarvestRecorded     func(*sql.Tx, int64, float64) error
@@ -1128,6 +1129,12 @@ func (m *cropRepoMock) RelinkOperations(id int64) error {
 		return m.relinkOperations(id)
 	}
 	return nil
+}
+func (m *cropRepoMock) LockFieldCropHarvest(tx *sql.Tx, id int64) (*float64, float64, error) {
+	if m.lockFieldCropHarvest != nil {
+		return m.lockFieldCropHarvest(tx, id)
+	}
+	return nil, 0, nil
 }
 func (m *cropRepoMock) EnsureHarvestResource(tx *sql.Tx, c *domain.Crop) (int64, error) {
 	if m.ensureHarvestResource != nil {

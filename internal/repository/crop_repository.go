@@ -29,6 +29,7 @@ type CropRepository interface {
 
 	// Legături cu operațiunile și recolta.
 	RelinkOperations(seasonID int64) error
+	LockFieldCropHarvest(tx *sql.Tx, fieldCropID int64) (production *float64, recorded float64, err error)
 	EnsureHarvestResource(tx *sql.Tx, crop *domain.Crop) (int64, error)
 	EnsureStock(tx *sql.Tx, resourceID int64) error
 	MarkHarvestRecorded(tx *sql.Tx, fieldCropID int64, quantity float64) error
