@@ -154,18 +154,22 @@ Testele sunt unitare și rulează fără Postgres, Redis sau SMTP:
 ```bash
 make test          # toate testele
 make test-cover    # + coverage.out și test-report.json, citite de SonarQube
-go test ./internal/usecase/ -run TestMachineService   # un singur serviciu
+go test ./internal/usecase/test/ -run TestMachineService   # un singur serviciu
 ```
 
+**Unde stau:** fiecare pachet are testele într-un subfolder `test/` (ex. `internal/usecase/test/`), în pachetul extern `<pachet>_test`. Testele văd deci doar ce e exportat. Funcțiile și câmpurile interne pe care le verifică sunt expuse în `export_for_tests.go` din pachetul testat (`config`, `handlers`, `usecase`). Aplicația nu folosește nimic din aceste fișiere.
+
 **Cum sunt scrise:**
-- Serviciile din `internal/usecase/` primesc mock-uri ale repository-urilor (`internal/usecase/mocks_test.go`): fiecare mock are câmpuri-funcție, iar testul setează doar metodele de care are nevoie.
+- Serviciile din `internal/usecase/` primesc mock-uri ale repository-urilor (`internal/usecase/test/mocks_test.go`): fiecare mock are câmpuri-funcție, iar testul setează doar metodele de care are nevoie.
 - Serviciile care deschid tranzacții (`*sql.DB`) folosesc [go-sqlmock](https://github.com/DATA-DOG/go-sqlmock) pentru `Begin`/`Commit`/`Rollback` și pentru query-urile din `internal/auth/refresh_service.go`.
 - Redis și SMTP sunt înlocuite cu adrese inaccesibile (`127.0.0.1:1`): blacklist-ul și e-mailurile sunt best-effort, deci testele verifică că eroarea e tratată, nu că mesajul a ajuns.
-- Handler-ele HTTP se testează cu `httptest` și `gin` peste servicii construite pe mock-uri (`internal/delivery/http/handlers/*_test.go`); `router_test.go` verifică tabela de rutare.
+- Handler-ele HTTP se testează cu `httptest` și `gin` peste servicii construite pe mock-uri (`internal/delivery/http/handlers/test/`); `internal/delivery/http/test/router_test.go` verifică tabela de rutare.
 
 **Ce nu intră în coverage** (vezi `sonar.coverage.exclusions`): `cmd/` (pornirea aplicației), `internal/db`, `internal/redis` și `internal/repository/postgres` (SQL care are nevoie de o bază reală). Restul e măsurat, inclusiv handler-ele HTTP, care au deocamdată doar câteva teste; adăugarea de teste pentru restul handler-elor e cel mai simplu mod de a crește procentul.
 
 > `make test` rulează doar pachetele care au fișiere de test. Motivul: toolchain-ul Go 1.25 descărcat automat (`GOTOOLCHAIN=auto`) nu include unealta `covdata`, de care `go test -cover` are nevoie pentru pachetele fără teste. Pachetele fără teste apar oricum în `coverage.out` cu 0%, prin `-coverpkg=./...`.
+>
+> Pentru coverage folosește `make test-cover`, nu `go test -cover`. Testele stau în alt pachet decât codul testat, deci fără `-coverpkg` procentul afișat e al pachetului de test, nu al codului.
 
 ---
 
