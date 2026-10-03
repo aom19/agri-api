@@ -257,6 +257,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Update)
 	api.PATCH("/field-operations/:id/checklist", perm("field_operations:checklist"), fieldOperationHandler.UpdateChecklist)
 	api.PATCH("/field-operations/:id/start", perm("field_operations:start"), fieldOperationHandler.Start)
+	api.GET("/field-operations/:id/consumption-estimate", perm("field_operations:complete"), fieldOperationHandler.ConsumptionEstimate)
 	api.PATCH("/field-operations/:id/complete", perm("field_operations:complete"), fieldOperationHandler.Complete)
 	api.DELETE("/field-operations/:id", perm("field_operations:delete"), fieldOperationHandler.Delete)
 

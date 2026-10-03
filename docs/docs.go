@@ -1164,6 +1164,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/field-operations/{id}/consumption-estimate": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "field-operations"
+                ],
+                "summary": "Estimare consum la finalizare",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID operațiune",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Suprafața realizată (implicit cea planificată)",
+                        "name": "area_ha",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ConsumptionEstimate"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "produces": [
@@ -3356,6 +3428,49 @@ const docTemplate = `{
                 "MachineStatusInactive"
             ]
         },
+        "domain.ConsumptionEstimate": {
+            "type": "object",
+            "properties": {
+                "area_ha": {
+                    "type": "number"
+                },
+                "fuel_resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.FuelStock"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ConsumptionEstimateItem"
+                    }
+                }
+            }
+        },
+        "domain.ConsumptionEstimateItem": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "quantity_per_unit": {
+                    "type": "number"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Crop": {
             "type": "object",
             "properties": {
@@ -3563,6 +3678,23 @@ const docTemplate = `{
                 },
                 "resource_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "domain.FuelStock": {
+            "type": "object",
+            "properties": {
+                "quantity": {
+                    "type": "number"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
                 }
             }
         },
@@ -5213,6 +5345,9 @@ const docTemplate = `{
                 },
                 "consume_from_template": {
                     "type": "boolean"
+                },
+                "fuel_resource_id": {
+                    "type": "integer"
                 },
                 "fuel_used_l": {
                     "type": "number"

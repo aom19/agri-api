@@ -101,8 +101,9 @@ func buildMovement(
 	default:
 		return nil, ErrInvalidStockMovement
 	}
+	delta = roundQuantity(delta)
 
-	resulting := lock.Quantity + delta
+	resulting := roundQuantity(lock.Quantity + delta)
 	if resulting < 0 {
 		return nil, fmt.Errorf("%w: stoc insuficient (disponibil %.3f, necesar %.3f)", ErrInvalidStockMovement, lock.Quantity, quantity)
 	}
@@ -125,4 +126,10 @@ func buildMovement(
 		Notes:             notes,
 		ActorID:           actorID,
 	}, nil
+}
+
+// roundQuantity rotunjește la precizia coloanelor de cantitate (4 zecimale), ca suma
+// variațiilor salvate să fie egală cu cantitatea salvată a stocului.
+func roundQuantity(value float64) float64 {
+	return math.Round(value*10000) / 10000
 }

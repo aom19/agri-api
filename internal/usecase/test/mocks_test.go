@@ -300,7 +300,7 @@ type stockRepoMock struct {
 	getByID         func(int64) (*domain.Stock, error)
 	getByResourceID func(int64) (*domain.Stock, error)
 	create          func(*domain.Stock) error
-	update          func(int64, *domain.Stock) error
+	updateMinimum   func(int64, float64) error
 	delete          func(int64) error
 }
 
@@ -322,15 +322,15 @@ func (m *stockRepoMock) GetByResourceID(id int64) (*domain.Stock, error) {
 	}
 	return nil, nil
 }
-func (m *stockRepoMock) Create(x *domain.Stock) error {
+func (m *stockRepoMock) Create(_ *sql.Tx, x *domain.Stock) error {
 	if m.create != nil {
 		return m.create(x)
 	}
 	return nil
 }
-func (m *stockRepoMock) Update(id int64, x *domain.Stock) error {
-	if m.update != nil {
-		return m.update(id, x)
+func (m *stockRepoMock) UpdateMinimum(id int64, minimum float64) error {
+	if m.updateMinimum != nil {
+		return m.updateMinimum(id, minimum)
 	}
 	return nil
 }
@@ -340,7 +340,6 @@ func (m *stockRepoMock) Delete(id int64) error {
 	}
 	return nil
 }
-func (m *stockRepoMock) DecrementQuantity(*sql.Tx, int64, float64) error { return nil }
 
 // ─── Field ───────────────────────────────────────────────────────────────────
 
@@ -906,6 +905,7 @@ type stockMovementRepoMock struct {
 	lockStockByResource func(*sql.Tx, int64) (*repository.StockLock, error)
 	applyMovement       func(*sql.Tx, *domain.StockMovement) error
 	list                func(domain.StockMovementFilter) ([]domain.StockMovement, error)
+	listFuelStocks      func() ([]domain.FuelStock, error)
 }
 
 func (m *stockMovementRepoMock) LockStockByID(tx *sql.Tx, id int64) (*repository.StockLock, error) {
@@ -931,6 +931,12 @@ func (m *stockMovementRepoMock) List(f domain.StockMovementFilter) ([]domain.Sto
 		return m.list(f)
 	}
 	return nil, nil
+}
+func (m *stockMovementRepoMock) ListFuelStocks() ([]domain.FuelStock, error) {
+	if m.listFuelStocks != nil {
+		return m.listFuelStocks()
+	}
+	return []domain.FuelStock{}, nil
 }
 
 // ─── Crops ───────────────────────────────────────────────────────────────────

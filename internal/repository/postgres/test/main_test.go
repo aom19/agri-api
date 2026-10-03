@@ -136,7 +136,44 @@ func insertStock(t *testing.T, db *sql.DB, name string, quantity, minimum, price
 	typeID := insertID(t, db, `INSERT INTO resource_types (name, category, default_unit) VALUES ($1, 'fuel', 'l') RETURNING id`, "Tip "+name)
 	resourceID = insertID(t, db, `INSERT INTO resources (name, resource_type_id, price_per_unit) VALUES ($1, $2, $3) RETURNING id`, name, typeID, price)
 	stockID = insertID(t, db, `INSERT INTO stocks (resource_id, quantity, minimum_quantity) VALUES ($1, $2, $3) RETURNING id`, resourceID, quantity, minimum)
+	// cantitatea inițială intră ca mișcare, ca istoricul să explice stocul (vezi assertMovementsExplainStocks)
+	if quantity != 0 {
+		if _, err := db.Exec(`
+			INSERT INTO stock_movements (stock_id, resource_id, movement_type, quantity_delta, resulting_quantity, notes)
+			VALUES ($1, $2, 'adjustment', $3, $3, 'Stoc inițial')`, stockID, resourceID, quantity); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return stockID, resourceID
+}
+
+// assertMovementsExplainStocks verifică invariantul stocului: pentru fiecare stoc, suma
+// variațiilor din mișcări este egală cu cantitatea curentă.
+func assertMovementsExplainStocks(t *testing.T, db *sql.DB) {
+	t.Helper()
+	rows, err := db.Query(`
+		SELECT s.id, s.quantity, COALESCE(SUM(sm.quantity_delta), 0)
+		FROM stocks s
+		LEFT JOIN stock_movements sm ON sm.stock_id = s.id
+		GROUP BY s.id, s.quantity
+		HAVING s.quantity <> COALESCE(SUM(sm.quantity_delta), 0)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			id            int64
+			quantity, sum float64
+		)
+		if err := rows.Scan(&id, &quantity, &sum); err != nil {
+			t.Fatal(err)
+		}
+		t.Errorf("stocul #%d are %.4f, dar mișcările însumează %.4f", id, quantity, sum)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func insertMachine(t *testing.T, db *sql.DB, name, code string) int64 {
@@ -165,23 +202,53 @@ type fieldOperation struct {
 	Deleted         bool
 }
 
+// insertFieldOperation inserează operațiunea; FuelUsedL devine ieșire din stocul de motorină
+// legată de ea, singura sursă din care se citește combustibilul.
 func insertFieldOperation(t *testing.T, db *sql.DB, op fieldOperation) int64 {
 	t.Helper()
 	var deletedAt interface{}
 	if op.Deleted {
 		deletedAt = time.Now()
 	}
-	return insertID(t, db, `
+	id := insertID(t, db, `
 		INSERT INTO field_operations (
 			field_id, operation_type_id, machine_id, operator_id, status,
 			planned_start_at, planned_end_at, actual_end_at, area_planned_ha,
-			fuel_used_l, machine_hours, deleted_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			machine_hours, deleted_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id`,
 		op.FieldID, op.OperationTypeID, op.MachineID, op.OperatorID, op.Status,
 		op.PlannedStart, op.PlannedEnd, op.ActualEnd, op.AreaPlannedHa,
-		op.FuelUsedL, op.MachineHours, deletedAt,
+		op.MachineHours, deletedAt,
 	)
+	if op.FuelUsedL != nil {
+		stockID, resourceID := fuelStock(t, db)
+		if _, err := db.Exec(`
+			WITH updated AS (
+				UPDATE stocks SET quantity = quantity - $3 WHERE id = $1 RETURNING quantity
+			)
+			INSERT INTO stock_movements (stock_id, resource_id, field_operation_id, movement_type, quantity_delta, resulting_quantity)
+			SELECT $1, $2, $4, 'out', -$3::numeric, quantity FROM updated`,
+			stockID, resourceID, *op.FuelUsedL, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return id
+}
+
+// fuelStock întoarce stocul de motorină al testului, creându-l la prima folosire.
+func fuelStock(t *testing.T, db *sql.DB) (stockID, resourceID int64) {
+	t.Helper()
+	err := db.QueryRow(`
+		SELECT s.id, s.resource_id FROM stocks s JOIN resources r ON r.id = s.resource_id
+		WHERE r.name = 'Motorină (test)'`).Scan(&stockID, &resourceID)
+	if err == sql.ErrNoRows {
+		return insertStock(t, db, "Motorină (test)", 100000, 0, 7)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return stockID, resourceID
 }
 
 func ptr[T any](v T) *T { return &v }

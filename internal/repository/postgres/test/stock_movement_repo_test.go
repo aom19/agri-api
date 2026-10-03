@@ -60,8 +60,8 @@ func TestStockMovements_UpdateStockAndHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(movements) != 3 {
-		t.Fatalf("mă așteptam la 3 mișcări, am %d", len(movements))
+	if len(movements) != 4 {
+		t.Fatalf("mă așteptam la 4 mișcări (stocul inițial + 3), am %d", len(movements))
 	}
 	// lista e de la cea mai nouă la cea mai veche și aduce datele resursei prin JOIN
 	latest := movements[0]
@@ -75,14 +75,8 @@ func TestStockMovements_UpdateStockAndHistory(t *testing.T) {
 		t.Errorf("ieșirea trebuie evaluată la prețul resursei (30 × 7,5): %+v", out)
 	}
 
-	// istoricul explică stocul curent: stocul inițial + suma variațiilor
-	sum := 0.0
-	for _, movement := range movements {
-		sum += movement.QuantityDelta
-	}
-	if 100+sum != stockQuantity(t, db, stockID) {
-		t.Errorf("mișcările (%.3f) nu explică stocul curent", sum)
-	}
+	// istoricul explică stocul curent
+	assertMovementsExplainStocks(t, db)
 }
 
 // Fără FOR UPDATE, două ieșiri simultane citesc aceeași cantitate și una dintre ele se pierde.
@@ -113,8 +107,9 @@ func TestStockMovements_ConcurrentOutputsAreSerialized(t *testing.T) {
 	if got := stockQuantity(t, db, stockID); got != 100-workers {
 		t.Fatalf("după %d ieșiri simultane de 1, stocul e %.3f, mă așteptam la %d", workers, got, 100-workers)
 	}
+	assertMovementsExplainStocks(t, db)
 	// fiecare mișcare a văzut stocul lăsat de cea dinainte: 99, 98, ..., 80
-	rows, err := db.Query(`SELECT resulting_quantity FROM stock_movements WHERE stock_id = $1`, stockID)
+	rows, err := db.Query(`SELECT resulting_quantity FROM stock_movements WHERE stock_id = $1 AND movement_type = 'out'`, stockID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,4 +165,5 @@ func TestStockMovements_ConcurrentOutputsNeverGoNegative(t *testing.T) {
 	if got := stockQuantity(t, db, stockID); got != 0 {
 		t.Errorf("stocul final trebuie să fie 0, am %.3f", got)
 	}
+	assertMovementsExplainStocks(t, db)
 }

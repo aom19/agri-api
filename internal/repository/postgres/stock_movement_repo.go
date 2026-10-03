@@ -18,15 +18,16 @@ func NewStockMovementRepo(db *sql.DB) *StockMovementRepo {
 }
 
 const stockLockSelect = `
-	SELECT s.id, s.resource_id, s.quantity, s.minimum_quantity, r.price_per_unit
+	SELECT s.id, s.resource_id, s.quantity, s.minimum_quantity, r.price_per_unit, rt.category
 	FROM stocks s
 	JOIN resources r ON r.id = s.resource_id
+	JOIN resource_types rt ON rt.id = r.resource_type_id
 	WHERE %s
 	FOR UPDATE OF s`
 
 func scanStockLock(row *sql.Row) (*repository.StockLock, error) {
 	lock := &repository.StockLock{}
-	if err := row.Scan(&lock.StockID, &lock.ResourceID, &lock.Quantity, &lock.Minimum, &lock.PriceUnit); err != nil {
+	if err := row.Scan(&lock.StockID, &lock.ResourceID, &lock.Quantity, &lock.Minimum, &lock.PriceUnit, &lock.Category); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -160,6 +161,30 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 		if totalCost.Valid {
 			value := totalCost.Float64
 			item.TotalCost = &value
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (repo *StockMovementRepo) ListFuelStocks() ([]domain.FuelStock, error) {
+	rows, err := repo.db.Query(`
+		SELECT r.id, r.name, rt.default_unit, s.quantity
+		FROM stocks s
+		JOIN resources r ON r.id = s.resource_id
+		JOIN resource_types rt ON rt.id = r.resource_type_id
+		WHERE rt.category = 'fuel'
+		ORDER BY r.name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []domain.FuelStock{}
+	for rows.Next() {
+		var item domain.FuelStock
+		if err := rows.Scan(&item.ResourceID, &item.ResourceName, &item.Unit, &item.Quantity); err != nil {
+			return nil, err
 		}
 		items = append(items, item)
 	}

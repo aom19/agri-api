@@ -75,7 +75,8 @@ func main() {
 	resourceRepo := postgres.NewResourceRepo(sqlDB)
 	resourceService := usecase.NewResourceService(resourceTypeRepo, resourceRepo)
 	stockRepo := postgres.NewStockRepo(sqlDB)
-	stockService := usecase.NewStockService(stockRepo, resourceRepo)
+	stockMovementRepo := postgres.NewStockMovementRepo(sqlDB)
+	stockService := usecase.NewStockService(sqlDB, stockRepo, resourceRepo, stockMovementRepo)
 
 	// 2.3 Creează repository-ul pentru terenuri și serviciul aferent
 	fieldRepo := postgres.NewFieldRepo(sqlDB)
@@ -89,7 +90,6 @@ func main() {
 	// 2.4.1 Repository și serviciul pentru operațiuni pe teren
 	fieldOperationRepo := postgres.NewFieldOperationRepo(sqlDB)
 	fieldOperationService := usecase.NewFieldOperationService(fieldOperationRepo)
-	stockMovementRepo := postgres.NewStockMovementRepo(sqlDB)
 	stockMovementService := usecase.NewStockMovementService(sqlDB, stockMovementRepo)
 	fieldOperationCompletionService := usecase.NewFieldOperationCompletionService(sqlDB, fieldOperationRepo, stockMovementRepo)
 

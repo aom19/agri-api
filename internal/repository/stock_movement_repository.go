@@ -13,6 +13,7 @@ type StockLock struct {
 	Quantity   float64
 	Minimum    float64
 	PriceUnit  float64
+	Category   string
 }
 
 type StockMovementRepository interface {
@@ -22,4 +23,6 @@ type StockMovementRepository interface {
 	// ApplyMovement inserează mișcarea și actualizează cantitatea stocului, în tranzacție.
 	ApplyMovement(tx *sql.Tx, movement *domain.StockMovement) error
 	List(filter domain.StockMovementFilter) ([]domain.StockMovement, error)
+	// ListFuelStocks returnează resursele de combustibil care au stoc.
+	ListFuelStocks() ([]domain.FuelStock, error)
 }

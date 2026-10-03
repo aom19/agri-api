@@ -18,6 +18,17 @@ func NewFieldOperationRepo(db *sql.DB) *FieldOperationRepo {
 	return &FieldOperationRepo{db: db}
 }
 
+// fuelUsedExpr este combustibilul consumat de o operațiune (alias `fo`): ieșirile din stoc pe
+// resurse de combustibil legate de ea. Este singura sursă pentru combustibil, folosită și de
+// rapoarte, deci cifrele raportate sunt aceleași cu cele scăzute din stoc. NULL când nu există.
+const fuelUsedExpr = `(
+		SELECT SUM(-fsm.quantity_delta)
+		FROM stock_movements fsm
+		JOIN resources fr ON fr.id = fsm.resource_id
+		JOIN resource_types frt ON frt.id = fr.resource_type_id
+		WHERE fsm.field_operation_id = fo.id AND fsm.movement_type = 'out' AND frt.category = 'fuel'
+	)`
+
 const fieldOperationBaseSelect = `
 	SELECT
 		fo.id,
@@ -36,7 +47,7 @@ const fieldOperationBaseSelect = `
 		fo.actual_start_at,
 		fo.actual_end_at,
 		fo.area_completed_ha,
-		fo.fuel_used_l,
+		` + fuelUsedExpr + `,
 		fo.machine_hours,
 		fo.completion_notes,
 		fo.check_machine_status,
@@ -442,17 +453,15 @@ func (repo *FieldOperationRepo) Complete(tx *sql.Tx, id int64, completion domain
 			actual_start_at   = COALESCE(actual_start_at, planned_start_at, $2),
 			actual_end_at     = $2,
 			area_completed_ha = COALESCE($3, area_completed_ha, area_planned_ha),
-			fuel_used_l       = COALESCE($4, fuel_used_l),
-			machine_hours     = COALESCE($5, machine_hours),
-			completion_notes  = $6,
+			machine_hours     = COALESCE($4, machine_hours),
+			completion_notes  = $5,
 			updated_at        = NOW()
-		WHERE id = $7 AND deleted_at IS NULL
+		WHERE id = $6 AND deleted_at IS NULL
 	`
 	_, err := tx.Exec(query,
 		domain.FieldOperationStatusCompleted,
 		at,
 		completion.AreaCompletedHa,
-		completion.FuelUsedL,
 		completion.MachineHours,
 		completion.Notes,
 		id,
@@ -462,9 +471,10 @@ func (repo *FieldOperationRepo) Complete(tx *sql.Tx, id int64, completion domain
 
 func (repo *FieldOperationRepo) GetTemplateResources(templateID int64) ([]domain.TemplateResourceUsage, error) {
 	rows, err := repo.db.Query(`
-		SELECT tr.resource_id, r.name, tr.quantity_per_unit, r.price_per_unit
+		SELECT tr.resource_id, r.name, rt.category, rt.default_unit, tr.quantity_per_unit, r.price_per_unit
 		FROM template_resources tr
 		JOIN resources r ON r.id = tr.resource_id
+		JOIN resource_types rt ON rt.id = r.resource_type_id
 		WHERE tr.template_id = $1
 		ORDER BY r.name`, templateID)
 	if err != nil {
@@ -475,7 +485,7 @@ func (repo *FieldOperationRepo) GetTemplateResources(templateID int64) ([]domain
 	items := []domain.TemplateResourceUsage{}
 	for rows.Next() {
 		var item domain.TemplateResourceUsage
-		if err := rows.Scan(&item.ResourceID, &item.ResourceName, &item.QuantityPerUnit, &item.PricePerUnit); err != nil {
+		if err := rows.Scan(&item.ResourceID, &item.ResourceName, &item.Category, &item.Unit, &item.QuantityPerUnit, &item.PricePerUnit); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

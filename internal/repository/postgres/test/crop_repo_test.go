@@ -118,6 +118,7 @@ func TestRecordHarvest_MovesOnlyTheDifference(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM resources`).Scan(&resources); err != nil || resources != 1 {
 		t.Errorf("trebuie să existe o singură resursă de recoltă, am %d (%v)", resources, err)
 	}
+	assertMovementsExplainStocks(t, db)
 }
 
 func TestRecordHarvest_SameCropOnTwoFieldsSharesTheStock(t *testing.T) {
@@ -134,6 +135,7 @@ func TestRecordHarvest_SameCropOnTwoFieldsSharesTheStock(t *testing.T) {
 	if quantity, movements := harvestState(t, db, cropID); quantity != 65 || movements != 2 {
 		t.Errorf("recolta de pe două loturi trebuie adunată în același stoc: %.3f în %d mișcări", quantity, movements)
 	}
+	assertMovementsExplainStocks(t, db)
 }
 
 func TestRecordHarvest_FailedCorrectionChangesNothing(t *testing.T) {
@@ -162,6 +164,7 @@ func TestRecordHarvest_FailedCorrectionChangesNothing(t *testing.T) {
 		t.Errorf("corecția refuzată a lăsat urme: stoc %.3f, %d mișcări, înregistrat %.3f",
 			quantity, movements, recordedQuantity(t, db, fieldCropID))
 	}
+	assertMovementsExplainStocks(t, db)
 }
 
 // Două cereri simultane (ex. dublu-click pe „Înregistrează recolta”) trebuie să mute recolta o singură dată.
@@ -200,4 +203,5 @@ func TestRecordHarvest_ConcurrentCallsRecordOnce(t *testing.T) {
 	if recordedQuantity(t, db, fieldCropID) != 40 {
 		t.Errorf("cantitatea înregistrată: %.3f", recordedQuantity(t, db, fieldCropID))
 	}
+	assertMovementsExplainStocks(t, db)
 }

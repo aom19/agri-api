@@ -25,8 +25,9 @@ type StockRepository interface {
 	GetAll() ([]domain.Stock, error)
 	GetByID(id int64) (*domain.Stock, error)
 	GetByResourceID(resourceID int64) (*domain.Stock, error)
-	Create(s *domain.Stock) error
-	Update(id int64, s *domain.Stock) error
+	// Create inserează stocul cu cantitatea 0; cantitatea inițială se adaugă printr-o mișcare.
+	Create(tx *sql.Tx, s *domain.Stock) error
+	// UpdateMinimum schimbă doar pragul minim. Cantitatea se modifică doar prin mișcări.
+	UpdateMinimum(id int64, minimum float64) error
 	Delete(id int64) error
-	DecrementQuantity(tx *sql.Tx, resourceID int64, qty float64) error
 }

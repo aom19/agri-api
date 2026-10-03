@@ -3,6 +3,7 @@ package usecase
 import (
 	"agri-api/internal/domain"
 	"agri-api/internal/repository"
+	"database/sql"
 	"errors"
 )
 
@@ -12,16 +13,22 @@ var (
 	ErrStockResourceNotFound = errors.New("resource not found")
 )
 
+// StockService gestionează fișele de stoc. Cantitatea se modifică doar prin mișcări,
+// astfel încât suma mișcărilor unei resurse să fie egală cu stocul ei curent.
 type StockService struct {
+	db           *sql.DB
 	stockRepo    repository.StockRepository
 	resourceRepo repository.ResourceRepository
+	movements    repository.StockMovementRepository
 }
 
 func NewStockService(
+	db *sql.DB,
 	stockRepo repository.StockRepository,
 	resourceRepo repository.ResourceRepository,
+	movements repository.StockMovementRepository,
 ) *StockService {
-	return &StockService{stockRepo: stockRepo, resourceRepo: resourceRepo}
+	return &StockService{db: db, stockRepo: stockRepo, resourceRepo: resourceRepo, movements: movements}
 }
 
 func (s *StockService) GetStocks() ([]domain.Stock, error) {
@@ -35,7 +42,9 @@ func (s *StockService) GetStockByID(id int64) (*domain.Stock, error) {
 	return s.stockRepo.GetByID(id)
 }
 
-func (s *StockService) CreateStock(input *domain.Stock) (*domain.Stock, error) {
+// CreateStock creează fișa de stoc. Cantitatea inițială, dacă există, se înregistrează
+// ca ajustare de inventar, în aceeași tranzacție.
+func (s *StockService) CreateStock(input *domain.Stock, actorID *int64) (*domain.Stock, error) {
 	if err := s.validateStockInput(input); err != nil {
 		return nil, err
 	}
@@ -51,23 +60,49 @@ func (s *StockService) CreateStock(input *domain.Stock) (*domain.Stock, error) {
 		return nil, ErrStockAlreadyExists
 	}
 
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	stock := &domain.Stock{
 		ResourceID:      input.ResourceID,
-		Quantity:        input.Quantity,
 		MinimumQuantity: input.MinimumQuantity,
 	}
-	if err := s.stockRepo.Create(stock); err != nil {
+	if err := s.stockRepo.Create(tx, stock); err != nil {
+		return nil, err
+	}
+	if input.Quantity > 0 {
+		lock, err := s.movements.LockStockByID(tx, stock.ID)
+		if err != nil {
+			return nil, err
+		}
+		if lock == nil {
+			return nil, ErrStockNotFound
+		}
+		movement, err := buildMovement(lock, domain.StockMovementAdjustment, input.Quantity, nil, nil, "Stoc inițial", actorID)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.movements.ApplyMovement(tx, movement); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return s.stockRepo.GetByID(stock.ID)
 }
 
-func (s *StockService) UpdateStock(id int64, input *domain.Stock) (*domain.Stock, error) {
+// UpdateMinimum schimbă pragul minim al stocului. Cantitatea nu se editează direct:
+// corecțiile se fac prin mișcări (ajustare de inventar).
+func (s *StockService) UpdateMinimum(id int64, minimum float64) (*domain.Stock, error) {
 	if id <= 0 {
 		return nil, errors.New("invalid stock id")
 	}
-	if err := s.validateStockInput(input); err != nil {
-		return nil, err
+	if minimum < 0 {
+		return nil, errors.New("minimum_quantity must be greater than or equal to 0")
 	}
 
 	existing, err := s.stockRepo.GetByID(id)
@@ -77,24 +112,8 @@ func (s *StockService) UpdateStock(id int64, input *domain.Stock) (*domain.Stock
 	if existing == nil {
 		return nil, ErrStockNotFound
 	}
-	if err := s.ensureResourceExists(input.ResourceID); err != nil {
-		return nil, err
-	}
 
-	if existing.ResourceID != input.ResourceID {
-		stockForResource, err := s.stockRepo.GetByResourceID(input.ResourceID)
-		if err != nil {
-			return nil, err
-		}
-		if stockForResource != nil {
-			return nil, ErrStockAlreadyExists
-		}
-	}
-
-	existing.ResourceID = input.ResourceID
-	existing.Quantity = input.Quantity
-	existing.MinimumQuantity = input.MinimumQuantity
-	if err := s.stockRepo.Update(id, existing); err != nil {
+	if err := s.stockRepo.UpdateMinimum(id, minimum); err != nil {
 		return nil, err
 	}
 	return s.stockRepo.GetByID(id)

@@ -63,11 +63,15 @@ type FieldOperationResourceUsage struct {
 
 // FieldOperationCompletion sunt datele reale înregistrate la finalizarea unei operațiuni.
 type FieldOperationCompletion struct {
-	ActualEndAt         *time.Time
-	AreaCompletedHa     *float64
-	FuelUsedL           *float64
-	MachineHours        *float64
-	Notes               string
+	ActualEndAt     *time.Time
+	AreaCompletedHa *float64
+	// FuelUsedL este combustibilul raportat; devine ieșire din stocul resursei FuelResourceID.
+	FuelUsedL      *float64
+	FuelResourceID *int64
+	MachineHours   *float64
+	Notes          string
+	// Resources sunt consumurile declarate explicit. Cu ConsumeFromTemplate, ele corectează
+	// (sau completează) consumul calculat din normele șablonului.
 	Resources           []FieldOperationResourceUsage
 	ConsumeFromTemplate bool
 }
@@ -76,6 +80,34 @@ type FieldOperationCompletion struct {
 type TemplateResourceUsage struct {
 	ResourceID      int64
 	ResourceName    string
+	Category        string
+	Unit            string
 	QuantityPerUnit float64
 	PricePerUnit    float64
+}
+
+// ConsumptionEstimateItem este consumul estimat al unei resurse: normă × suprafață.
+type ConsumptionEstimateItem struct {
+	ResourceID      int64   `json:"resource_id"`
+	ResourceName    string  `json:"resource_name"`
+	Category        string  `json:"category"`
+	Unit            string  `json:"unit"`
+	QuantityPerUnit float64 `json:"quantity_per_unit"`
+	Quantity        float64 `json:"quantity"`
+}
+
+// FuelStock este o resursă de combustibil cu stoc, din care se poate scădea combustibilul raportat.
+type FuelStock struct {
+	ResourceID   int64   `json:"resource_id"`
+	ResourceName string  `json:"resource_name"`
+	Unit         string  `json:"unit"`
+	Quantity     float64 `json:"quantity"`
+}
+
+// ConsumptionEstimate este previzualizarea consumului la finalizare. Calculul e același
+// cu cel aplicat la finalizarea cu consume_from_template.
+type ConsumptionEstimate struct {
+	AreaHa        float64                   `json:"area_ha"`
+	Items         []ConsumptionEstimateItem `json:"items"`
+	FuelResources []FuelStock               `json:"fuel_resources"`
 }

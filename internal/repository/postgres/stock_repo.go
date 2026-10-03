@@ -81,36 +81,24 @@ func (r *StockRepo) GetByResourceID(resourceID int64) (*domain.Stock, error) {
 	return &s, nil
 }
 
-func (r *StockRepo) Create(s *domain.Stock) error {
-	return r.db.QueryRow(
+func (r *StockRepo) Create(tx *sql.Tx, s *domain.Stock) error {
+	return tx.QueryRow(
 		`INSERT INTO stocks (resource_id, quantity, minimum_quantity)
-		 VALUES ($1, $2, $3)
+		 VALUES ($1, 0, $2)
 		 RETURNING id, created_at, updated_at`,
-		s.ResourceID, s.Quantity, s.MinimumQuantity,
+		s.ResourceID, s.MinimumQuantity,
 	).Scan(&s.ID, &s.CreatedAt, &s.UpdatedAt)
 }
 
-func (r *StockRepo) Update(id int64, s *domain.Stock) error {
+func (r *StockRepo) UpdateMinimum(id int64, minimum float64) error {
 	_, err := r.db.Exec(
-		`UPDATE stocks
-		 SET resource_id=$1, quantity=$2, minimum_quantity=$3, updated_at=NOW()
-		 WHERE id=$4`,
-		s.ResourceID, s.Quantity, s.MinimumQuantity, id,
+		`UPDATE stocks SET minimum_quantity=$1, updated_at=NOW() WHERE id=$2`,
+		minimum, id,
 	)
 	return err
 }
 
 func (r *StockRepo) Delete(id int64) error {
 	_, err := r.db.Exec(`DELETE FROM stocks WHERE id=$1`, id)
-	return err
-}
-
-func (r *StockRepo) DecrementQuantity(tx *sql.Tx, resourceID int64, qty float64) error {
-	_, err := tx.Exec(
-		`UPDATE stocks
-		 SET quantity = quantity - $1, updated_at = NOW()
-		 WHERE resource_id = $2`,
-		qty, resourceID,
-	)
 	return err
 }

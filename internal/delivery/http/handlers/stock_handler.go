@@ -34,10 +34,21 @@ func WithStockNotif(n *usecase.NotificationService) func(*StockHandler) {
 }
 
 type stockRequest struct {
-	ResourceID      int64   `json:"resource_id" binding:"gt=0"`
+	ResourceID int64 `json:"resource_id" binding:"gt=0"`
+	// Cantitatea inițială; se înregistrează ca ajustare de inventar.
 	Quantity        float64 `json:"quantity" binding:"gte=0"`
 	MinimumQuantity float64 `json:"minimum_quantity" binding:"gte=0"`
 }
+
+// stockUpdateRequest acceptă doar pragul minim. Câmpurile pointer există ca să respingem
+// explicit încercările de a schimba cantitatea sau resursa.
+type stockUpdateRequest struct {
+	ResourceID      *int64   `json:"resource_id"`
+	Quantity        *float64 `json:"quantity"`
+	MinimumQuantity *float64 `json:"minimum_quantity" binding:"required,gte=0"`
+}
+
+const errStockQuantityNotEditable = "cantitatea nu se editează direct: înregistrează o mișcare de stoc (ajustare de inventar)"
 
 func (h *StockHandler) GetAll(c *gin.Context) {
 	stocks, err := h.service.GetStocks()
@@ -78,7 +89,7 @@ func (h *StockHandler) Create(c *gin.Context) {
 		ResourceID:      req.ResourceID,
 		Quantity:        req.Quantity,
 		MinimumQuantity: req.MinimumQuantity,
-	})
+	}, currentActorID(c))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -99,18 +110,22 @@ func (h *StockHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var req stockRequest
+	var req stockUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if req.Quantity != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errStockQuantityNotEditable})
+		return
+	}
 
 	oldStock, _ := h.service.GetStockByID(id)
-	stock, err := h.service.UpdateStock(id, &domain.Stock{
-		ResourceID:      req.ResourceID,
-		Quantity:        req.Quantity,
-		MinimumQuantity: req.MinimumQuantity,
-	})
+	if req.ResourceID != nil && oldStock != nil && *req.ResourceID != oldStock.ResourceID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "resursa unui stoc nu poate fi schimbată"})
+		return
+	}
+	stock, err := h.service.UpdateMinimum(id, *req.MinimumQuantity)
 	if err != nil {
 		if errors.Is(err, usecase.ErrStockNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -122,12 +137,9 @@ func (h *StockHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, stock)
 
 	changes := map[string]interface{}{
-		"resource_id":      stock.ResourceID,
-		"quantity":         stock.Quantity,
 		"minimum_quantity": stock.MinimumQuantity,
 	}
 	if oldStock != nil {
-		changes["old_quantity"] = oldStock.Quantity
 		changes["old_minimum_quantity"] = oldStock.MinimumQuantity
 	}
 	auditAndNotify(c, h.audit, h.notif, "stock", auditID(id), "update", "Stoc actualizat", fmt.Sprintf("Stoc #%d", id), changes)

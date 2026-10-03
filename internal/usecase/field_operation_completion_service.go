@@ -89,6 +89,7 @@ func (service *FieldOperationCompletionService) complete(
 	if err != nil {
 		return nil, err
 	}
+	fuel := fuelUsage(completion)
 
 	tx, err := service.db.Begin()
 	if err != nil {
@@ -106,29 +107,43 @@ func (service *FieldOperationCompletionService) complete(
 	}
 
 	result := &CompletionResult{Movements: []domain.StockMovement{}, LowStocks: []repository.StockLock{}}
-	operationID := existing.ID
-	for _, usage := range usages {
+	consume := func(usage domain.FieldOperationResourceUsage, notes string, fuelOnly bool) error {
 		if usage.Quantity <= 0 {
-			continue
+			return nil
 		}
 		lock, err := service.movements.LockStockByResource(tx, usage.ResourceID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if lock == nil {
-			return nil, fmt.Errorf("%w: nu există stoc pentru resursa #%d", ErrFieldOperationNotCompletable, usage.ResourceID)
+			return fmt.Errorf("%w: nu există stoc pentru resursa #%d", ErrFieldOperationNotCompletable, usage.ResourceID)
 		}
-		movement, err := buildMovement(lock, domain.StockMovementOut, usage.Quantity, nil, &operationID, "Consum la finalizarea operațiunii", actorID)
+		if fuelOnly && lock.Category != fuelCategory {
+			return fmt.Errorf("%w: resursa #%d nu este combustibil", ErrFieldOperationNotCompletable, usage.ResourceID)
+		}
+		operationID := existing.ID
+		movement, err := buildMovement(lock, domain.StockMovementOut, usage.Quantity, nil, &operationID, notes, actorID)
 		if err != nil {
-			return nil, fmt.Errorf("resursa #%d: %w", usage.ResourceID, err)
+			return fmt.Errorf("resursa #%d: %w", usage.ResourceID, err)
 		}
 		if err := service.movements.ApplyMovement(tx, movement); err != nil {
-			return nil, err
+			return err
 		}
 		result.Movements = append(result.Movements, *movement)
 		if lock.Minimum > 0 && movement.ResultingQuantity <= lock.Minimum {
 			lock.Quantity = movement.ResultingQuantity
 			result.LowStocks = append(result.LowStocks, *lock)
+		}
+		return nil
+	}
+	for _, usage := range usages {
+		if err := consume(usage, "Consum la finalizarea operațiunii", false); err != nil {
+			return nil, err
+		}
+	}
+	if fuel != nil {
+		if err := consume(*fuel, "Combustibil raportat la finalizare", true); err != nil {
+			return nil, err
 		}
 	}
 
@@ -143,12 +158,18 @@ func (service *FieldOperationCompletionService) complete(
 	return result, nil
 }
 
+// fuelCategory este categoria resurselor de combustibil.
+const fuelCategory = "fuel"
+
 func validateCompletion(completion domain.FieldOperationCompletion) error {
 	if completion.AreaCompletedHa != nil && *completion.AreaCompletedHa < 0 {
 		return fmt.Errorf("%w: suprafața realizată nu poate fi negativă", ErrFieldOperationNotCompletable)
 	}
 	if completion.FuelUsedL != nil && *completion.FuelUsedL < 0 {
 		return fmt.Errorf("%w: combustibilul consumat nu poate fi negativ", ErrFieldOperationNotCompletable)
+	}
+	if completion.FuelUsedL != nil && *completion.FuelUsedL > 0 && (completion.FuelResourceID == nil || *completion.FuelResourceID <= 0) {
+		return fmt.Errorf("%w: alege resursa de combustibil din care se scade consumul", ErrFieldOperationNotCompletable)
 	}
 	if completion.MachineHours != nil && *completion.MachineHours < 0 {
 		return fmt.Errorf("%w: orele de mașină nu pot fi negative", ErrFieldOperationNotCompletable)
@@ -161,36 +182,131 @@ func validateCompletion(completion domain.FieldOperationCompletion) error {
 	return nil
 }
 
-// resolveResourceUsage stabilește consumul: cel declarat explicit sau, la cerere, cel din
-// șablon (normă pe hectar × suprafața realizată, cu fallback pe cea planificată).
+// fuelUsage este ieșirea de combustibil generată de câmpul „combustibil consumat”, sau nil.
+func fuelUsage(completion domain.FieldOperationCompletion) *domain.FieldOperationResourceUsage {
+	if completion.FuelUsedL == nil || completion.FuelResourceID == nil {
+		return nil
+	}
+	return &domain.FieldOperationResourceUsage{ResourceID: *completion.FuelResourceID, Quantity: *completion.FuelUsedL}
+}
+
+// resolveResourceUsage stabilește consumul de resurse, fără combustibilul raportat:
+//   - cu consume_from_template, pornește de la normele șablonului (normă × suprafață), iar
+//     resursele trimise explicit înlocuiesc norma aceleiași resurse sau se adaugă;
+//   - altfel, doar resursele trimise explicit.
+//
+// Resursa de combustibil aleasă e scoasă din listă: consumul ei vine doar din fuel_used_l.
 func (service *FieldOperationCompletionService) resolveResourceUsage(existing *dto.FieldOperationResponse, completion domain.FieldOperationCompletion) ([]domain.FieldOperationResourceUsage, error) {
-	if len(completion.Resources) > 0 {
-		return completion.Resources, nil
+	usages := []domain.FieldOperationResourceUsage{}
+	if completion.ConsumeFromTemplate {
+		estimate, err := service.estimateUsage(existing, completion.AreaCompletedHa)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range estimate {
+			usages = append(usages, domain.FieldOperationResourceUsage{ResourceID: item.ResourceID, Quantity: item.Quantity})
+		}
 	}
-	if !completion.ConsumeFromTemplate || existing.OperationTemplateID == nil {
-		return nil, nil
+	for _, explicit := range completion.Resources {
+		replaced := false
+		for i := range usages {
+			if usages[i].ResourceID == explicit.ResourceID {
+				usages[i].Quantity = explicit.Quantity
+				replaced = true
+			}
+		}
+		if !replaced {
+			usages = append(usages, explicit)
+		}
 	}
 
-	area := 0.0
-	if completion.AreaCompletedHa != nil {
-		area = *completion.AreaCompletedHa
-	} else if existing.AreaPlannedHa != nil {
-		area = *existing.AreaPlannedHa
+	if fuel := fuelUsage(completion); fuel != nil {
+		filtered := usages[:0]
+		for _, usage := range usages {
+			if usage.ResourceID != fuel.ResourceID {
+				filtered = append(filtered, usage)
+			}
+		}
+		usages = filtered
 	}
-	if area <= 0 {
-		return nil, nil
-	}
+	return usages, nil
+}
 
+// operationArea este suprafața pe care se aplică normele: cea realizată sau, în lipsă, cea planificată.
+func operationArea(existing *dto.FieldOperationResponse, areaCompleted *float64) float64 {
+	if areaCompleted != nil {
+		return *areaCompleted
+	}
+	if existing.AreaPlannedHa != nil {
+		return *existing.AreaPlannedHa
+	}
+	return 0
+}
+
+// estimateUsage calculează consumul din normele șablonului: normă pe hectar × suprafață.
+// Este singurul loc din aplicație unde se face acest calcul pentru o operațiune.
+func (service *FieldOperationCompletionService) estimateUsage(existing *dto.FieldOperationResponse, areaCompleted *float64) ([]domain.ConsumptionEstimateItem, error) {
+	items := []domain.ConsumptionEstimateItem{}
+	if existing.OperationTemplateID == nil {
+		return items, nil
+	}
 	norms, err := service.ops.GetTemplateResources(*existing.OperationTemplateID)
 	if err != nil {
 		return nil, err
 	}
-	usages := make([]domain.FieldOperationResourceUsage, 0, len(norms))
+	area := operationArea(existing, areaCompleted)
+	if area < 0 {
+		area = 0
+	}
 	for _, norm := range norms {
-		usages = append(usages, domain.FieldOperationResourceUsage{
-			ResourceID: norm.ResourceID,
-			Quantity:   norm.QuantityPerUnit * area,
+		items = append(items, domain.ConsumptionEstimateItem{
+			ResourceID:      norm.ResourceID,
+			ResourceName:    norm.ResourceName,
+			Category:        norm.Category,
+			Unit:            norm.Unit,
+			QuantityPerUnit: norm.QuantityPerUnit,
+			Quantity:        roundQuantity(norm.QuantityPerUnit * area),
 		})
 	}
-	return usages, nil
+	return items, nil
+}
+
+// Estimate întoarce previzualizarea consumului la finalizare, pentru suprafața dată
+// (sau cea planificată), plus resursele de combustibil din care se poate scădea motorina.
+func (service *FieldOperationCompletionService) Estimate(id int64, areaCompleted *float64) (*domain.ConsumptionEstimate, error) {
+	existing, err := service.ops.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	return service.estimate(existing, areaCompleted)
+}
+
+func (service *FieldOperationCompletionService) EstimateForAssignedUser(id, userID int64, areaCompleted *float64) (*domain.ConsumptionEstimate, error) {
+	existing, err := service.ops.GetByIDForAssignedUser(id, userID)
+	if err != nil {
+		return nil, err
+	}
+	return service.estimate(existing, areaCompleted)
+}
+
+func (service *FieldOperationCompletionService) estimate(existing *dto.FieldOperationResponse, areaCompleted *float64) (*domain.ConsumptionEstimate, error) {
+	if existing == nil {
+		return nil, ErrFieldOperationNotFound
+	}
+	if areaCompleted != nil && *areaCompleted < 0 {
+		return nil, fmt.Errorf("%w: suprafața realizată nu poate fi negativă", ErrFieldOperationNotCompletable)
+	}
+	items, err := service.estimateUsage(existing, areaCompleted)
+	if err != nil {
+		return nil, err
+	}
+	fuel, err := service.movements.ListFuelStocks()
+	if err != nil {
+		return nil, err
+	}
+	return &domain.ConsumptionEstimate{
+		AreaHa:        operationArea(existing, areaCompleted),
+		Items:         items,
+		FuelResources: fuel,
+	}, nil
 }

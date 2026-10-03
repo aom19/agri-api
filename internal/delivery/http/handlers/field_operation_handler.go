@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -346,6 +347,7 @@ type completeFieldOperationRequest struct {
 	ActualEndAt         *time.Time                           `json:"actual_end_at"`
 	AreaCompletedHa     *float64                             `json:"area_completed_ha"`
 	FuelUsedL           *float64                             `json:"fuel_used_l"`
+	FuelResourceID      *int64                               `json:"fuel_resource_id"`
 	MachineHours        *float64                             `json:"machine_hours"`
 	Notes               string                               `json:"notes"`
 	Resources           []domain.FieldOperationResourceUsage `json:"resources"`
@@ -355,6 +357,64 @@ type completeFieldOperationRequest struct {
 type completeFieldOperationResponse struct {
 	Operation interface{}            `json:"operation"`
 	Movements []domain.StockMovement `json:"movements"`
+}
+
+// ConsumptionEstimate întoarce consumul estimat la finalizare (normă × suprafață), calculat
+// la fel ca la finalizarea cu consume_from_template, și resursele de combustibil disponibile.
+// @Summary      Estimare consum la finalizare
+// @Tags         field-operations
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID operațiune"
+// @Param        area_ha query number false "Suprafața realizată (implicit cea planificată)"
+// @Success      200 {object} domain.ConsumptionEstimate
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Failure      500 {object} object{error=string}
+// @Router       /field-operations/{id}/consumption-estimate [get]
+func (h *FieldOperationHandler) ConsumptionEstimate(c *gin.Context) {
+	if h.completion == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "finalizarea nu este configurată"})
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var area *float64
+	if raw := strings.TrimSpace(c.Query("area_ha")); raw != "" {
+		value, err := strconv.ParseFloat(strings.Replace(raw, ",", ".", 1), 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "area_ha trebuie să fie un număr"})
+			return
+		}
+		area = &value
+	}
+
+	var estimate *domain.ConsumptionEstimate
+	if isOperatorRequest(c) {
+		userID, ok := currentUserID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+			return
+		}
+		estimate, err = h.completion.EstimateForAssignedUser(id, userID, area)
+	} else {
+		estimate, err = h.completion.Estimate(id, area)
+	}
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrFieldOperationNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		case errors.Is(err, usecase.ErrFieldOperationNotCompletable):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, estimate)
 }
 
 // Complete finalizează operațiunea cu datele reale și înregistrează consumul de resurse.
@@ -389,6 +449,7 @@ func (h *FieldOperationHandler) Complete(c *gin.Context) {
 		ActualEndAt:         req.ActualEndAt,
 		AreaCompletedHa:     req.AreaCompletedHa,
 		FuelUsedL:           req.FuelUsedL,
+		FuelResourceID:      req.FuelResourceID,
 		MachineHours:        req.MachineHours,
 		Notes:               req.Notes,
 		Resources:           req.Resources,

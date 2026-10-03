@@ -16,6 +16,34 @@ definitions:
     - MachineStatusActive
     - MachineStatusMaintenance
     - MachineStatusInactive
+  domain.ConsumptionEstimate:
+    properties:
+      area_ha:
+        type: number
+      fuel_resources:
+        items:
+          $ref: '#/definitions/domain.FuelStock'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/domain.ConsumptionEstimateItem'
+        type: array
+    type: object
+  domain.ConsumptionEstimateItem:
+    properties:
+      category:
+        type: string
+      quantity:
+        type: number
+      quantity_per_unit:
+        type: number
+      resource_id:
+        type: integer
+      resource_name:
+        type: string
+      unit:
+        type: string
+    type: object
   domain.Crop:
     properties:
       category:
@@ -155,6 +183,17 @@ definitions:
         type: number
       resource_id:
         type: integer
+    type: object
+  domain.FuelStock:
+    properties:
+      quantity:
+        type: number
+      resource_id:
+        type: integer
+      resource_name:
+        type: string
+      unit:
+        type: string
     type: object
   domain.FuelType:
     enum:
@@ -1262,6 +1301,8 @@ definitions:
         type: number
       consume_from_template:
         type: boolean
+      fuel_resource_id:
+        type: integer
       fuel_used_l:
         type: number
       machine_hours:
@@ -2105,6 +2146,51 @@ paths:
       security:
       - BearerAuth: []
       summary: Finalizare operațiune pe teren
+      tags:
+      - field-operations
+  /field-operations/{id}/consumption-estimate:
+    get:
+      parameters:
+      - description: ID operațiune
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Suprafața realizată (implicit cea planificată)
+        in: query
+        name: area_ha
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ConsumptionEstimate'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Estimare consum la finalizare
       tags:
       - field-operations
   /health:

@@ -169,6 +169,16 @@ FROM (
 JOIN resources res ON res.name = s.resource_name
 ON CONFLICT DO NOTHING;
 
+-- Seed: cantitatea inițială a fiecărui stoc, ca mișcare (stocul se modifică doar prin mișcări)
+INSERT INTO stock_movements (
+    stock_id, resource_id, movement_type, quantity_delta, resulting_quantity, unit_cost, total_cost, notes
+)
+SELECT s.id, s.resource_id, 'adjustment', s.quantity, s.quantity, r.price_per_unit,
+       s.quantity * r.price_per_unit, 'Stoc inițial'
+FROM stocks s
+JOIN resources r ON r.id = s.resource_id
+WHERE s.quantity <> 0;
+
 -- Seed: tipuri de operatiuni agricole
 INSERT INTO operation_types (code, name, description) VALUES
     ('soil_preparation', 'Pregatire sol', 'Lucrari de pregatire a patului germinativ'),

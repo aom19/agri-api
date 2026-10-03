@@ -114,11 +114,11 @@ func (repo *ReportRepo) GetOperationsMetrics(filter domain.ReportFilter) (*domai
 			COUNT(*) FILTER (WHERE fo.status = 'completed' AND fo.actual_start_at IS NOT NULL AND fo.actual_end_at IS NOT NULL),
 			COALESCE(SUM(%s), 0),
 			COALESCE(SUM(fo.area_completed_ha) FILTER (WHERE fo.status = 'completed'), 0),
-			COALESCE(SUM(fo.fuel_used_l), 0),
+			COALESCE(SUM(%s), 0),
 			COALESCE(SUM(fo.machine_hours), 0),
 			COALESCE(SUM(%s), 0)
 		FROM field_operations fo
-		WHERE %s`, reportOverdueExpr, reportOnTimeExpr, reportEstimatedCostExpr, reportDurationExpr, reportRealCostExpr, where)
+		WHERE %s`, reportOverdueExpr, reportOnTimeExpr, reportEstimatedCostExpr, reportDurationExpr, fuelUsedExpr, reportRealCostExpr, where)
 
 	metrics := &domain.ReportOperationsMetrics{}
 	err := repo.db.QueryRow(query, args...).Scan(
@@ -272,7 +272,7 @@ func (repo *ReportRepo) GetOperationRows(filter domain.ReportFilter, limit int) 
 			fo.actual_end_at,
 			%s,
 			fo.area_completed_ha,
-			fo.fuel_used_l,
+			%s,
 			fo.machine_hours,
 			%s
 		FROM field_operations fo
@@ -284,7 +284,7 @@ func (repo *ReportRepo) GetOperationRows(filter domain.ReportFilter, limit int) 
 		LEFT JOIN operators o ON o.id = fo.operator_id
 		WHERE %s
 		ORDER BY %s DESC, fo.id DESC
-		LIMIT $%d`, reportDelayMinutesExpr, reportEstimatedCostExpr, reportDurationExpr, reportRealCostExpr, where, reportOperationDateExpr, len(args))
+		LIMIT $%d`, reportDelayMinutesExpr, reportEstimatedCostExpr, reportDurationExpr, fuelUsedExpr, reportRealCostExpr, where, reportOperationDateExpr, len(args))
 
 	rows, err := repo.db.Query(query, args...)
 	if err != nil {
@@ -384,13 +384,13 @@ func (repo *ReportRepo) GetFieldRows(filter domain.ReportFilter) ([]domain.Repor
 			COALESCE(SUM(%s), 0),
 			COALESCE(SUM(%s), 0),
 			COALESCE(SUM(fo.area_completed_ha) FILTER (WHERE fo.status = 'completed'), 0),
-			COALESCE(SUM(fo.fuel_used_l), 0),
+			COALESCE(SUM(%s), 0),
 			MAX(%s)
 		FROM fields f
 		LEFT JOIN field_operations fo ON fo.field_id = f.id AND %s
 		WHERE f.deleted_at IS NULL%s
 		GROUP BY f.id, f.name, f.cadastral_number, f.area_ha, f.geometry
-		ORDER BY COUNT(fo.id) DESC, f.name`, reportEstimatedCostExpr, reportRealCostExpr, reportOperationDateExpr, where, fieldClause)
+		ORDER BY COUNT(fo.id) DESC, f.name`, reportEstimatedCostExpr, reportRealCostExpr, fuelUsedExpr, reportOperationDateExpr, where, fieldClause)
 
 	rows, err := repo.db.Query(query, args...)
 	if err != nil {
@@ -489,11 +489,11 @@ func (repo *ReportRepo) GetMachineRows(filter domain.ReportFilter) ([]domain.Rep
 			(SELECT COUNT(*) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s),
 			(SELECT COALESCE(SUM(fo.area_planned_ha), 0) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s),
 			(SELECT COUNT(*) FROM field_operations fa WHERE fa.machine_id = m.id AND %[3]s),
-			(SELECT COALESCE(SUM(fo.fuel_used_l), 0) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s),
+			(SELECT COALESCE(SUM(%[4]s), 0) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s),
 			(SELECT COALESCE(SUM(fo.machine_hours), 0) FROM field_operations fo WHERE fo.machine_id = m.id AND %[1]s)
 		FROM machines m
 		WHERE m.deleted_at IS NULL%[2]s
-		ORDER BY 9 DESC, m.name`, where, machineClause, reportActiveAllocationExpr)
+		ORDER BY 9 DESC, m.name`, where, machineClause, reportActiveAllocationExpr, fuelUsedExpr)
 
 	rows, err := repo.db.Query(query, args...)
 	if err != nil {
