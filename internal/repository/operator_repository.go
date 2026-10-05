@@ -2,15 +2,20 @@ package repository
 
 import (
 	"agri-api/internal/domain"
-	"database/sql"
+	"errors"
 )
 
+// ErrEmailTaken: adresa de e-mail aparține deja altui cont.
+var ErrEmailTaken = errors.New("email already in use")
+
+// OperatorRepository lucrează pe utilizatorii cu rolul `operator` (users + user_profiles).
 type OperatorRepository interface {
-	Create(operator *domain.Operator) error
 	GetAll() ([]domain.Operator, error)
 	GetByID(id int64) (*domain.Operator, error)
+	// Create creează contul (rol operator, fără parolă utilizabilă) și profilul, într-o tranzacție.
+	Create(operator *domain.Operator) error
+	// Update schimbă e-mailul contului și profilul.
 	Update(id int64, operator *domain.Operator) error
-	Delete(id int64) error
-	UpdateStatus(tx *sql.Tx, id int64, status domain.OperatorStatus) error
-	UpdateStatusDirect(id int64, status domain.OperatorStatus) error
+	// SetActive activează sau dezactivează contul.
+	SetActive(id int64, active bool) error
 }

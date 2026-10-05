@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -17,22 +18,40 @@ type OperatorHandler struct {
 	notif   *usecase.NotificationService
 }
 
+// CreateOperatorRequest creează contul (rol operator) și profilul. Fără e-mail, contul primește
+// o adresă tehnică și nu se poate folosi până nu se completează e-mailul real.
 type CreateOperatorRequest struct {
-	UserID              *int64               `json:"user_id"`
-	Name                string               `json:"name" binding:"required"`
+	FirstName           string               `json:"first_name" binding:"required"`
+	LastName            string               `json:"last_name"`
 	Phone               string               `json:"phone"`
-	Email               string               `json:"email"`
+	Email               string               `json:"email" binding:"omitempty,email"`
 	Notes               string               `json:"notes"`
 	AllowedMachineTypes []domain.MachineType `json:"allowed_machine_types"`
 }
 
-type UpdateOperatorRequest struct {
-	UserID              *int64               `json:"user_id"`
-	Name                string               `json:"name" binding:"required"`
-	Phone               string               `json:"phone"`
-	Email               string               `json:"email"`
-	Notes               string               `json:"notes"`
-	AllowedMachineTypes []domain.MachineType `json:"allowed_machine_types"`
+type UpdateOperatorRequest = CreateOperatorRequest
+
+func (req CreateOperatorRequest) toOperator() *domain.Operator {
+	return &domain.Operator{
+		FirstName:           req.FirstName,
+		LastName:            req.LastName,
+		Phone:               req.Phone,
+		Email:               req.Email,
+		Notes:               req.Notes,
+		AllowedMachineTypes: req.AllowedMachineTypes,
+	}
+}
+
+// operatorErrorStatus alege codul HTTP pentru erorile serviciului de operatori.
+func operatorErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, usecase.ErrOperatorNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, usecase.ErrOperatorInvalid):
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 // NewOperatorHandler creează un handler nou cu serviciul injectat
@@ -69,16 +88,9 @@ func (h *OperatorHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	operator, err := h.service.CreateOperator(&domain.Operator{
-		UserID:              req.UserID,
-		Name:                req.Name,
-		Phone:               req.Phone,
-		Email:               req.Email,
-		Notes:               req.Notes,
-		AllowedMachineTypes: req.AllowedMachineTypes,
-	})
+	operator, err := h.service.CreateOperator(req.toOperator())
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(operatorErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, operator)
@@ -132,10 +144,6 @@ func (h *OperatorHandler) GetByID(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, operator)
-	auditAndNotify(c, h.audit, h.notif, "operator", auditID(operator.ID), "update", "Operator actualizat", operator.Name, map[string]interface{}{
-		"name":  operator.Name,
-		"email": operator.Email,
-	})
 }
 
 // Update actualizează un operator
@@ -162,22 +170,19 @@ func (h *OperatorHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	operator, err := h.service.UpdateOperator(operatorID, &domain.Operator{
-		UserID:              req.UserID,
-		Name:                req.Name,
-		Phone:               req.Phone,
-		Email:               req.Email,
-		Notes:               req.Notes,
-		AllowedMachineTypes: req.AllowedMachineTypes,
-	})
+	operator, err := h.service.UpdateOperator(operatorID, req.toOperator())
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(operatorErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, operator)
+	auditAndNotify(c, h.audit, h.notif, "operator", auditID(operator.ID), "update", "Operator actualizat", operator.Name, map[string]interface{}{
+		"name":  operator.Name,
+		"email": operator.Email,
+	})
 }
 
-// Delete șterge un operator
+// Delete șterge operatorul, adică îi dezactivează contul (ca în pagina Utilizatori).
 // @Summary      Ștergere operator
 // @Tags         operators
 // @Produce      json
@@ -195,11 +200,11 @@ func (h *OperatorHandler) Delete(c *gin.Context) {
 	}
 	operator, err := h.service.GetOperatorByID(operatorID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "operator not found"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if err := h.service.DeleteOperator(operatorID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(operatorErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -229,7 +234,7 @@ func (h *OperatorHandler) Disable(c *gin.Context) {
 	oldOperator, _ := h.service.GetOperatorByID(operatorID)
 	operator, err := h.service.DisableOperator(operatorID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(operatorErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, operator)
@@ -259,7 +264,7 @@ func (h *OperatorHandler) Enable(c *gin.Context) {
 	oldOperator, _ := h.service.GetOperatorByID(operatorID)
 	operator, err := h.service.EnableOperator(operatorID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(operatorErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, operator)

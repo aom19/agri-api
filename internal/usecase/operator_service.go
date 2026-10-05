@@ -4,9 +4,15 @@ import (
 	"agri-api/internal/domain"
 	"agri-api/internal/repository"
 	"errors"
+	"strings"
 )
 
-// OperatorService conține logica de business pentru gestionarea operatorilor
+var (
+	ErrOperatorNotFound = errors.New("operator not found")
+	ErrOperatorInvalid  = errors.New("operator invalid")
+)
+
+// OperatorService gestionează operatorii: utilizatori cu rolul `operator`, cu profilul lor.
 type OperatorService struct {
 	operatorRepo repository.OperatorRepository
 }
@@ -15,97 +21,92 @@ func NewOperatorService(operatorRepo repository.OperatorRepository) *OperatorSer
 	return &OperatorService{operatorRepo: operatorRepo}
 }
 
-// GetOperators returnează lista completă a operatorilor
+// GetOperators returnează toți operatorii, inclusiv cei dezactivați.
 func (operatorService *OperatorService) GetOperators() ([]domain.Operator, error) {
 	return operatorService.operatorRepo.GetAll()
 }
 
-// GetOperatorByID returnează un operator după ID sau eroare dacă nu există
+// GetOperatorByID returnează operatorul (după id-ul contului) sau nil dacă nu există.
 func (operatorService *OperatorService) GetOperatorByID(id int64) (*domain.Operator, error) {
-	operator, err := operatorService.operatorRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	return operator, nil
+	return operatorService.operatorRepo.GetByID(id)
 }
 
-// CreateOperator validează și creează un operator nou
+// CreateOperator creează contul și profilul operatorului. Contul nu are parolă utilizabilă:
+// operatorul primește acces când are un e-mail real și își setează parola.
 func (operatorService *OperatorService) CreateOperator(operator *domain.Operator) (*domain.Operator, error) {
-	if operator.Name == "" {
-		return nil, errors.New("name is required")
-	}
-	o := &domain.Operator{
-		Name:                operator.Name,
-		Phone:               operator.Phone,
-		Email:               operator.Email,
-		Notes:               operator.Notes,
-		Status:              domain.OperatorStatusActive,
-		AllowedMachineTypes: operator.AllowedMachineTypes,
-	}
-	if err := operatorService.operatorRepo.Create(o); err != nil {
+	if err := validateOperator(operator); err != nil {
 		return nil, err
 	}
-	return o, nil
+	if err := operatorService.operatorRepo.Create(operator); err != nil {
+		return nil, mapOperatorError(err)
+	}
+	return operatorService.operatorRepo.GetByID(operator.ID)
 }
 
-// UpdateOperator actualizează câmpurile unui operator existent
+// UpdateOperator actualizează e-mailul contului și profilul operatorului.
 func (operatorService *OperatorService) UpdateOperator(id int64, operator *domain.Operator) (*domain.Operator, error) {
-	existing, err := operatorService.operatorRepo.GetByID(id)
-	if err != nil {
+	if err := validateOperator(operator); err != nil {
 		return nil, err
 	}
-	if existing == nil {
-		return nil, errors.New("operator not found")
-	}
-	existing.Name = operator.Name
-	existing.Phone = operator.Phone
-	existing.Email = operator.Email
-	existing.Notes = operator.Notes
-	existing.AllowedMachineTypes = operator.AllowedMachineTypes
-	if err := operatorService.operatorRepo.Update(id, existing); err != nil {
+	if err := operatorService.ensureExists(id); err != nil {
 		return nil, err
 	}
-	return existing, nil
+	if err := operatorService.operatorRepo.Update(id, operator); err != nil {
+		return nil, mapOperatorError(err)
+	}
+	return operatorService.operatorRepo.GetByID(id)
 }
 
+// DeleteOperator dezactivează contul. Lucrările asignate îl păstrează ca operator.
 func (operatorService *OperatorService) DeleteOperator(id int64) error {
-	if found, err := operatorService.operatorRepo.GetByID(id); err != nil {
-		return err
-	} else if found == nil {
-		return errors.New("operator not found")
-	}
-
-	return operatorService.operatorRepo.Delete(id)
+	_, err := operatorService.setActive(id, false)
+	return err
 }
 
-// DisableOperator dezactivează un operator (setează statusul la inactive)
+// DisableOperator dezactivează contul operatorului.
 func (operatorService *OperatorService) DisableOperator(id int64) (*domain.Operator, error) {
-	existing, err := operatorService.operatorRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	if existing == nil {
-		return nil, errors.New("operator not found")
-	}
-	if err := operatorService.operatorRepo.UpdateStatusDirect(id, domain.OperatorStatusInactive); err != nil {
-		return nil, err
-	}
-	existing.Status = domain.OperatorStatusInactive
-	return existing, nil
+	return operatorService.setActive(id, false)
 }
 
-// EnableOperator reactivează un operator (setează statusul la active)
+// EnableOperator reactivează contul operatorului.
 func (operatorService *OperatorService) EnableOperator(id int64) (*domain.Operator, error) {
+	return operatorService.setActive(id, true)
+}
+
+func (operatorService *OperatorService) setActive(id int64, active bool) (*domain.Operator, error) {
+	if err := operatorService.ensureExists(id); err != nil {
+		return nil, err
+	}
+	if err := operatorService.operatorRepo.SetActive(id, active); err != nil {
+		return nil, err
+	}
+	return operatorService.operatorRepo.GetByID(id)
+}
+
+func (operatorService *OperatorService) ensureExists(id int64) error {
 	existing, err := operatorService.operatorRepo.GetByID(id)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if existing == nil {
-		return nil, errors.New("operator not found")
+		return ErrOperatorNotFound
 	}
-	if err := operatorService.operatorRepo.UpdateStatusDirect(id, domain.OperatorStatusActive); err != nil {
-		return nil, err
+	return nil
+}
+
+func validateOperator(operator *domain.Operator) error {
+	if operator == nil || strings.TrimSpace(operator.FirstName) == "" {
+		return errors.Join(ErrOperatorInvalid, errors.New("prenumele este obligatoriu"))
 	}
-	existing.Status = domain.OperatorStatusActive
-	return existing, nil
+	if domain.IsPlaceholderEmail(operator.Email) {
+		return errors.Join(ErrOperatorInvalid, errors.New("adresa de e-mail nu este validă"))
+	}
+	return nil
+}
+
+func mapOperatorError(err error) error {
+	if errors.Is(err, repository.ErrEmailTaken) {
+		return errors.Join(ErrOperatorInvalid, errors.New("adresa de e-mail aparține altui cont"))
+	}
+	return err
 }

@@ -3887,17 +3887,18 @@ const docTemplate = `{
                         "$ref": "#/definitions/domain.MachineType"
                     }
                 },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "type": "string"
-                },
                 "email": {
+                    "description": "Email este gol când contul are doar o adresă tehnică.",
+                    "type": "string"
+                },
+                "first_name": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
                 },
                 "name": {
                     "type": "string"
@@ -3910,12 +3911,6 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/domain.OperatorStatus"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
                 }
             }
         },
@@ -5183,7 +5178,7 @@ const docTemplate = `{
         "handlers.CreateOperatorRequest": {
             "type": "object",
             "required": [
-                "name"
+                "first_name"
             ],
             "properties": {
                 "allowed_machine_types": {
@@ -5195,7 +5190,10 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
-                "name": {
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
                     "type": "string"
                 },
                 "notes": {
@@ -5203,9 +5201,6 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
                 }
             }
         },
@@ -5308,7 +5303,7 @@ const docTemplate = `{
         "handlers.UpdateOperatorRequest": {
             "type": "object",
             "required": [
-                "name"
+                "first_name"
             ],
             "properties": {
                 "allowed_machine_types": {
@@ -5320,7 +5315,10 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
-                "name": {
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
                     "type": "string"
                 },
                 "notes": {
@@ -5328,9 +5326,6 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
                 }
             }
         },

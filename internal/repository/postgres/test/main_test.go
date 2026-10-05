@@ -24,7 +24,7 @@ const migrationsDir = "../../../../migrations"
 var dataTables = []string{
 	"stock_movements", "stocks", "resources", "resource_types",
 	"field_operations", "field_crops", "seasons", "crops",
-	"machines", "operators", "fields", "operation_types",
+	"machines", "users", "fields", "operation_types",
 }
 
 var testDB *sql.DB
@@ -181,9 +181,17 @@ func insertMachine(t *testing.T, db *sql.DB, name, code string) int64 {
 	return insertID(t, db, `INSERT INTO machines (name, code, type) VALUES ($1, $2, 'tractor') RETURNING id`, name, code)
 }
 
+// insertOperator creează un cont cu rolul operator și profilul lui; întoarce id-ul contului.
 func insertOperator(t *testing.T, db *sql.DB, name string) int64 {
 	t.Helper()
-	return insertID(t, db, `INSERT INTO operators (name) VALUES ($1) RETURNING id`, name)
+	id := insertID(t, db, `
+		INSERT INTO users (email, password_hash, role_id)
+		VALUES (LOWER($1) || '@test.ro', '!', (SELECT id FROM roles WHERE code = 'operator'))
+		RETURNING id`, name)
+	if _, err := db.Exec(`INSERT INTO user_profiles (user_id, first_name) VALUES ($1, $2)`, id, name); err != nil {
+		t.Fatal(err)
+	}
+	return id
 }
 
 // fieldOperation descrie o operațiune pe teren; câmpurile nil rămân NULL în baza de date.

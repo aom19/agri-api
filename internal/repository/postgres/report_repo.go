@@ -157,8 +157,8 @@ func (repo *ReportRepo) GetInventorySnapshot() (*domain.ReportInventorySnapshot,
 			(SELECT COUNT(*) FROM machines WHERE deleted_at IS NULL AND asset_status = 'active'),
 			(SELECT COUNT(*) FROM machines WHERE deleted_at IS NULL AND asset_status = 'maintenance')
 				+ (SELECT COUNT(*) FROM implements WHERE deleted_at IS NULL AND status = 'maintenance'),
-			(SELECT COUNT(*) FROM operators WHERE deleted_at IS NULL),
-			(SELECT COUNT(*) FROM operators WHERE deleted_at IS NULL AND status = 'active'),
+			(SELECT COUNT(*) FROM ` + operatorUsersFrom + `),
+			(SELECT COUNT(*) FROM ` + operatorUsersFrom + ` WHERE u.deleted_at IS NULL),
 			(SELECT COUNT(*) FROM stocks),
 			(SELECT COUNT(*) FROM stocks WHERE minimum_quantity > 0 AND quantity <= minimum_quantity),
 			(SELECT COALESCE(SUM(s.quantity * r.price_per_unit), 0) FROM stocks s JOIN resources r ON r.id = s.resource_id)
@@ -261,7 +261,7 @@ func (repo *ReportRepo) GetOperationRows(filter domain.ReportFilter, limit int) 
 			tpl.name,
 			m.name,
 			i.name,
-			o.name,
+			`+operatorNameExpr+`,
 			fo.planned_start_at,
 			fo.planned_end_at,
 			fo.area_planned_ha,
@@ -281,7 +281,7 @@ func (repo *ReportRepo) GetOperationRows(filter domain.ReportFilter, limit int) 
 		LEFT JOIN operation_templates tpl ON tpl.id = fo.operation_template_id
 		LEFT JOIN machines m ON m.id = fo.machine_id
 		LEFT JOIN implements i ON i.id = fo.implement_id
-		LEFT JOIN operators o ON o.id = fo.operator_id
+		`+operatorJoin+`
 		WHERE %s
 		ORDER BY %s DESC, fo.id DESC
 		LIMIT $%d`, reportDelayMinutesExpr, reportEstimatedCostExpr, reportDurationExpr, fuelUsedExpr, reportRealCostExpr, where, reportOperationDateExpr, len(args))
@@ -573,14 +573,15 @@ func (repo *ReportRepo) GetOperatorRows(filter domain.ReportFilter) ([]domain.Re
 	operatorClause := ""
 	if filter.OperatorID > 0 {
 		args = append(args, filter.OperatorID)
-		operatorClause = fmt.Sprintf(" AND o.id = $%d", len(args))
+		operatorClause = fmt.Sprintf(" AND ou.id = $%d", len(args))
 	}
+	// Operatorii sunt conturile cu rolul operator (alias-uri ou/oup, ca operatorJoin).
 	query := fmt.Sprintf(`
 		SELECT
-			o.id,
-			o.name,
-			o.status,
-			o.allowed_machine_types,
+			ou.id,
+			`+operatorNameExpr+`,
+			CASE WHEN ou.deleted_at IS NULL THEN 'active' ELSE 'inactive' END,
+			COALESCE(oup.allowed_machine_types, '{}'),
 			COUNT(fo.id),
 			COUNT(fo.id) FILTER (WHERE fo.status = 'completed'),
 			COUNT(fo.id) FILTER (WHERE fo.status = 'in_progress'),
@@ -588,12 +589,14 @@ func (repo *ReportRepo) GetOperatorRows(filter domain.ReportFilter) ([]domain.Re
 			COUNT(fo.id) FILTER (WHERE %s),
 			COUNT(fo.id) FILTER (WHERE %s),
 			COALESCE(SUM(fo.area_planned_ha), 0),
-			(SELECT COUNT(*) FROM field_operations fa WHERE fa.operator_id = o.id AND %s)
-		FROM operators o
-		LEFT JOIN field_operations fo ON fo.operator_id = o.id AND %s
-		WHERE o.deleted_at IS NULL%s
-		GROUP BY o.id, o.name, o.status, o.allowed_machine_types
-		ORDER BY COUNT(fo.id) DESC, o.name`, reportOnTimeExpr, reportOverdueExpr, reportActiveAllocationExpr, where, operatorClause)
+			(SELECT COUNT(*) FROM field_operations fa WHERE fa.operator_id = ou.id AND %s)
+		FROM users ou
+		JOIN roles our ON our.id = ou.role_id AND our.code = 'operator'
+		LEFT JOIN user_profiles oup ON oup.user_id = ou.id
+		LEFT JOIN field_operations fo ON fo.operator_id = ou.id AND %s
+		WHERE TRUE%s
+		GROUP BY ou.id, ou.email, ou.deleted_at, oup.first_name, oup.last_name, oup.allowed_machine_types
+		ORDER BY COUNT(fo.id) DESC, 2`, reportOnTimeExpr, reportOverdueExpr, reportActiveAllocationExpr, where, operatorClause)
 
 	rows, err := repo.db.Query(query, args...)
 	if err != nil {

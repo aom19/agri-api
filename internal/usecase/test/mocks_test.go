@@ -107,13 +107,11 @@ func (m *machineRepoMock) DB() *sql.DB { return nil }
 // ─── Operator ────────────────────────────────────────────────────────────────
 
 type operatorRepoMock struct {
-	create             func(*domain.Operator) error
-	getAll             func() ([]domain.Operator, error)
-	getByID            func(int64) (*domain.Operator, error)
-	update             func(int64, *domain.Operator) error
-	delete             func(int64) error
-	updateStatus       func(*sql.Tx, int64, domain.OperatorStatus) error
-	updateStatusDirect func(int64, domain.OperatorStatus) error
+	create    func(*domain.Operator) error
+	getAll    func() ([]domain.Operator, error)
+	getByID   func(int64) (*domain.Operator, error)
+	update    func(int64, *domain.Operator) error
+	setActive func(int64, bool) error
 }
 
 func (m *operatorRepoMock) Create(x *domain.Operator) error {
@@ -140,21 +138,9 @@ func (m *operatorRepoMock) Update(id int64, x *domain.Operator) error {
 	}
 	return nil
 }
-func (m *operatorRepoMock) Delete(id int64) error {
-	if m.delete != nil {
-		return m.delete(id)
-	}
-	return nil
-}
-func (m *operatorRepoMock) UpdateStatus(tx *sql.Tx, id int64, s domain.OperatorStatus) error {
-	if m.updateStatus != nil {
-		return m.updateStatus(tx, id, s)
-	}
-	return nil
-}
-func (m *operatorRepoMock) UpdateStatusDirect(id int64, s domain.OperatorStatus) error {
-	if m.updateStatusDirect != nil {
-		return m.updateStatusDirect(id, s)
+func (m *operatorRepoMock) SetActive(id int64, active bool) error {
+	if m.setActive != nil {
+		return m.setActive(id, active)
 	}
 	return nil
 }

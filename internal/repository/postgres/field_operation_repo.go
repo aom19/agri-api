@@ -37,7 +37,7 @@ const fieldOperationBaseSelect = `
 		fo.operation_template_id, t.name,
 		fo.machine_id, m.name, m.asset_status,
 		fo.implement_id, imp.name, imp.status,
-		fo.operator_id, op.name,
+		fo.operator_id, ` + operatorNameExpr + `,
 		fo.planned_start_at,
 		fo.planned_end_at,
 		fo.area_planned_ha,
@@ -63,7 +63,7 @@ const fieldOperationBaseSelect = `
 	LEFT JOIN operation_templates t ON t.id  = fo.operation_template_id
 	LEFT JOIN machines m       ON m.id  = fo.machine_id
 	LEFT JOIN implements imp   ON imp.id = fo.implement_id
-	LEFT JOIN operators op     ON op.id = fo.operator_id
+	` + operatorJoin + `
 	LEFT JOIN field_crops fc   ON fc.id = fo.field_crop_id
 	LEFT JOIN crops cr         ON cr.id = fc.crop_id
 	LEFT JOIN seasons se       ON se.id = fc.season_id
@@ -144,22 +144,7 @@ func (repo *FieldOperationRepo) GetAll(filter repository.FieldOperationFilter) (
 		i++
 	}
 	if filter.AssignedUserID > 0 {
-		query += fmt.Sprintf(`
-			AND EXISTS (
-				SELECT 1
-				FROM users u
-				JOIN operators assigned_op ON (
-					assigned_op.user_id = u.id
-					OR (
-						assigned_op.user_id IS NULL
-						AND assigned_op.email IS NOT NULL
-						AND LOWER(assigned_op.email) = LOWER(u.email)
-					)
-				)
-				WHERE u.id = $%d
-				  AND assigned_op.deleted_at IS NULL
-				  AND assigned_op.id = fo.operator_id
-			)`, i)
+		query += fmt.Sprintf(" AND fo.operator_id = $%d", i)
 		args = append(args, filter.AssignedUserID)
 		i++
 	}
@@ -197,24 +182,7 @@ func (repo *FieldOperationRepo) GetByID(id int64) (*dto.FieldOperationResponse, 
 }
 
 func (repo *FieldOperationRepo) GetByIDForAssignedUser(id int64, userID int64) (*dto.FieldOperationResponse, error) {
-	query := fieldOperationBaseSelect + `
-		AND fo.id = $1
-		AND EXISTS (
-			SELECT 1
-			FROM users u
-			JOIN operators assigned_op ON (
-				assigned_op.user_id = u.id
-				OR (
-					assigned_op.user_id IS NULL
-					AND assigned_op.email IS NOT NULL
-					AND LOWER(assigned_op.email) = LOWER(u.email)
-				)
-			)
-			WHERE u.id = $2
-			  AND assigned_op.deleted_at IS NULL
-			  AND assigned_op.id = fo.operator_id
-		)
-	`
+	query := fieldOperationBaseSelect + " AND fo.id = $1 AND fo.operator_id = $2"
 	row := repo.db.QueryRow(query, id, userID)
 	item, err := scanFieldOperationRow(row)
 	if err == sql.ErrNoRows {
@@ -359,8 +327,7 @@ func (repo *FieldOperationRepo) Delete(id int64) error {
 }
 
 // GetOverdueInProgress returnează operațiunile în lucru care au depășit sfârșitul planificat
-// și nu au fost încă notificate. Utilizatorul operatorului este rezolvat din operators.user_id
-// sau, ca fallback, după e-mail (aceeași regulă ca la filtrarea pe utilizatorul asignat).
+// și nu au fost încă notificate. Operatorul este chiar utilizatorul care primește notificarea.
 func (repo *FieldOperationRepo) GetOverdueInProgress(now time.Time) ([]dto.OverdueFieldOperation, error) {
 	query := `
 		SELECT
@@ -368,26 +335,14 @@ func (repo *FieldOperationRepo) GetOverdueInProgress(now time.Time) ([]dto.Overd
 			f.name,
 			ot.name,
 			fo.operator_id,
-			op.name,
-			COALESCE(
-				op.user_id,
-				(
-					SELECT u.id
-					FROM users u
-					WHERE u.deleted_at IS NULL
-					  AND op.email IS NOT NULL
-					  AND btrim(op.email) <> ''
-					  AND LOWER(u.email) = LOWER(op.email)
-					ORDER BY u.id
-					LIMIT 1
-				)
-			),
+			` + operatorNameExpr + `,
+			CASE WHEN ou.deleted_at IS NULL THEN ou.id END,
 			fo.planned_start_at,
 			fo.planned_end_at
 		FROM field_operations fo
 		JOIN fields f           ON f.id  = fo.field_id
 		JOIN operation_types ot ON ot.id = fo.operation_type_id
-		LEFT JOIN operators op  ON op.id = fo.operator_id
+		` + operatorJoin + `
 		WHERE fo.deleted_at IS NULL
 		  AND fo.status = $1
 		  AND fo.planned_end_at IS NOT NULL

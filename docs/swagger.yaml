@@ -335,14 +335,15 @@ definitions:
         items:
           $ref: '#/definitions/domain.MachineType'
         type: array
-      createdAt:
-        type: string
-      deletedAt:
-        type: string
       email:
+        description: Email este gol când contul are doar o adresă tehnică.
+        type: string
+      first_name:
         type: string
       id:
         type: integer
+      last_name:
+        type: string
       name:
         type: string
       notes:
@@ -351,10 +352,6 @@ definitions:
         type: string
       status:
         $ref: '#/definitions/domain.OperatorStatus'
-      updatedAt:
-        type: string
-      user_id:
-        type: integer
     type: object
   domain.OperatorStatus:
     enum:
@@ -1199,16 +1196,16 @@ definitions:
         type: array
       email:
         type: string
-      name:
+      first_name:
+        type: string
+      last_name:
         type: string
       notes:
         type: string
       phone:
         type: string
-      user_id:
-        type: integer
     required:
-    - name
+    - first_name
     type: object
   handlers.CurrentWeatherResponse:
     properties:
@@ -1282,16 +1279,16 @@ definitions:
         type: array
       email:
         type: string
-      name:
+      first_name:
+        type: string
+      last_name:
         type: string
       notes:
         type: string
       phone:
         type: string
-      user_id:
-        type: integer
     required:
-    - name
+    - first_name
     type: object
   handlers.completeFieldOperationRequest:
     properties:
