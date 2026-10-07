@@ -484,7 +484,7 @@ type fieldOperationRepoMock struct {
 	getByIDForAssignedUser func(int64, int64) (*dto.FieldOperationResponse, error)
 	create                 func(*domain.FieldOperation) error
 	update                 func(int64, *domain.FieldOperation) error
-	updateChecklist        func(int64, domain.FieldOperationChecklist) error
+	getAssetCompatibility  func(int64, *int64, *int64) (*domain.AssetCompatibility, error)
 	updateStatus           func(int64, domain.FieldOperationStatus) error
 	markStarted            func(int64, time.Time) error
 	complete               func(*sql.Tx, int64, domain.FieldOperationCompletion, time.Time) error
@@ -525,11 +525,11 @@ func (m *fieldOperationRepoMock) Update(id int64, x *domain.FieldOperation) erro
 	}
 	return nil
 }
-func (m *fieldOperationRepoMock) UpdateChecklist(id int64, c domain.FieldOperationChecklist) error {
-	if m.updateChecklist != nil {
-		return m.updateChecklist(id, c)
+func (m *fieldOperationRepoMock) GetAssetCompatibility(templateID int64, machineID, implementID *int64) (*domain.AssetCompatibility, error) {
+	if m.getAssetCompatibility != nil {
+		return m.getAssetCompatibility(templateID, machineID, implementID)
 	}
-	return nil
+	return &domain.AssetCompatibility{}, nil
 }
 func (m *fieldOperationRepoMock) UpdateStatus(id int64, s domain.FieldOperationStatus) error {
 	if m.updateStatus != nil {

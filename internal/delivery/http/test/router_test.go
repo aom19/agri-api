@@ -41,9 +41,12 @@ func TestSetupRoutes(t *testing.T) {
 			t.Errorf("ruta %s nu este înregistrată", key)
 		}
 	}
-	// modulul assignments a fost șters: alocările sunt operațiunile pe teren active
+	// rute șterse: assignments (alocările sunt operațiunile pe teren active), checklistul de start
+	// (T10) și compatibilitățile mașină ↔ echipament (T11, regula stă doar pe template)
 	for _, route := range routes {
-		if strings.HasPrefix(route.Path, "/api/assignments") {
+		if strings.HasPrefix(route.Path, "/api/assignments") ||
+			route.Path == "/api/field-operations/:id/checklist" ||
+			strings.HasPrefix(route.Path, "/api/implement-compatibilities") {
 			t.Errorf("ruta ștearsă %s %s e încă înregistrată", route.Method, route.Path)
 		}
 	}

@@ -137,7 +137,7 @@ func TestReportOperators_OperatorRows(t *testing.T) {
 		t.Errorf("operatorul 2 (o finalizare întârziată, o planificare în termen): %+v", o2)
 	}
 	o3 := byID[f.op3]
-	if o3.OperationsCount != 0 || o3.PlannedAreaHa != 0 || o3.AllowedMachineTypes == nil {
+	if o3.OperationsCount != 0 || o3.PlannedAreaHa != 0 {
 		t.Errorf("operatorul fără operațiuni: %+v", o3)
 	}
 	// operatorul 3 nu are operațiuni în perioadă, dar are una planificată după ea

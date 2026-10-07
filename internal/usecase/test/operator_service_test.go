@@ -65,11 +65,11 @@ func TestOperatorService_Create(t *testing.T) {
 		}
 	}
 
-	created, err := svc.CreateOperator(&domain.Operator{FirstName: "Ion", Phone: "0700", AllowedMachineTypes: []domain.MachineType{domain.MachineTypeTractor}})
+	created, err := svc.CreateOperator(&domain.Operator{FirstName: "Ion", Phone: "0700"})
 	if err != nil {
 		t.Fatalf("eroare neașteptată: %v", err)
 	}
-	if created.ID != 1 || created.Status != domain.OperatorStatusActive || len(created.AllowedMachineTypes) != 1 {
+	if created.ID != 1 || created.Status != domain.OperatorStatusActive || created.Phone != "0700" {
 		t.Errorf("operator creat greșit: %+v", created)
 	}
 

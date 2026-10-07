@@ -24,7 +24,7 @@ const migrationsDir = "../../../../migrations"
 var dataTables = []string{
 	"stock_movements", "stocks", "resources", "resource_types",
 	"field_operations", "field_crops", "seasons", "crops",
-	"machines", "users", "fields", "operation_types",
+	"machines", "implements", "users", "fields", "operation_types",
 }
 
 var testDB *sql.DB

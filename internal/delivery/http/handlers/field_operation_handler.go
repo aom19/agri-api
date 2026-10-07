@@ -56,13 +56,6 @@ type createFieldOperationRequest struct {
 
 type updateFieldOperationRequest = createFieldOperationRequest
 
-type updateFieldOperationChecklistRequest struct {
-	MachineStatus   bool `json:"machine_status"`
-	ImplementStatus bool `json:"implement_status"`
-	FieldArea       bool `json:"field_area"`
-	NotesConfirmed  bool `json:"notes_confirmed"`
-}
-
 func toDomainFieldOperation(req createFieldOperationRequest) *domain.FieldOperation {
 	return &domain.FieldOperation{
 		FieldID:             req.FieldID,
@@ -77,15 +70,6 @@ func toDomainFieldOperation(req createFieldOperationRequest) *domain.FieldOperat
 		Notes:               req.Notes,
 		Status:              req.Status,
 		FieldCropID:         req.FieldCropID,
-	}
-}
-
-func toDomainFieldOperationChecklist(req updateFieldOperationChecklistRequest) domain.FieldOperationChecklist {
-	return domain.FieldOperationChecklist{
-		MachineStatus:   req.MachineStatus,
-		ImplementStatus: req.ImplementStatus,
-		FieldArea:       req.FieldArea,
-		NotesConfirmed:  req.NotesConfirmed,
 	}
 }
 
@@ -230,49 +214,6 @@ func (h *FieldOperationHandler) Update(c *gin.Context) {
 			changes["old_status"] = string(oldItem.Status)
 		}
 		h.audit.Log("field_operation", strconv.FormatInt(id, 10), "update", currentActorID(c), changes)
-	}
-}
-
-func (h *FieldOperationHandler) UpdateChecklist(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-	var req updateFieldOperationChecklistRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	checklist := toDomainFieldOperationChecklist(req)
-	var item interface{}
-	if isOperatorRequest(c) {
-		userID, ok := currentUserID(c)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
-			return
-		}
-		item, err = h.service.UpdateChecklistForAssignedUser(id, userID, checklist)
-	} else {
-		item, err = h.service.UpdateChecklist(id, checklist)
-	}
-	if err != nil {
-		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, item)
-
-	if h.audit != nil {
-		h.audit.Log("field_operation", strconv.FormatInt(id, 10), "checklist", currentActorID(c), map[string]interface{}{
-			"machine_status":   checklist.MachineStatus,
-			"implement_status": checklist.ImplementStatus,
-			"field_area":       checklist.FieldArea,
-			"notes_confirmed":  checklist.NotesConfirmed,
-		})
 	}
 }
 

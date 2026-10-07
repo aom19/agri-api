@@ -114,8 +114,6 @@ func main() {
 	)
 	go overdueMonitor.Start(context.Background())
 
-	// 2.5 Repository pentru compatibilitățile utilaj ↔ echipament
-	implementCompatibilityRepo := postgres.NewImplementCompatibilityRepo(sqlDB)
 	dashboardRepo := postgres.NewDashboardRepo(sqlDB)
 	dashboardService := usecase.NewDashboardService(dashboardRepo, auditRepo)
 	reportRepo := postgres.NewReportRepo(sqlDB)
@@ -227,7 +225,6 @@ func main() {
 		AuditService:                    auditService,
 		NotificationService:             notificationService,
 		AuditRepo:                       auditRepo,
-		ImplementCompatibilityRepo:      implementCompatibilityRepo,
 		AuthService:                     authService,
 		ProfileService:                  profileService,
 		RBACService:                     rbacService,

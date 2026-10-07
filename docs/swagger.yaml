@@ -331,10 +331,6 @@ definitions:
     - MachineTypeOther
   domain.Operator:
     properties:
-      allowed_machine_types:
-        items:
-          $ref: '#/definitions/domain.MachineType'
-        type: array
       email:
         description: Email este gol când contul are doar o adresă tehnică.
         type: string
@@ -788,10 +784,6 @@ definitions:
     properties:
       active_assignments:
         type: integer
-      allowed_machine_types:
-        items:
-          type: string
-        type: array
       completed_count:
         type: integer
       id:
@@ -1190,10 +1182,6 @@ definitions:
     type: object
   handlers.CreateOperatorRequest:
     properties:
-      allowed_machine_types:
-        items:
-          $ref: '#/definitions/domain.MachineType'
-        type: array
       email:
         type: string
       first_name:
@@ -1273,10 +1261,6 @@ definitions:
     type: object
   handlers.UpdateOperatorRequest:
     properties:
-      allowed_machine_types:
-        items:
-          $ref: '#/definitions/domain.MachineType'
-        type: array
       email:
         type: string
       first_name:

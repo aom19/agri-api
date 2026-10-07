@@ -17,7 +17,7 @@ func TestOperators_AreUsersWithProfile(t *testing.T) {
 	repo := postgres.NewOperatorRepo(db)
 
 	// fără e-mail: contul primește o adresă tehnică, ascunsă în API, și nu se poate autentifica
-	noEmail := &domain.Operator{FirstName: "Gheorghe", LastName: "Dănilă", Phone: "+37369100003", AllowedMachineTypes: []domain.MachineType{domain.MachineTypeTractor}}
+	noEmail := &domain.Operator{FirstName: "Gheorghe", LastName: "Dănilă", Phone: "+37369100003"}
 	if err := repo.Create(noEmail); err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestOperators_AreUsersWithProfile(t *testing.T) {
 	}
 	got, err := repo.GetByID(noEmail.ID)
 	if err != nil || got.Name != "Gheorghe Dănilă" || got.Email != "" || got.Phone != "+37369100003" ||
-		got.Status != domain.OperatorStatusActive || len(got.AllowedMachineTypes) != 1 {
+		got.Status != domain.OperatorStatusActive {
 		t.Fatalf("operatorul citit: %v, %+v", err, got)
 	}
 

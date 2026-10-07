@@ -5,19 +5,21 @@ import (
 	"agri-api/internal/dto"
 	"agri-api/internal/repository"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 )
 
 var (
-	ErrFieldOperationNotFound             = errors.New("field operation not found")
-	ErrFieldOperationInvalidStatus        = errors.New("invalid field operation status")
-	ErrFieldOperationFieldRequired        = errors.New("field_id is required")
-	ErrFieldOperationTypeRequired         = errors.New("operation_type_id is required")
-	ErrFieldOperationBadDates             = errors.New("planned_end_at must be after or equal to planned_start_at")
-	ErrFieldOperationChecklistIncomplete  = errors.New("checklist must be completed before starting")
-	ErrFieldOperationResourcesUnavailable = errors.New("assigned machine and implement must be active before starting")
-	ErrFieldOperationCannotStart          = errors.New("field operation cannot be started from current status")
+	ErrFieldOperationNotFound              = errors.New("operațiunea pe teren nu a fost găsită")
+	ErrFieldOperationInvalidStatus         = errors.New("statusul operațiunii nu este valid")
+	ErrFieldOperationFieldRequired         = errors.New("terenul este obligatoriu")
+	ErrFieldOperationTypeRequired          = errors.New("tipul operațiunii este obligatoriu")
+	ErrFieldOperationBadDates              = errors.New("sfârșitul planificat nu poate fi înaintea începutului planificat")
+	ErrFieldOperationResourcesUnavailable  = errors.New("mașina și echipamentul trebuie să fie active înainte de pornire")
+	ErrFieldOperationCannotStart           = errors.New("lucrarea nu poate fi pornită din statusul curent")
+	ErrFieldOperationMachineIncompatible   = errors.New("tipul mașinii nu este acceptat de template-ul operațiunii")
+	ErrFieldOperationImplementIncompatible = errors.New("tipul echipamentului nu este acceptat de template-ul operațiunii")
 )
 
 type FieldOperationService struct {
@@ -91,34 +93,6 @@ func (s *FieldOperationService) Update(id int64, input *domain.FieldOperation) (
 	return s.repo.GetByID(id)
 }
 
-func (s *FieldOperationService) UpdateChecklist(id int64, checklist domain.FieldOperationChecklist) (*dto.FieldOperationResponse, error) {
-	existing, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	if existing == nil {
-		return nil, ErrFieldOperationNotFound
-	}
-	if err := s.repo.UpdateChecklist(id, checklist); err != nil {
-		return nil, err
-	}
-	return s.repo.GetByID(id)
-}
-
-func (s *FieldOperationService) UpdateChecklistForAssignedUser(id int64, userID int64, checklist domain.FieldOperationChecklist) (*dto.FieldOperationResponse, error) {
-	existing, err := s.repo.GetByIDForAssignedUser(id, userID)
-	if err != nil {
-		return nil, err
-	}
-	if existing == nil {
-		return nil, ErrFieldOperationNotFound
-	}
-	if err := s.repo.UpdateChecklist(id, checklist); err != nil {
-		return nil, err
-	}
-	return s.repo.GetByIDForAssignedUser(id, userID)
-}
-
 func (s *FieldOperationService) Start(id int64) (*dto.FieldOperationResponse, error) {
 	existing, err := s.repo.GetByID(id)
 	if err != nil {
@@ -172,7 +146,7 @@ func (s *FieldOperationService) Delete(id int64) error {
 
 func (s *FieldOperationService) validate(input *domain.FieldOperation) error {
 	if input == nil {
-		return errors.New("payload is required")
+		return errors.New("datele operațiunii lipsesc")
 	}
 	if strings.TrimSpace(input.FieldID) == "" {
 		return ErrFieldOperationFieldRequired
@@ -184,13 +158,36 @@ func (s *FieldOperationService) validate(input *domain.FieldOperation) error {
 		return ErrFieldOperationInvalidStatus
 	}
 	if input.AreaPlannedHa != nil && *input.AreaPlannedHa < 0 {
-		return errors.New("area_planned_ha must be greater than or equal to 0")
+		return errors.New("suprafața planificată nu poate fi negativă")
 	}
 	if input.PlannedStartAt != nil && input.PlannedEndAt != nil &&
 		input.PlannedEndAt.Before(*input.PlannedStartAt) {
 		return ErrFieldOperationBadDates
 	}
+	return s.validateAssetCompatibility(input)
+}
+
+// validateAssetCompatibility verifică mașina și echipamentul față de tipurile acceptate de
+// template. Un template fără tipuri, sau o operațiune fără template, acceptă orice.
+func (s *FieldOperationService) validateAssetCompatibility(input *domain.FieldOperation) error {
+	if input.OperationTemplateID == nil || (input.MachineID == nil && input.ImplementID == nil) {
+		return nil
+	}
+	c, err := s.repo.GetAssetCompatibility(*input.OperationTemplateID, input.MachineID, input.ImplementID)
+	if err != nil {
+		return err
+	}
+	if !typeAllowed(c.TemplateMachineTypes, c.MachineType) {
+		return ErrFieldOperationMachineIncompatible
+	}
+	if !typeAllowed(c.TemplateImplementTypes, c.ImplementType) {
+		return ErrFieldOperationImplementIncompatible
+	}
 	return nil
+}
+
+func typeAllowed(allowed []string, assetType string) bool {
+	return assetType == "" || len(allowed) == 0 || slices.Contains(allowed, assetType)
 }
 
 func validateStartReadiness(operation *dto.FieldOperationResponse) error {
@@ -199,10 +196,6 @@ func validateStartReadiness(operation *dto.FieldOperationResponse) error {
 	}
 	if operation.Status != string(domain.FieldOperationStatusPlanned) {
 		return ErrFieldOperationCannotStart
-	}
-	if !operation.Checklist.MachineStatus || !operation.Checklist.ImplementStatus ||
-		!operation.Checklist.FieldArea || !operation.Checklist.NotesConfirmed {
-		return ErrFieldOperationChecklistIncomplete
 	}
 	if operation.MachineID != nil && !isActiveAssetStatus(operation.MachineStatus) {
 		return ErrFieldOperationResourcesUnavailable

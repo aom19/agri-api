@@ -3881,12 +3881,6 @@ const docTemplate = `{
         "domain.Operator": {
             "type": "object",
             "properties": {
-                "allowed_machine_types": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.MachineType"
-                    }
-                },
                 "email": {
                     "description": "Email este gol când contul are doar o adresă tehnică.",
                     "type": "string"
@@ -4570,12 +4564,6 @@ const docTemplate = `{
                 "active_assignments": {
                     "type": "integer"
                 },
-                "allowed_machine_types": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "completed_count": {
                     "type": "integer"
                 },
@@ -5181,12 +5169,6 @@ const docTemplate = `{
                 "first_name"
             ],
             "properties": {
-                "allowed_machine_types": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.MachineType"
-                    }
-                },
                 "email": {
                     "type": "string"
                 },
@@ -5306,12 +5288,6 @@ const docTemplate = `{
                 "first_name"
             ],
             "properties": {
-                "allowed_machine_types": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.MachineType"
-                    }
-                },
                 "email": {
                     "type": "string"
                 },

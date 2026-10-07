@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"agri-api/internal/domain"
-
-	"github.com/lib/pq"
 )
 
 type ReportRepo struct {
@@ -581,7 +579,6 @@ func (repo *ReportRepo) GetOperatorRows(filter domain.ReportFilter) ([]domain.Re
 			ou.id,
 			`+operatorNameExpr+`,
 			CASE WHEN ou.deleted_at IS NULL THEN 'active' ELSE 'inactive' END,
-			COALESCE(oup.allowed_machine_types, '{}'),
 			COUNT(fo.id),
 			COUNT(fo.id) FILTER (WHERE fo.status = 'completed'),
 			COUNT(fo.id) FILTER (WHERE fo.status = 'in_progress'),
@@ -595,7 +592,7 @@ func (repo *ReportRepo) GetOperatorRows(filter domain.ReportFilter) ([]domain.Re
 		LEFT JOIN user_profiles oup ON oup.user_id = ou.id
 		LEFT JOIN field_operations fo ON fo.operator_id = ou.id AND %s
 		WHERE TRUE%s
-		GROUP BY ou.id, ou.email, ou.deleted_at, oup.first_name, oup.last_name, oup.allowed_machine_types
+		GROUP BY ou.id, ou.email, ou.deleted_at, oup.first_name, oup.last_name
 		ORDER BY COUNT(fo.id) DESC, 2`, reportOnTimeExpr, reportOverdueExpr, reportActiveAllocationExpr, where, operatorClause)
 
 	rows, err := repo.db.Query(query, args...)
@@ -606,20 +603,13 @@ func (repo *ReportRepo) GetOperatorRows(filter domain.ReportFilter) ([]domain.Re
 
 	items := []domain.ReportOperatorRow{}
 	for rows.Next() {
-		var (
-			row          domain.ReportOperatorRow
-			allowedTypes pq.StringArray
-		)
+		var row domain.ReportOperatorRow
 		if err := rows.Scan(
-			&row.ID, &row.Name, &row.Status, &allowedTypes,
+			&row.ID, &row.Name, &row.Status,
 			&row.OperationsCount, &row.CompletedCount, &row.InProgressCount, &row.PlannedCount,
 			&row.OnTimeCount, &row.OverdueCount, &row.PlannedAreaHa, &row.ActiveAssignments,
 		); err != nil {
 			return nil, err
-		}
-		row.AllowedMachineTypes = []string(allowedTypes)
-		if row.AllowedMachineTypes == nil {
-			row.AllowedMachineTypes = []string{}
 		}
 		items = append(items, row)
 	}

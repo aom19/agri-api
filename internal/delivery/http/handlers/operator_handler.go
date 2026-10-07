@@ -21,24 +21,22 @@ type OperatorHandler struct {
 // CreateOperatorRequest creează contul (rol operator) și profilul. Fără e-mail, contul primește
 // o adresă tehnică și nu se poate folosi până nu se completează e-mailul real.
 type CreateOperatorRequest struct {
-	FirstName           string               `json:"first_name" binding:"required"`
-	LastName            string               `json:"last_name"`
-	Phone               string               `json:"phone"`
-	Email               string               `json:"email" binding:"omitempty,email"`
-	Notes               string               `json:"notes"`
-	AllowedMachineTypes []domain.MachineType `json:"allowed_machine_types"`
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email" binding:"omitempty,email"`
+	Notes     string `json:"notes"`
 }
 
 type UpdateOperatorRequest = CreateOperatorRequest
 
 func (req CreateOperatorRequest) toOperator() *domain.Operator {
 	return &domain.Operator{
-		FirstName:           req.FirstName,
-		LastName:            req.LastName,
-		Phone:               req.Phone,
-		Email:               req.Email,
-		Notes:               req.Notes,
-		AllowedMachineTypes: req.AllowedMachineTypes,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Phone:     req.Phone,
+		Email:     req.Email,
+		Notes:     req.Notes,
 	}
 }
 

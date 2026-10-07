@@ -45,19 +45,17 @@ const operatorSelect = `
 		COALESCE(up.phone, ''),
 		u.email,
 		COALESCE(up.notes, ''),
-		u.deleted_at IS NULL,
-		COALESCE(up.allowed_machine_types, '{}')
+		u.deleted_at IS NULL
 	FROM users u
 	JOIN roles r ON r.id = u.role_id AND r.code = 'operator'
 	LEFT JOIN user_profiles up ON up.user_id = u.id`
 
 func scanOperator(row interface{ Scan(...interface{}) error }) (*domain.Operator, error) {
 	var (
-		o            domain.Operator
-		active       bool
-		allowedTypes pq.StringArray
+		o      domain.Operator
+		active bool
 	)
-	if err := row.Scan(&o.ID, &o.FirstName, &o.LastName, &o.Phone, &o.Email, &o.Notes, &active, &allowedTypes); err != nil {
+	if err := row.Scan(&o.ID, &o.FirstName, &o.LastName, &o.Phone, &o.Email, &o.Notes, &active); err != nil {
 		return nil, err
 	}
 	o.Name = o.FullName()
@@ -70,10 +68,6 @@ func scanOperator(row interface{ Scan(...interface{}) error }) (*domain.Operator
 	o.Status = domain.OperatorStatusInactive
 	if active {
 		o.Status = domain.OperatorStatusActive
-	}
-	o.AllowedMachineTypes = make([]domain.MachineType, 0, len(allowedTypes))
-	for _, t := range allowedTypes {
-		o.AllowedMachineTypes = append(o.AllowedMachineTypes, domain.MachineType(t))
 	}
 	return &o, nil
 }
@@ -174,26 +168,20 @@ func (operatorRepo *OperatorRepo) SetActive(id int64, active bool) error {
 }
 
 func upsertOperatorProfile(tx *sql.Tx, userID int64, operator *domain.Operator) error {
-	allowedTypes := make([]string, len(operator.AllowedMachineTypes))
-	for i, t := range operator.AllowedMachineTypes {
-		allowedTypes[i] = string(t)
-	}
 	_, err := tx.Exec(`
-		INSERT INTO user_profiles (user_id, first_name, last_name, phone, notes, allowed_machine_types)
-		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), $6)
+		INSERT INTO user_profiles (user_id, first_name, last_name, phone, notes)
+		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''))
 		ON CONFLICT (user_id) DO UPDATE SET
-			first_name            = EXCLUDED.first_name,
-			last_name             = EXCLUDED.last_name,
-			phone                 = EXCLUDED.phone,
-			notes                 = EXCLUDED.notes,
-			allowed_machine_types = EXCLUDED.allowed_machine_types,
-			updated_at            = NOW()`,
+			first_name = EXCLUDED.first_name,
+			last_name  = EXCLUDED.last_name,
+			phone      = EXCLUDED.phone,
+			notes      = EXCLUDED.notes,
+			updated_at = NOW()`,
 		userID,
 		strings.TrimSpace(operator.FirstName),
 		strings.TrimSpace(operator.LastName),
 		strings.TrimSpace(operator.Phone),
 		strings.TrimSpace(operator.Notes),
-		pq.Array(allowedTypes),
 	)
 	return err
 }

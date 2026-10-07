@@ -26,10 +26,9 @@ const (
 	TagStocks          = "stocks"     // stocks + stock_movements
 	TagOperations      = "operations" // operation_types + operation_templates
 	TagFieldOperations = "field_operations"
-	TagCrops           = "crops"           // seasons + crops + field_crops
-	TagUsers           = "users"           // users + user_profiles + roles + permissions
-	TagCompatibilities = "compatibilities" // implement_compatibilities (fără rute de scriere)
-	TagWeather         = "weather"         // weather_snapshots (scrise de monitorul meteo)
+	TagCrops           = "crops"   // seasons + crops + field_crops
+	TagUsers           = "users"   // users + user_profiles + roles + permissions
+	TagWeather         = "weather" // weather_snapshots (scrise de monitorul meteo)
 )
 
 const (

@@ -27,10 +27,9 @@ type Operator struct {
 	Name      string `json:"name"`
 	Phone     string `json:"phone"`
 	// Email este gol când contul are doar o adresă tehnică.
-	Email               string         `json:"email"`
-	Notes               string         `json:"notes"`
-	Status              OperatorStatus `json:"status"`
-	AllowedMachineTypes []MachineType  `json:"allowed_machine_types"`
+	Email  string         `json:"email"`
+	Notes  string         `json:"notes"`
+	Status OperatorStatus `json:"status"`
 }
 
 // FullName este numele afișat: prenume + nume.

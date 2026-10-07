@@ -196,18 +196,17 @@ type ReportFleet struct {
 }
 
 type ReportOperatorRow struct {
-	ID                  int64    `json:"id"`
-	Name                string   `json:"name"`
-	Status              string   `json:"status"`
-	AllowedMachineTypes []string `json:"allowed_machine_types"`
-	OperationsCount     int      `json:"operations_count"`
-	CompletedCount      int      `json:"completed_count"`
-	InProgressCount     int      `json:"in_progress_count"`
-	PlannedCount        int      `json:"planned_count"`
-	OnTimeCount         int      `json:"on_time_count"`
-	OverdueCount        int      `json:"overdue_count"`
-	PlannedAreaHa       float64  `json:"planned_area_ha"`
-	ActiveAssignments   int      `json:"active_assignments"`
+	ID                int64   `json:"id"`
+	Name              string  `json:"name"`
+	Status            string  `json:"status"`
+	OperationsCount   int     `json:"operations_count"`
+	CompletedCount    int     `json:"completed_count"`
+	InProgressCount   int     `json:"in_progress_count"`
+	PlannedCount      int     `json:"planned_count"`
+	OnTimeCount       int     `json:"on_time_count"`
+	OverdueCount      int     `json:"overdue_count"`
+	PlannedAreaHa     float64 `json:"planned_area_ha"`
+	ActiveAssignments int     `json:"active_assignments"`
 }
 
 type ReportOperators struct {

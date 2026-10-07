@@ -35,9 +35,11 @@ type FieldOperation struct {
 	Auditfields
 }
 
-type FieldOperationChecklist struct {
-	MachineStatus   bool `json:"machine_status"`
-	ImplementStatus bool `json:"implement_status"`
-	FieldArea       bool `json:"field_area"`
-	NotesConfirmed  bool `json:"notes_confirmed"`
+// AssetCompatibility descrie ce tipuri de mașini și echipamente acceptă template-ul unei
+// operațiuni (listă goală = orice tip) și ce tip au mașina și echipamentul alese (gol = neales).
+type AssetCompatibility struct {
+	TemplateMachineTypes   []string
+	TemplateImplementTypes []string
+	MachineType            string
+	ImplementType          string
 }

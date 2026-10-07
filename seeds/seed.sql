@@ -10,7 +10,7 @@ BEGIN
     FROM unnest(ARRAY[
         'field_operations', 'field_crops', 'weather_snapshots', 'stock_movements',
         'fields',
-        'implement_compatibilities', 'implements', 'machines',
+        'implements', 'machines',
         'template_resources', 'template_machine_types', 'template_implement_types',
         'operation_templates', 'operation_types',
         'stocks'
@@ -91,41 +91,29 @@ INSERT INTO implements (
     ('OT-UNIVERSAL-PLATFORM-01', 'IMP-0009', 'other', 'Universal', 'Platform', 2015, NULL, 2500, 'inactive', 'Implement generic pentru utilizari diverse')
 ON CONFLICT DO NOTHING;
 
--- Seed: compatibilități între tipuri de mașini și implementuri
-INSERT INTO implement_compatibilities (machine_type, implement_type) VALUES
-    ('tractor', 'plow'),
-    ('tractor', 'seeder'),
-    ('tractor', 'fertilizer_spreader'),
-    ('tractor', 'sprayer'),
-    ('tractor', 'trailer'),
-    ('combine', 'header'),
-    ('combine', 'trailer'),
-    ('drone', 'sprayer')
-ON CONFLICT DO NOTHING;
-
 -- Seed: 15 operatori = conturi cu rolul operator + profil. Conturile existente (după e-mail)
 -- nu sunt șterse; cei fără e-mail primesc o adresă tehnică @fara-email.local și niciunul nu are
 -- parolă utilizabilă ('!'), până la resetarea parolei.
 CREATE TEMP TABLE seed_operators (
-    first_name TEXT, last_name TEXT, phone TEXT, email TEXT, active BOOLEAN, machine_types TEXT[]
+    first_name TEXT, last_name TEXT, phone TEXT, email TEXT, active BOOLEAN
 );
 
 INSERT INTO seed_operators VALUES
-    ('Alexandru', 'Ionescu',   '+37369100001', 'alexandru.ionescu@agri.ro', TRUE,  '{tractor,combine}'),
-    ('Mihai',     'Popescu',   '+37369100002', 'mihai.popescu@agri.ro',     TRUE,  '{tractor}'),
-    ('Gheorghe',  'Dănilă',    '+37369100003', NULL,                        TRUE,  '{tractor,sprayer}'),
-    ('Ion',       'Constantin','+37369100004', NULL,                        TRUE,  '{tractor,small_truck}'),
-    ('Vasile',    'Marin',     '+37369100005', 'vasile.marin@agri.ro',      TRUE,  '{combine}'),
-    ('Dumitru',   'Florescu',  '+37369100006', NULL,                        TRUE,  '{tractor}'),
-    ('Nicolae',   'Stancu',    '+37369100007', 'nicolae.stancu@agri.ro',    TRUE,  '{tractor,car}'),
-    ('Florin',    'Gheorghiu', '+37369100008', NULL,                        TRUE,  '{tractor,small_truck}'),
-    ('Octavian',  'Rus',       '+37369100009', 'octavian.rus@agri.ro',      TRUE,  '{drone}'),
-    ('Petru',     'Moldovan',  '+37369100010', NULL,                        TRUE,  '{drone,sprayer}'),
-    ('Andrei',    'Popa',      '+37369100011', NULL,                        FALSE, '{tractor}'),
-    ('Cristian',  'Luca',      '+37369100012', NULL,                        FALSE, '{car,small_truck}'),
-    ('Bogdan',    'Stoica',    '+37369100013', 'bogdan.stoica@agri.ro',     TRUE,  '{combine,tractor}'),
-    ('Radu',      'Nistor',    '+37369100014', NULL,                        TRUE,  '{tractor}'),
-    ('Sorin',     'Enache',    '+37369100015', 'sorin.enache@agri.ro',      TRUE,  '{tractor,sprayer}');
+    ('Alexandru', 'Ionescu',   '+37369100001', 'alexandru.ionescu@agri.ro', TRUE),
+    ('Mihai',     'Popescu',   '+37369100002', 'mihai.popescu@agri.ro',     TRUE),
+    ('Gheorghe',  'Dănilă',    '+37369100003', NULL,                        TRUE),
+    ('Ion',       'Constantin','+37369100004', NULL,                        TRUE),
+    ('Vasile',    'Marin',     '+37369100005', 'vasile.marin@agri.ro',      TRUE),
+    ('Dumitru',   'Florescu',  '+37369100006', NULL,                        TRUE),
+    ('Nicolae',   'Stancu',    '+37369100007', 'nicolae.stancu@agri.ro',    TRUE),
+    ('Florin',    'Gheorghiu', '+37369100008', NULL,                        TRUE),
+    ('Octavian',  'Rus',       '+37369100009', 'octavian.rus@agri.ro',      TRUE),
+    ('Petru',     'Moldovan',  '+37369100010', NULL,                        TRUE),
+    ('Andrei',    'Popa',      '+37369100011', NULL,                        FALSE),
+    ('Cristian',  'Luca',      '+37369100012', NULL,                        FALSE),
+    ('Bogdan',    'Stoica',    '+37369100013', 'bogdan.stoica@agri.ro',     TRUE),
+    ('Radu',      'Nistor',    '+37369100014', NULL,                        TRUE),
+    ('Sorin',     'Enache',    '+37369100015', 'sorin.enache@agri.ro',      TRUE);
 
 -- Operatorii fără e-mail care există deja (ex. creați de migrarea 48) sunt regăsiți după telefon.
 UPDATE seed_operators s
@@ -147,16 +135,15 @@ SELECT s.email, '!', (SELECT id FROM roles WHERE code = 'operator'), FALSE, CASE
 FROM seed_operators s
 ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO user_profiles (user_id, first_name, last_name, phone, allowed_machine_types)
-SELECT u.id, s.first_name, s.last_name, s.phone, s.machine_types
+INSERT INTO user_profiles (user_id, first_name, last_name, phone)
+SELECT u.id, s.first_name, s.last_name, s.phone
 FROM seed_operators s
 JOIN users u ON u.email = s.email
 ON CONFLICT (user_id) DO UPDATE SET
-    first_name            = EXCLUDED.first_name,
-    last_name             = EXCLUDED.last_name,
-    phone                 = EXCLUDED.phone,
-    allowed_machine_types = EXCLUDED.allowed_machine_types,
-    updated_at            = NOW();
+    first_name = EXCLUDED.first_name,
+    last_name  = EXCLUDED.last_name,
+    phone      = EXCLUDED.phone,
+    updated_at = NOW();
 
 DROP TABLE seed_operators;
 

@@ -16,7 +16,6 @@ func readyOperation() *dto.FieldOperationResponse {
 		ID: 1, Status: string(domain.FieldOperationStatusPlanned),
 		MachineID: ptr(int64(1)), MachineStatus: ptr("active"),
 		ImplementID: ptr(int64(1)), ImplementStatus: ptr("active"),
-		Checklist: dto.FieldOperationChecklistResponse{MachineStatus: true, ImplementStatus: true, FieldArea: true, NotesConfirmed: true},
 	}
 }
 
@@ -99,18 +98,7 @@ func TestFieldOperationService_CreateUpdateDelete(t *testing.T) {
 		t.Errorf("Delete: %v", err)
 	}
 
-	if _, err := svc.UpdateChecklist(9, domain.FieldOperationChecklist{}); !errors.Is(err, usecase.ErrFieldOperationNotFound) {
-		t.Errorf("UpdateChecklist inexistent: %v", err)
-	}
-	if _, err := svc.UpdateChecklist(1, domain.FieldOperationChecklist{MachineStatus: true}); err != nil {
-		t.Errorf("UpdateChecklist: %v", err)
-	}
-
 	boom := errors.New("db down")
-	repo.updateChecklist = func(int64, domain.FieldOperationChecklist) error { return boom }
-	if _, err := svc.UpdateChecklist(1, domain.FieldOperationChecklist{}); !errors.Is(err, boom) {
-		t.Error("eroarea de checklist trebuie propagată")
-	}
 	repo.create = func(*domain.FieldOperation) error { return boom }
 	if _, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationTypeID: 1}); !errors.Is(err, boom) {
 		t.Error("eroarea de creare trebuie propagată")
@@ -161,10 +149,10 @@ func TestFieldOperationService_Start(t *testing.T) {
 		t.Errorf("start pe operațiune finalizată: %v", err)
 	}
 
-	current = readyOperation()
-	current.Checklist.FieldArea = false
-	if _, err := svc.Start(1); !errors.Is(err, usecase.ErrFieldOperationChecklistIncomplete) {
-		t.Errorf("checklist incomplet: %v", err)
+	// fără mașină și echipament, pornirea nu cere nimic în plus
+	current = &dto.FieldOperationResponse{ID: 1, Status: string(domain.FieldOperationStatusPlanned)}
+	if _, err := svc.Start(1); err != nil {
+		t.Errorf("start fără mașină și echipament: %v", err)
 	}
 
 	current = readyOperation()
@@ -206,13 +194,6 @@ func TestFieldOperationService_AssignedUser(t *testing.T) {
 		t.Errorf("GetByIDForAssignedUser: %v", err)
 	}
 
-	if _, err := svc.UpdateChecklistForAssignedUser(1, 8, domain.FieldOperationChecklist{}); !errors.Is(err, usecase.ErrFieldOperationNotFound) {
-		t.Errorf("checklist pentru alt utilizator: %v", err)
-	}
-	if _, err := svc.UpdateChecklistForAssignedUser(1, 7, domain.FieldOperationChecklist{}); err != nil {
-		t.Errorf("UpdateChecklistForAssignedUser: %v", err)
-	}
-
 	if _, err := svc.StartForAssignedUser(1, 8); !errors.Is(err, usecase.ErrFieldOperationNotFound) {
 		t.Errorf("start pentru alt utilizator: %v", err)
 	}
@@ -234,10 +215,6 @@ func TestFieldOperationService_AssignedUser(t *testing.T) {
 	if _, err := svc.StartForAssignedUser(1, 7); !errors.Is(err, boom) {
 		t.Error("eroarea de pornire trebuie propagată")
 	}
-	repo.updateChecklist = func(int64, domain.FieldOperationChecklist) error { return boom }
-	if _, err := svc.UpdateChecklistForAssignedUser(1, 7, domain.FieldOperationChecklist{}); !errors.Is(err, boom) {
-		t.Error("eroarea de checklist trebuie propagată")
-	}
 	repo.getByIDForAssignedUser = func(int64, int64) (*dto.FieldOperationResponse, error) { return nil, boom }
 	if _, err := svc.GetByIDForAssignedUser(1, 7); !errors.Is(err, boom) {
 		t.Error("eroarea de citire trebuie propagată")
@@ -245,7 +222,78 @@ func TestFieldOperationService_AssignedUser(t *testing.T) {
 	if _, err := svc.StartForAssignedUser(1, 7); !errors.Is(err, boom) {
 		t.Error("eroarea de citire trebuie propagată la start")
 	}
-	if _, err := svc.UpdateChecklistForAssignedUser(1, 7, domain.FieldOperationChecklist{}); !errors.Is(err, boom) {
-		t.Error("eroarea de citire trebuie propagată la checklist")
+}
+
+// T11: mașina și echipamentul trebuie să fie de un tip acceptat de template, și la creare, și la editare.
+func TestFieldOperationService_AssetCompatibility(t *testing.T) {
+	compat := &domain.AssetCompatibility{
+		TemplateMachineTypes:   []string{"tractor"},
+		TemplateImplementTypes: []string{"plow", "seeder"},
+		MachineType:            "tractor",
+		ImplementType:          "plow",
+	}
+	var asked []any
+	repo := &fieldOperationRepoMock{
+		getAssetCompatibility: func(templateID int64, machineID, implementID *int64) (*domain.AssetCompatibility, error) {
+			asked = []any{templateID, machineID, implementID}
+			return compat, nil
+		},
+		getByID: func(int64) (*dto.FieldOperationResponse, error) {
+			return &dto.FieldOperationResponse{ID: 1, Status: "planned"}, nil
+		},
+	}
+	svc := usecase.NewFieldOperationService(repo)
+	input := func() *domain.FieldOperation {
+		return &domain.FieldOperation{
+			FieldID: "f", OperationTypeID: 1,
+			OperationTemplateID: ptr(int64(3)), MachineID: ptr(int64(4)), ImplementID: ptr(int64(5)),
+		}
+	}
+
+	if _, err := svc.Create(input()); err != nil {
+		t.Fatalf("mașină și echipament potrivite: %v", err)
+	}
+	if asked[0] != int64(3) || *asked[1].(*int64) != 4 || *asked[2].(*int64) != 5 {
+		t.Errorf("verificarea a primit: %v", asked)
+	}
+
+	compat.MachineType = "combine"
+	if _, err := svc.Create(input()); !errors.Is(err, usecase.ErrFieldOperationMachineIncompatible) {
+		t.Errorf("mașină nepotrivită la creare: %v", err)
+	}
+	if _, err := svc.Update(1, input()); !errors.Is(err, usecase.ErrFieldOperationMachineIncompatible) {
+		t.Errorf("mașină nepotrivită la editare: %v", err)
+	}
+
+	compat.MachineType = "tractor"
+	compat.ImplementType = "header"
+	if _, err := svc.Create(input()); !errors.Is(err, usecase.ErrFieldOperationImplementIncompatible) {
+		t.Errorf("echipament nepotrivit: %v", err)
+	}
+
+	// template fără tipuri: orice mașină și echipament
+	compat.TemplateMachineTypes, compat.TemplateImplementTypes = nil, nil
+	compat.MachineType = "combine"
+	if _, err := svc.Create(input()); err != nil {
+		t.Errorf("template fără tipuri: %v", err)
+	}
+
+	// fără template sau fără mașină și echipament, regula nu se aplică
+	compat.TemplateMachineTypes = []string{"tractor"}
+	asked = nil
+	noTemplate := input()
+	noTemplate.OperationTemplateID = nil
+	noAssets := input()
+	noAssets.MachineID, noAssets.ImplementID = nil, nil
+	for name, in := range map[string]*domain.FieldOperation{"fără template": noTemplate, "fără mașină și echipament": noAssets} {
+		if _, err := svc.Create(in); err != nil || asked != nil {
+			t.Errorf("%s: %v (verificare apelată: %v)", name, err, asked != nil)
+		}
+	}
+
+	boom := errors.New("db down")
+	repo.getAssetCompatibility = func(int64, *int64, *int64) (*domain.AssetCompatibility, error) { return nil, boom }
+	if _, err := svc.Create(input()); !errors.Is(err, boom) {
+		t.Error("eroarea de citire a compatibilității trebuie propagată")
 	}
 }

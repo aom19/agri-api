@@ -22,12 +22,14 @@ type FieldOperationRepository interface {
 	GetByIDForAssignedUser(id int64, userID int64) (*dto.FieldOperationResponse, error)
 	Create(op *domain.FieldOperation) error
 	Update(id int64, op *domain.FieldOperation) error
-	UpdateChecklist(id int64, checklist domain.FieldOperationChecklist) error
 	UpdateStatus(id int64, status domain.FieldOperationStatus) error
 	// MarkStarted trece operațiunea în lucru și reține momentul real al pornirii (prima pornire).
 	MarkStarted(id int64, at time.Time) error
 	// Complete finalizează operațiunea cu datele reale, în tranzacția dată.
 	Complete(tx *sql.Tx, id int64, completion domain.FieldOperationCompletion, at time.Time) error
+	// GetAssetCompatibility returnează tipurile de mașini și echipamente acceptate de template
+	// și tipurile mașinii și echipamentului date (nil = neales).
+	GetAssetCompatibility(templateID int64, machineID, implementID *int64) (*domain.AssetCompatibility, error)
 	// GetTemplateResources returnează normele de consum ale șablonului (resurse + prețuri).
 	GetTemplateResources(templateID int64) ([]domain.TemplateResourceUsage, error)
 	// AddMachineHours adaugă ore de funcționare la mașină, în tranzacția dată.

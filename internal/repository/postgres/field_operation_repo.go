@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type FieldOperationRepo struct {
@@ -50,11 +52,6 @@ const fieldOperationBaseSelect = `
 		` + fuelUsedExpr + `,
 		fo.machine_hours,
 		fo.completion_notes,
-		fo.check_machine_status,
-		fo.check_implement_status,
-		fo.check_field_area,
-		fo.check_notes_confirmed,
-		fo.checklist_updated_at,
 		fo.created_at,
 		fo.updated_at
 	FROM field_operations fo
@@ -95,11 +92,6 @@ func scanFieldOperationRow(row interface {
 		&r.FuelUsedL,
 		&r.MachineHours,
 		&r.CompletionNotes,
-		&r.Checklist.MachineStatus,
-		&r.Checklist.ImplementStatus,
-		&r.Checklist.FieldArea,
-		&r.Checklist.NotesConfirmed,
-		&r.Checklist.UpdatedAt,
 		&r.CreatedAt,
 		&r.UpdatedAt,
 	); err != nil {
@@ -287,28 +279,6 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 	return err
 }
 
-func (repo *FieldOperationRepo) UpdateChecklist(id int64, checklist domain.FieldOperationChecklist) error {
-	query := `
-		UPDATE field_operations SET
-			check_machine_status   = $1,
-			check_implement_status = $2,
-			check_field_area       = $3,
-			check_notes_confirmed  = $4,
-			checklist_updated_at   = NOW(),
-			updated_at             = NOW()
-		WHERE id = $5 AND deleted_at IS NULL
-	`
-	_, err := repo.db.Exec(
-		query,
-		checklist.MachineStatus,
-		checklist.ImplementStatus,
-		checklist.FieldArea,
-		checklist.NotesConfirmed,
-		id,
-	)
-	return err
-}
-
 func (repo *FieldOperationRepo) UpdateStatus(id int64, status domain.FieldOperationStatus) error {
 	query := `
 		UPDATE field_operations SET
@@ -422,6 +392,22 @@ func (repo *FieldOperationRepo) Complete(tx *sql.Tx, id int64, completion domain
 		id,
 	)
 	return err
+}
+
+func (repo *FieldOperationRepo) GetAssetCompatibility(templateID int64, machineID, implementID *int64) (*domain.AssetCompatibility, error) {
+	var c domain.AssetCompatibility
+	err := repo.db.QueryRow(`
+		SELECT
+			ARRAY(SELECT machine_type FROM template_machine_types WHERE template_id = $1 ORDER BY machine_type),
+			ARRAY(SELECT implement_type FROM template_implement_types WHERE template_id = $1 ORDER BY implement_type),
+			COALESCE((SELECT type FROM machines WHERE id = $2), ''),
+			COALESCE((SELECT type FROM implements WHERE id = $3), '')`,
+		templateID, machineID, implementID,
+	).Scan(pq.Array(&c.TemplateMachineTypes), pq.Array(&c.TemplateImplementTypes), &c.MachineType, &c.ImplementType)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
 }
 
 func (repo *FieldOperationRepo) GetTemplateResources(templateID int64) ([]domain.TemplateResourceUsage, error) {

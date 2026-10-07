@@ -30,14 +30,6 @@ type Implement struct {
 	Auditfields
 }
 
-type ImplementCompatibility struct {
-	ID            int64         `json:"id"`
-	MachineType   MachineType   `json:"machine_type"`
-	ImplementType ImplementType `json:"implement_type"`
-
-	Auditfields
-}
-
 var validImplementTypes = map[ImplementType]struct{}{
 	ImplementTypePlow:               {},
 	ImplementTypeDiscHarrow:         {},

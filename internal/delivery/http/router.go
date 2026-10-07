@@ -34,7 +34,6 @@ type AppDeps struct {
 	AuditService                    *usecase.AuditService
 	NotificationService             *usecase.NotificationService
 	AuditRepo                       repository.AuditRepository
-	ImplementCompatibilityRepo      repository.ImplementCompatibilityRepository
 	AuthService                     *usecase.AuthService
 	ProfileService                  *usecase.ProfileService
 	RBACService                     *usecase.RBACService
@@ -240,10 +239,6 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/operation-templates/:id", perm("operations:write"), operationHandler.UpdateTemplate)
 	api.DELETE("/operation-templates/:id", perm("operations:delete"), operationHandler.DeleteTemplate)
 
-	// ─── Implement Compatibilities ───────────────────────────────────────────
-	compatibilityHandler := handlers.NewImplementCompatibilityHandler(deps.ImplementCompatibilityRepo)
-	api.GET("/implement-compatibilities", perm("operations:read"), compatibilityHandler.GetAll)
-
 	// ─── Field Operations ────────────────────────────────────────────────────
 	fieldOperationHandler := handlers.NewFieldOperationHandler(
 		deps.FieldOperationService,
@@ -255,7 +250,6 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/field-operations/:id", perm("field_operations:read"), fieldOperationHandler.GetByID)
 	api.POST("/field-operations", perm("field_operations:write"), fieldOperationHandler.Create)
 	api.PATCH("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Update)
-	api.PATCH("/field-operations/:id/checklist", perm("field_operations:checklist"), fieldOperationHandler.UpdateChecklist)
 	api.PATCH("/field-operations/:id/start", perm("field_operations:start"), fieldOperationHandler.Start)
 	api.GET("/field-operations/:id/consumption-estimate", perm("field_operations:complete"), fieldOperationHandler.ConsumptionEstimate)
 	api.PATCH("/field-operations/:id/complete", perm("field_operations:complete"), fieldOperationHandler.Complete)
