@@ -305,15 +305,12 @@ func (service *CropService) RecordHarvest(fieldCropID int64, actorID *int64) (*H
 	if err != nil {
 		return nil, err
 	}
-	if err := service.repo.EnsureStock(tx, resourceID); err != nil {
-		return nil, err
-	}
-	lock, err := service.movements.LockStockByResource(tx, resourceID)
+	lock, err := service.movements.LockStock(tx, resourceID)
 	if err != nil {
 		return nil, err
 	}
 	if lock == nil {
-		return nil, fmt.Errorf("%w: stocul de recoltă nu a putut fi creat", ErrHarvestNotRecordable)
+		return nil, fmt.Errorf("%w: resursa de recoltă nu a fost găsită", ErrHarvestNotRecordable)
 	}
 
 	movementType := domain.StockMovementIn

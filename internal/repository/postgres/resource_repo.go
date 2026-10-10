@@ -3,6 +3,10 @@ package postgres
 import (
 	"agri-api/internal/domain"
 	"database/sql"
+	"errors"
+	"fmt"
+
+	"github.com/lib/pq"
 )
 
 type ResourceRepo struct {
@@ -14,8 +18,8 @@ func NewResourceRepo(db *sql.DB) *ResourceRepo {
 }
 
 const resourceSelectWithType = `
-	SELECT r.id, r.name, r.resource_type_id, r.price_per_unit, COALESCE(r.notes, ''),
-	       r.created_at, r.updated_at,
+	SELECT r.id, r.name, r.resource_type_id, r.price_per_unit, r.quantity, r.minimum_quantity,
+	       COALESCE(r.notes, ''), r.created_at, r.updated_at,
 	       rt.id, rt.name, rt.category, rt.default_unit, rt.created_at, rt.updated_at
 	FROM resources r
 	JOIN resource_types rt ON rt.id = r.resource_type_id`
@@ -26,8 +30,8 @@ func scanResource(scanner interface {
 	var res domain.Resource
 	var rt domain.ResourceType
 	err := scanner.Scan(
-		&res.ID, &res.Name, &res.ResourceTypeID, &res.PricePerUnit, &res.Notes,
-		&res.CreatedAt, &res.UpdatedAt,
+		&res.ID, &res.Name, &res.ResourceTypeID, &res.PricePerUnit, &res.Quantity, &res.MinimumQuantity,
+		&res.Notes, &res.CreatedAt, &res.UpdatedAt,
 		&rt.ID, &rt.Name, &rt.Category, &rt.DefaultUnit, &rt.CreatedAt, &rt.UpdatedAt,
 	)
 	if err != nil {
@@ -66,26 +70,30 @@ func (r *ResourceRepo) GetByID(id int64) (*domain.Resource, error) {
 	return &res, nil
 }
 
-func (r *ResourceRepo) Create(res *domain.Resource) error {
-	return r.db.QueryRow(
-		`INSERT INTO resources (name, resource_type_id, price_per_unit, notes)
-		 VALUES ($1, $2, $3, $4)
+func (r *ResourceRepo) Create(tx *sql.Tx, res *domain.Resource) error {
+	return tx.QueryRow(
+		`INSERT INTO resources (name, resource_type_id, price_per_unit, minimum_quantity, notes)
+		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, created_at, updated_at`,
-		res.Name, res.ResourceTypeID, res.PricePerUnit, res.Notes,
+		res.Name, res.ResourceTypeID, res.PricePerUnit, res.MinimumQuantity, res.Notes,
 	).Scan(&res.ID, &res.CreatedAt, &res.UpdatedAt)
 }
 
 func (r *ResourceRepo) Update(id int64, res *domain.Resource) error {
 	_, err := r.db.Exec(
 		`UPDATE resources
-		 SET name=$1, resource_type_id=$2, price_per_unit=$3, notes=$4, updated_at=NOW()
-		 WHERE id=$5`,
-		res.Name, res.ResourceTypeID, res.PricePerUnit, res.Notes, id,
+		 SET name=$1, resource_type_id=$2, price_per_unit=$3, minimum_quantity=$4, notes=$5, updated_at=NOW()
+		 WHERE id=$6`,
+		res.Name, res.ResourceTypeID, res.PricePerUnit, res.MinimumQuantity, res.Notes, id,
 	)
 	return err
 }
 
 func (r *ResourceRepo) Delete(id int64) error {
 	_, err := r.db.Exec(`DELETE FROM resources WHERE id=$1`, id)
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "23503" {
+		return fmt.Errorf("resursa are mișcări de stoc sau e folosită în template-uri și nu poate fi ștearsă")
+	}
 	return err
 }

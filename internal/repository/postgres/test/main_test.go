@@ -22,7 +22,7 @@ const migrationsDir = "../../../../migrations"
 
 // tabelele golite înaintea fiecărui test; CASCADE golește și tabelele care le referă
 var dataTables = []string{
-	"stock_movements", "stocks", "resources", "resource_types",
+	"stock_movements", "resources", "resource_types",
 	"field_operations", "field_crops", "seasons", "crops",
 	"machines", "implements", "users", "fields", "operation_templates",
 }
@@ -130,33 +130,44 @@ func insertField(t *testing.T, db *sql.DB, name string) string {
 	return id
 }
 
-// insertStock creează tipul de resursă, resursa și stocul ei; întoarce id-ul stocului și al resursei.
-func insertStock(t *testing.T, db *sql.DB, name string, quantity, minimum, price float64) (stockID, resourceID int64) {
+// insertStock creează tipul de resursă și resursa, cu stocul ei; întoarce id-ul resursei.
+func insertStock(t *testing.T, db *sql.DB, name string, quantity, minimum, price float64) int64 {
 	t.Helper()
 	typeID := insertID(t, db, `INSERT INTO resource_types (name, category, default_unit) VALUES ($1, 'fuel', 'l') RETURNING id`, "Tip "+name)
-	resourceID = insertID(t, db, `INSERT INTO resources (name, resource_type_id, price_per_unit) VALUES ($1, $2, $3) RETURNING id`, name, typeID, price)
-	stockID = insertID(t, db, `INSERT INTO stocks (resource_id, quantity, minimum_quantity) VALUES ($1, $2, $3) RETURNING id`, resourceID, quantity, minimum)
+	resourceID := insertID(t, db, `
+		INSERT INTO resources (name, resource_type_id, price_per_unit, quantity, minimum_quantity)
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`, name, typeID, price, quantity, minimum)
 	// cantitatea inițială intră ca mișcare, ca istoricul să explice stocul (vezi assertMovementsExplainStocks)
 	if quantity != 0 {
 		if _, err := db.Exec(`
-			INSERT INTO stock_movements (stock_id, resource_id, movement_type, quantity_delta, resulting_quantity, notes)
-			VALUES ($1, $2, 'adjustment', $3, $3, 'Stoc inițial')`, stockID, resourceID, quantity); err != nil {
+			INSERT INTO stock_movements (resource_id, movement_type, quantity_delta, resulting_quantity, notes)
+			VALUES ($1, 'adjustment', $2, $2, 'Stoc inițial')`, resourceID, quantity); err != nil {
 			t.Fatal(err)
 		}
 	}
-	return stockID, resourceID
+	return resourceID
 }
 
-// assertMovementsExplainStocks verifică invariantul stocului: pentru fiecare stoc, suma
+// stockQuantity este stocul curent al resursei.
+func stockQuantity(t *testing.T, db *sql.DB, resourceID int64) float64 {
+	t.Helper()
+	var quantity float64
+	if err := db.QueryRow(`SELECT quantity FROM resources WHERE id = $1`, resourceID).Scan(&quantity); err != nil {
+		t.Fatal(err)
+	}
+	return quantity
+}
+
+// assertMovementsExplainStocks verifică invariantul stocului: pentru fiecare resursă, suma
 // variațiilor din mișcări este egală cu cantitatea curentă.
 func assertMovementsExplainStocks(t *testing.T, db *sql.DB) {
 	t.Helper()
 	rows, err := db.Query(`
-		SELECT s.id, s.quantity, COALESCE(SUM(sm.quantity_delta), 0)
-		FROM stocks s
-		LEFT JOIN stock_movements sm ON sm.stock_id = s.id
-		GROUP BY s.id, s.quantity
-		HAVING s.quantity <> COALESCE(SUM(sm.quantity_delta), 0)`)
+		SELECT r.id, r.quantity, COALESCE(SUM(sm.quantity_delta), 0)
+		FROM resources r
+		LEFT JOIN stock_movements sm ON sm.resource_id = r.id
+		GROUP BY r.id, r.quantity
+		HAVING r.quantity <> COALESCE(SUM(sm.quantity_delta), 0)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +180,7 @@ func assertMovementsExplainStocks(t *testing.T, db *sql.DB) {
 		if err := rows.Scan(&id, &quantity, &sum); err != nil {
 			t.Fatal(err)
 		}
-		t.Errorf("stocul #%d are %.4f, dar mișcările însumează %.4f", id, quantity, sum)
+		t.Errorf("resursa #%d are în stoc %.4f, dar mișcările însumează %.4f", id, quantity, sum)
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
@@ -231,33 +242,32 @@ func insertFieldOperation(t *testing.T, db *sql.DB, op fieldOperation) int64 {
 		op.MachineHours, deletedAt,
 	)
 	if op.FuelUsedL != nil {
-		stockID, resourceID := fuelStock(t, db)
+		resourceID := fuelStock(t, db)
 		if _, err := db.Exec(`
 			WITH updated AS (
-				UPDATE stocks SET quantity = quantity - $3 WHERE id = $1 RETURNING quantity
+				UPDATE resources SET quantity = quantity - $2 WHERE id = $1 RETURNING quantity
 			)
-			INSERT INTO stock_movements (stock_id, resource_id, field_operation_id, movement_type, quantity_delta, resulting_quantity)
-			SELECT $1, $2, $4, 'out', -$3::numeric, quantity FROM updated`,
-			stockID, resourceID, *op.FuelUsedL, id); err != nil {
+			INSERT INTO stock_movements (resource_id, field_operation_id, movement_type, quantity_delta, resulting_quantity)
+			SELECT $1, $3, 'out', -$2::numeric, quantity FROM updated`,
+			resourceID, *op.FuelUsedL, id); err != nil {
 			t.Fatal(err)
 		}
 	}
 	return id
 }
 
-// fuelStock întoarce stocul de motorină al testului, creându-l la prima folosire.
-func fuelStock(t *testing.T, db *sql.DB) (stockID, resourceID int64) {
+// fuelStock întoarce resursa de motorină a testului, creând-o la prima folosire.
+func fuelStock(t *testing.T, db *sql.DB) int64 {
 	t.Helper()
-	err := db.QueryRow(`
-		SELECT s.id, s.resource_id FROM stocks s JOIN resources r ON r.id = s.resource_id
-		WHERE r.name = 'Motorină (test)'`).Scan(&stockID, &resourceID)
+	var resourceID int64
+	err := db.QueryRow(`SELECT id FROM resources WHERE name = 'Motorină (test)'`).Scan(&resourceID)
 	if err == sql.ErrNoRows {
 		return insertStock(t, db, "Motorină (test)", 100000, 0, 7)
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	return stockID, resourceID
+	return resourceID
 }
 
 func ptr[T any](v T) *T { return &v }

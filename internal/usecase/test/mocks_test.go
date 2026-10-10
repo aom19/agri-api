@@ -201,7 +201,7 @@ func (m *implementRepoMock) Deactivate(id int64) error {
 }
 func (m *implementRepoMock) DB() *sql.DB { return nil }
 
-// ─── Resource types / resources / stocks ─────────────────────────────────────
+// ─── Resource types / resources ──────────────────────────────────────────────
 
 type resourceTypeRepoMock struct {
 	getAll  func() ([]domain.ResourceType, error)
@@ -262,7 +262,7 @@ func (m *resourceRepoMock) GetByID(id int64) (*domain.Resource, error) {
 	}
 	return nil, nil
 }
-func (m *resourceRepoMock) Create(x *domain.Resource) error {
+func (m *resourceRepoMock) Create(_ *sql.Tx, x *domain.Resource) error {
 	if m.create != nil {
 		return m.create(x)
 	}
@@ -275,52 +275,6 @@ func (m *resourceRepoMock) Update(id int64, x *domain.Resource) error {
 	return nil
 }
 func (m *resourceRepoMock) Delete(id int64) error {
-	if m.delete != nil {
-		return m.delete(id)
-	}
-	return nil
-}
-
-type stockRepoMock struct {
-	getAll          func() ([]domain.Stock, error)
-	getByID         func(int64) (*domain.Stock, error)
-	getByResourceID func(int64) (*domain.Stock, error)
-	create          func(*domain.Stock) error
-	updateMinimum   func(int64, float64) error
-	delete          func(int64) error
-}
-
-func (m *stockRepoMock) GetAll() ([]domain.Stock, error) {
-	if m.getAll != nil {
-		return m.getAll()
-	}
-	return nil, nil
-}
-func (m *stockRepoMock) GetByID(id int64) (*domain.Stock, error) {
-	if m.getByID != nil {
-		return m.getByID(id)
-	}
-	return nil, nil
-}
-func (m *stockRepoMock) GetByResourceID(id int64) (*domain.Stock, error) {
-	if m.getByResourceID != nil {
-		return m.getByResourceID(id)
-	}
-	return nil, nil
-}
-func (m *stockRepoMock) Create(_ *sql.Tx, x *domain.Stock) error {
-	if m.create != nil {
-		return m.create(x)
-	}
-	return nil
-}
-func (m *stockRepoMock) UpdateMinimum(id int64, minimum float64) error {
-	if m.updateMinimum != nil {
-		return m.updateMinimum(id, minimum)
-	}
-	return nil
-}
-func (m *stockRepoMock) Delete(id int64) error {
 	if m.delete != nil {
 		return m.delete(id)
 	}
@@ -850,22 +804,15 @@ func (m *permissionRepoMock) HasPermission(roleID int64, name string) (bool, err
 // ─── Stock movements ─────────────────────────────────────────────────────────
 
 type stockMovementRepoMock struct {
-	lockStockByID       func(*sql.Tx, int64) (*repository.StockLock, error)
-	lockStockByResource func(*sql.Tx, int64) (*repository.StockLock, error)
-	applyMovement       func(*sql.Tx, *domain.StockMovement) error
-	list                func(domain.StockMovementFilter) ([]domain.StockMovement, error)
-	listFuelStocks      func() ([]domain.FuelStock, error)
+	lockStock      func(*sql.Tx, int64) (*repository.StockLock, error)
+	applyMovement  func(*sql.Tx, *domain.StockMovement) error
+	list           func(domain.StockMovementFilter) ([]domain.StockMovement, error)
+	listFuelStocks func() ([]domain.FuelStock, error)
 }
 
-func (m *stockMovementRepoMock) LockStockByID(tx *sql.Tx, id int64) (*repository.StockLock, error) {
-	if m.lockStockByID != nil {
-		return m.lockStockByID(tx, id)
-	}
-	return nil, nil
-}
-func (m *stockMovementRepoMock) LockStockByResource(tx *sql.Tx, id int64) (*repository.StockLock, error) {
-	if m.lockStockByResource != nil {
-		return m.lockStockByResource(tx, id)
+func (m *stockMovementRepoMock) LockStock(tx *sql.Tx, id int64) (*repository.StockLock, error) {
+	if m.lockStock != nil {
+		return m.lockStock(tx, id)
 	}
 	return nil, nil
 }
@@ -910,7 +857,6 @@ type cropRepoMock struct {
 	relinkOperations        func(int64) error
 	lockFieldCropHarvest    func(*sql.Tx, int64) (*float64, float64, error)
 	ensureHarvestResource   func(*sql.Tx, *domain.Crop) (int64, error)
-	ensureStock             func(*sql.Tx, int64) error
 	markHarvestRecorded     func(*sql.Tx, int64, float64) error
 }
 
@@ -1027,12 +973,6 @@ func (m *cropRepoMock) EnsureHarvestResource(tx *sql.Tx, c *domain.Crop) (int64,
 		return m.ensureHarvestResource(tx, c)
 	}
 	return 0, nil
-}
-func (m *cropRepoMock) EnsureStock(tx *sql.Tx, id int64) error {
-	if m.ensureStock != nil {
-		return m.ensureStock(tx, id)
-	}
-	return nil
 }
 func (m *cropRepoMock) MarkHarvestRecorded(tx *sql.Tx, id int64, qty float64) error {
 	if m.markHarvestRecorded != nil {

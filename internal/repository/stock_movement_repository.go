@@ -6,23 +6,22 @@ import (
 	"agri-api/internal/domain"
 )
 
-// StockLock este stocul blocat pentru actualizare în cadrul unei tranzacții.
+// StockLock este stocul unei resurse, blocat pentru actualizare în cadrul unei tranzacții.
 type StockLock struct {
-	StockID    int64
-	ResourceID int64
-	Quantity   float64
-	Minimum    float64
-	PriceUnit  float64
-	Category   string
+	ResourceID   int64
+	ResourceName string
+	Quantity     float64
+	Minimum      float64
+	PriceUnit    float64
+	Category     string
 }
 
 type StockMovementRepository interface {
-	// LockStockByID / LockStockByResource citesc stocul cu FOR UPDATE, în tranzacție.
-	LockStockByID(tx *sql.Tx, stockID int64) (*StockLock, error)
-	LockStockByResource(tx *sql.Tx, resourceID int64) (*StockLock, error)
-	// ApplyMovement inserează mișcarea și actualizează cantitatea stocului, în tranzacție.
+	// LockStock citește stocul resursei cu FOR UPDATE, în tranzacție; nil dacă resursa nu există.
+	LockStock(tx *sql.Tx, resourceID int64) (*StockLock, error)
+	// ApplyMovement inserează mișcarea și actualizează cantitatea resursei, în tranzacție.
 	ApplyMovement(tx *sql.Tx, movement *domain.StockMovement) error
 	List(filter domain.StockMovementFilter) ([]domain.StockMovement, error)
-	// ListFuelStocks returnează resursele de combustibil care au stoc.
+	// ListFuelStocks returnează resursele de combustibil, cu stocul lor.
 	ListFuelStocks() ([]domain.FuelStock, error)
 }

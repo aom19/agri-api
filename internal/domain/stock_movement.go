@@ -14,7 +14,6 @@ const (
 // de o operațiune pe teren) sau ajustare de inventar.
 type StockMovement struct {
 	ID                  int64             `json:"id"`
-	StockID             int64             `json:"stock_id"`
 	ResourceID          int64             `json:"resource_id"`
 	ResourceName        string            `json:"resource_name"`
 	Category            string            `json:"category"`
@@ -37,7 +36,7 @@ type StockMovement struct {
 // Pentru `in`/`out`, Quantity este cantitatea mutată (pozitivă); pentru `adjustment`,
 // Quantity este noul nivel al stocului.
 type StockMovementInput struct {
-	StockID          int64
+	ResourceID       int64
 	FieldOperationID *int64
 	MovementType     StockMovementType
 	Quantity         float64
@@ -47,7 +46,6 @@ type StockMovementInput struct {
 }
 
 type StockMovementFilter struct {
-	StockID          int64
 	ResourceID       int64
 	FieldOperationID int64
 	From             *time.Time
@@ -96,7 +94,7 @@ type ConsumptionEstimateItem struct {
 	Quantity        float64 `json:"quantity"`
 }
 
-// FuelStock este o resursă de combustibil cu stoc, din care se poate scădea combustibilul raportat.
+// FuelStock este o resursă de combustibil, din al cărei stoc se poate scădea combustibilul raportat.
 type FuelStock struct {
 	ResourceID   int64   `json:"resource_id"`
 	ResourceName string  `json:"resource_name"`

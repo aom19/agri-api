@@ -3196,12 +3196,6 @@
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Filtru stoc",
-                        "name": "stock_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
                         "description": "Filtru resursă",
                         "name": "resource_id",
                         "in": "query"
@@ -4949,9 +4943,6 @@
                 "resulting_quantity": {
                     "type": "number"
                 },
-                "stock_id": {
-                    "type": "integer"
-                },
                 "total_cost": {
                     "type": "number"
                 },
@@ -5366,7 +5357,7 @@
             "type": "object",
             "required": [
                 "movement_type",
-                "stock_id"
+                "resource_id"
             ],
             "properties": {
                 "field_operation_id": {
@@ -5386,7 +5377,7 @@
                 "quantity": {
                     "type": "number"
                 },
-                "stock_id": {
+                "resource_id": {
                     "type": "integer"
                 },
                 "unit_cost": {

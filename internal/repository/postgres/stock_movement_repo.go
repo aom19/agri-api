@@ -17,48 +17,38 @@ func NewStockMovementRepo(db *sql.DB) *StockMovementRepo {
 	return &StockMovementRepo{db: db}
 }
 
-const stockLockSelect = `
-	SELECT s.id, s.resource_id, s.quantity, s.minimum_quantity, r.price_per_unit, rt.category
-	FROM stocks s
-	JOIN resources r ON r.id = s.resource_id
-	JOIN resource_types rt ON rt.id = r.resource_type_id
-	WHERE %s
-	FOR UPDATE OF s`
-
-func scanStockLock(row *sql.Row) (*repository.StockLock, error) {
+func (repo *StockMovementRepo) LockStock(tx *sql.Tx, resourceID int64) (*repository.StockLock, error) {
 	lock := &repository.StockLock{}
-	if err := row.Scan(&lock.StockID, &lock.ResourceID, &lock.Quantity, &lock.Minimum, &lock.PriceUnit, &lock.Category); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
+	err := tx.QueryRow(`
+		SELECT r.id, r.name, r.quantity, r.minimum_quantity, r.price_per_unit, rt.category
+		FROM resources r
+		JOIN resource_types rt ON rt.id = r.resource_type_id
+		WHERE r.id = $1
+		FOR UPDATE OF r`, resourceID,
+	).Scan(&lock.ResourceID, &lock.ResourceName, &lock.Quantity, &lock.Minimum, &lock.PriceUnit, &lock.Category)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
 		return nil, err
 	}
 	return lock, nil
 }
 
-func (repo *StockMovementRepo) LockStockByID(tx *sql.Tx, stockID int64) (*repository.StockLock, error) {
-	return scanStockLock(tx.QueryRow(fmt.Sprintf(stockLockSelect, "s.id = $1"), stockID))
-}
-
-func (repo *StockMovementRepo) LockStockByResource(tx *sql.Tx, resourceID int64) (*repository.StockLock, error) {
-	return scanStockLock(tx.QueryRow(fmt.Sprintf(stockLockSelect, "s.resource_id = $1"), resourceID))
-}
-
 func (repo *StockMovementRepo) ApplyMovement(tx *sql.Tx, movement *domain.StockMovement) error {
 	if _, err := tx.Exec(`
-		UPDATE stocks SET quantity = $1, updated_at = NOW() WHERE id = $2`,
-		movement.ResultingQuantity, movement.StockID,
+		UPDATE resources SET quantity = $1, updated_at = NOW() WHERE id = $2`,
+		movement.ResultingQuantity, movement.ResourceID,
 	); err != nil {
 		return err
 	}
 
 	return tx.QueryRow(`
 		INSERT INTO stock_movements (
-			stock_id, resource_id, field_operation_id, movement_type,
+			resource_id, field_operation_id, movement_type,
 			quantity_delta, resulting_quantity, unit_cost, total_cost, notes, actor_id, field_crop_id
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, created_at`,
-		movement.StockID,
 		movement.ResourceID,
 		movement.FieldOperationID,
 		movement.MovementType,
@@ -80,9 +70,6 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 		args = append(args, value)
 		fmt.Fprintf(&where, " AND "+clause, len(args))
 	}
-	if filter.StockID > 0 {
-		add("sm.stock_id = $%d", filter.StockID)
-	}
 	if filter.ResourceID > 0 {
 		add("sm.resource_id = $%d", filter.ResourceID)
 	}
@@ -103,7 +90,7 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 
 	query := fmt.Sprintf(`
 		SELECT
-			sm.id, sm.stock_id, sm.resource_id, r.name, rt.category, rt.default_unit,
+			sm.id, sm.resource_id, r.name, rt.category, rt.default_unit,
 			sm.field_operation_id,
 			CASE
 				WHEN fo.id IS NOT NULL THEN CONCAT_WS(' - ', `+fieldOperationTypeNameExpr+`, f.name)
@@ -144,7 +131,7 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 			actorName sql.NullString
 		)
 		if err := rows.Scan(
-			&item.ID, &item.StockID, &item.ResourceID, &item.ResourceName, &item.Category, &item.Unit,
+			&item.ID, &item.ResourceID, &item.ResourceName, &item.Category, &item.Unit,
 			&item.FieldOperationID, &opLabel, &item.FieldCropID,
 			&item.MovementType, &item.QuantityDelta, &item.ResultingQuantity, &unitCost, &totalCost,
 			&item.Notes, &item.ActorID, &actorName, &item.CreatedAt,
@@ -168,9 +155,8 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 
 func (repo *StockMovementRepo) ListFuelStocks() ([]domain.FuelStock, error) {
 	rows, err := repo.db.Query(`
-		SELECT r.id, r.name, rt.default_unit, s.quantity
-		FROM stocks s
-		JOIN resources r ON r.id = s.resource_id
+		SELECT r.id, r.name, rt.default_unit, r.quantity
+		FROM resources r
 		JOIN resource_types rt ON rt.id = r.resource_type_id
 		WHERE rt.category = 'fuel'
 		ORDER BY r.name`)

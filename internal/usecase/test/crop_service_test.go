@@ -238,9 +238,9 @@ func TestCropService_RecordHarvest(t *testing.T) {
 		}
 		return item.ProductionTotal, recorded, nil
 	}
-	lock := &repository.StockLock{StockID: 3, ResourceID: 77, Quantity: 10, PriceUnit: 1}
+	lock := &repository.StockLock{ResourceID: 77, Quantity: 10, PriceUnit: 1}
 	movements := &stockMovementRepoMock{
-		lockStockByResource: func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
+		lockStock: func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
 			if id == 77 {
 				return lock, nil
 			}

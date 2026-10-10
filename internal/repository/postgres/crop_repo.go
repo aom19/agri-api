@@ -485,15 +485,6 @@ func (repo *CropRepo) EnsureHarvestResource(tx *sql.Tx, crop *domain.Crop) (int6
 	return resourceID, nil
 }
 
-// EnsureStock creează rândul de stoc al resursei dacă nu există.
-func (repo *CropRepo) EnsureStock(tx *sql.Tx, resourceID int64) error {
-	_, err := tx.Exec(`
-		INSERT INTO stocks (resource_id, quantity, minimum_quantity)
-		SELECT $1, 0, 0
-		WHERE NOT EXISTS (SELECT 1 FROM stocks WHERE resource_id = $1)`, resourceID)
-	return err
-}
-
 func (repo *CropRepo) MarkHarvestRecorded(tx *sql.Tx, fieldCropID int64, quantity float64) error {
 	_, err := tx.Exec(`
 		UPDATE field_crops

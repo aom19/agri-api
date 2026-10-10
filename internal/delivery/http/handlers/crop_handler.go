@@ -426,7 +426,7 @@ func (h *CropHandler) RecordHarvest(c *gin.Context) {
 			"crop":           result.FieldCrop.CropName,
 			"field":          result.FieldCrop.FieldName,
 			"quantity_delta": result.Movement.QuantityDelta,
-			"stock_id":       result.Movement.StockID,
+			"resource_id":    result.Movement.ResourceID,
 		})
 	}
 }

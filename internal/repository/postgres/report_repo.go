@@ -157,9 +157,9 @@ func (repo *ReportRepo) GetInventorySnapshot() (*domain.ReportInventorySnapshot,
 				+ (SELECT COUNT(*) FROM implements WHERE deleted_at IS NULL AND status = 'maintenance'),
 			(SELECT COUNT(*) FROM ` + operatorUsersFrom + `),
 			(SELECT COUNT(*) FROM ` + operatorUsersFrom + ` WHERE u.deleted_at IS NULL),
-			(SELECT COUNT(*) FROM stocks),
-			(SELECT COUNT(*) FROM stocks WHERE minimum_quantity > 0 AND quantity <= minimum_quantity),
-			(SELECT COALESCE(SUM(s.quantity * r.price_per_unit), 0) FROM stocks s JOIN resources r ON r.id = s.resource_id)
+			(SELECT COUNT(*) FROM resources),
+			(SELECT COUNT(*) FROM resources WHERE minimum_quantity > 0 AND quantity <= minimum_quantity),
+			(SELECT COALESCE(SUM(quantity * price_per_unit), 0) FROM resources)
 	`
 
 	snapshot := &domain.ReportInventorySnapshot{}
@@ -617,19 +617,18 @@ func (repo *ReportRepo) GetOperatorRows(filter domain.ReportFilter) ([]domain.Re
 func (repo *ReportRepo) GetStockRows() ([]domain.ReportStockRow, error) {
 	query := `
 		SELECT
-			s.id,
+			r.id,
 			r.name,
 			rt.category,
 			rt.default_unit,
-			s.quantity,
-			s.minimum_quantity,
+			r.quantity,
+			r.minimum_quantity,
 			r.price_per_unit,
-			s.quantity * r.price_per_unit,
-			(s.minimum_quantity > 0 AND s.quantity <= s.minimum_quantity)
-		FROM stocks s
-		JOIN resources r ON r.id = s.resource_id
+			r.quantity * r.price_per_unit,
+			(r.minimum_quantity > 0 AND r.quantity <= r.minimum_quantity)
+		FROM resources r
 		JOIN resource_types rt ON rt.id = r.resource_type_id
-		ORDER BY (s.minimum_quantity > 0 AND s.quantity <= s.minimum_quantity) DESC, r.name`
+		ORDER BY (r.minimum_quantity > 0 AND r.quantity <= r.minimum_quantity) DESC, r.name`
 
 	rows, err := repo.db.Query(query)
 	if err != nil {
@@ -661,7 +660,7 @@ func (repo *ReportRepo) GetEstimatedConsumption(filter domain.ReportFilter) ([]d
 			rt.default_unit,
 			COALESCE(SUM(tr.quantity_per_unit * COALESCE(fo.area_planned_ha, 0)), 0),
 			COALESCE(SUM(tr.quantity_per_unit * COALESCE(fo.area_planned_ha, 0) * r.price_per_unit), 0),
-			(SELECT SUM(s.quantity) FROM stocks s WHERE s.resource_id = r.id)
+			r.quantity
 		FROM field_operations fo
 		JOIN template_resources tr ON tr.template_id = fo.operation_template_id
 		JOIN resources r ON r.id = tr.resource_id
@@ -680,15 +679,12 @@ func (repo *ReportRepo) GetEstimatedConsumption(filter domain.ReportFilter) ([]d
 	for rows.Next() {
 		var (
 			row   domain.ReportResourceConsumption
-			stock sql.NullFloat64
+			stock float64
 		)
 		if err := rows.Scan(&row.ResourceID, &row.ResourceName, &row.Category, &row.Unit, &row.Quantity, &row.Cost, &stock); err != nil {
 			return nil, err
 		}
-		if stock.Valid {
-			value := stock.Float64
-			row.StockQuantity = &value
-		}
+		row.StockQuantity = &stock
 		items = append(items, row)
 	}
 	return items, rows.Err()
@@ -720,7 +716,7 @@ func (repo *ReportRepo) GetRealConsumption(filter domain.ReportFilter) ([]domain
 			rt.default_unit,
 			COALESCE(SUM(-sm.quantity_delta), 0),
 			COALESCE(SUM(sm.total_cost), 0),
-			(SELECT SUM(s.quantity) FROM stocks s WHERE s.resource_id = r.id)
+			r.quantity
 		FROM stock_movements sm
 		JOIN resources r ON r.id = sm.resource_id
 		JOIN resource_types rt ON rt.id = r.resource_type_id
@@ -738,15 +734,12 @@ func (repo *ReportRepo) GetRealConsumption(filter domain.ReportFilter) ([]domain
 	for rows.Next() {
 		var (
 			row   domain.ReportResourceConsumption
-			stock sql.NullFloat64
+			stock float64
 		)
 		if err := rows.Scan(&row.ResourceID, &row.ResourceName, &row.Category, &row.Unit, &row.Quantity, &row.Cost, &stock); err != nil {
 			return nil, err
 		}
-		if stock.Valid {
-			value := stock.Float64
-			row.StockQuantity = &value
-		}
+		row.StockQuantity = &stock
 		items = append(items, row)
 	}
 	return items, rows.Err()

@@ -3,6 +3,7 @@ package usecase
 import (
 	"agri-api/internal/domain"
 	"agri-api/internal/repository"
+	"database/sql"
 	"errors"
 )
 
@@ -11,18 +12,26 @@ var (
 	ErrResourceNotFound     = errors.New("resource not found")
 )
 
+// ResourceService gestionează resursele și stocul lor. Cantitatea se modifică doar prin mișcări,
+// astfel încât suma mișcărilor unei resurse să fie egală cu stocul ei curent.
 type ResourceService struct {
+	db               *sql.DB
 	resourceTypeRepo repository.ResourceTypeRepository
 	resourceRepo     repository.ResourceRepository
+	movements        repository.StockMovementRepository
 }
 
 func NewResourceService(
+	db *sql.DB,
 	resourceTypeRepo repository.ResourceTypeRepository,
 	resourceRepo repository.ResourceRepository,
+	movements repository.StockMovementRepository,
 ) *ResourceService {
 	return &ResourceService{
+		db:               db,
 		resourceTypeRepo: resourceTypeRepo,
 		resourceRepo:     resourceRepo,
+		movements:        movements,
 	}
 }
 
@@ -127,9 +136,14 @@ func (s *ResourceService) GetResourceByID(id int64) (*domain.Resource, error) {
 	return s.resourceRepo.GetByID(id)
 }
 
-func (s *ResourceService) CreateResource(input *domain.Resource) (*domain.Resource, error) {
+// CreateResource creează resursa cu stocul ei. Cantitatea inițială, dacă există, se înregistrează
+// ca ajustare de inventar, în aceeași tranzacție.
+func (s *ResourceService) CreateResource(input *domain.Resource, actorID *int64) (*domain.Resource, error) {
 	if err := s.validateResourceInput(input); err != nil {
 		return nil, err
+	}
+	if input.Quantity < 0 {
+		return nil, errors.New("quantity must be greater than or equal to 0")
 	}
 
 	resourceType, err := s.resourceTypeRepo.GetByID(input.ResourceTypeID)
@@ -140,20 +154,47 @@ func (s *ResourceService) CreateResource(input *domain.Resource) (*domain.Resour
 		return nil, errors.New("resource type not found")
 	}
 
-	res := &domain.Resource{
-		Name:           input.Name,
-		ResourceTypeID: input.ResourceTypeID,
-		PricePerUnit:   input.PricePerUnit,
-		Notes:          input.Notes,
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
 	}
+	defer func() { _ = tx.Rollback() }()
 
-	if err := s.resourceRepo.Create(res); err != nil {
+	res := &domain.Resource{
+		Name:            input.Name,
+		ResourceTypeID:  input.ResourceTypeID,
+		PricePerUnit:    input.PricePerUnit,
+		MinimumQuantity: input.MinimumQuantity,
+		Notes:           input.Notes,
+	}
+	if err := s.resourceRepo.Create(tx, res); err != nil {
+		return nil, err
+	}
+	if input.Quantity > 0 {
+		lock, err := s.movements.LockStock(tx, res.ID)
+		if err != nil {
+			return nil, err
+		}
+		if lock == nil {
+			return nil, ErrResourceNotFound
+		}
+		movement, err := buildMovement(lock, domain.StockMovementAdjustment, input.Quantity, nil, nil, "Stoc inițial", actorID)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.movements.ApplyMovement(tx, movement); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
 	return s.resourceRepo.GetByID(res.ID)
 }
 
+// UpdateResource schimbă datele resursei și pragul minim. Cantitatea nu se editează direct:
+// corecțiile se fac prin mișcări (ajustare de inventar).
 func (s *ResourceService) UpdateResource(id int64, input *domain.Resource) (*domain.Resource, error) {
 	if id <= 0 {
 		return nil, errors.New("invalid resource id")
@@ -181,6 +222,7 @@ func (s *ResourceService) UpdateResource(id int64, input *domain.Resource) (*dom
 	existing.Name = input.Name
 	existing.ResourceTypeID = input.ResourceTypeID
 	existing.PricePerUnit = input.PricePerUnit
+	existing.MinimumQuantity = input.MinimumQuantity
 	existing.Notes = input.Notes
 
 	if err := s.resourceRepo.Update(id, existing); err != nil {
@@ -218,6 +260,9 @@ func (s *ResourceService) validateResourceInput(input *domain.Resource) error {
 	}
 	if input.PricePerUnit < 0 {
 		return errors.New("price_per_unit must be greater than or equal to 0")
+	}
+	if input.MinimumQuantity < 0 {
+		return errors.New("minimum_quantity must be greater than or equal to 0")
 	}
 	return nil
 }

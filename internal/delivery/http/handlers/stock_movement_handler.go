@@ -24,7 +24,7 @@ func NewStockMovementHandler(service *usecase.StockMovementService, audit *useca
 }
 
 type createStockMovementRequest struct {
-	StockID          int64    `json:"stock_id" binding:"required"`
+	ResourceID       int64    `json:"resource_id" binding:"required"`
 	MovementType     string   `json:"movement_type" binding:"required,oneof=in out adjustment"`
 	Quantity         float64  `json:"quantity"`
 	UnitCost         *float64 `json:"unit_cost"`
@@ -37,7 +37,6 @@ type createStockMovementRequest struct {
 // @Tags         stocks
 // @Produce      json
 // @Security     BearerAuth
-// @Param        stock_id query int false "Filtru stoc"
 // @Param        resource_id query int false "Filtru resursă"
 // @Param        field_operation_id query int false "Filtru operațiune pe teren"
 // @Param        from query string false "De la (YYYY-MM-DD)"
@@ -50,10 +49,6 @@ type createStockMovementRequest struct {
 func (h *StockMovementHandler) List(c *gin.Context) {
 	filter := domain.StockMovementFilter{}
 	var err error
-	if filter.StockID, err = optionalInt64Query(c.Query("stock_id")); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "stock_id invalid"})
-		return
-	}
 	if filter.ResourceID, err = optionalInt64Query(c.Query("resource_id")); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "resource_id invalid"})
 		return
@@ -111,7 +106,7 @@ func (h *StockMovementHandler) Create(c *gin.Context) {
 	}
 
 	result, err := h.service.Create(domain.StockMovementInput{
-		StockID:          req.StockID,
+		ResourceID:       req.ResourceID,
 		FieldOperationID: req.FieldOperationID,
 		MovementType:     domain.StockMovementType(req.MovementType),
 		Quantity:         req.Quantity,
@@ -121,7 +116,7 @@ func (h *StockMovementHandler) Create(c *gin.Context) {
 	})
 	if err != nil {
 		switch {
-		case errors.Is(err, usecase.ErrStockNotFound):
+		case errors.Is(err, usecase.ErrResourceNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		case errors.Is(err, usecase.ErrInvalidStockMovement):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -134,7 +129,7 @@ func (h *StockMovementHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, movement)
 
 	if h.audit != nil {
-		h.audit.Log("stock", auditID(movement.StockID), "movement", currentActorID(c), map[string]interface{}{
+		h.audit.Log("stock", auditID(movement.ResourceID), "movement", currentActorID(c), map[string]interface{}{
 			"movement_type":      string(movement.MovementType),
 			"quantity_delta":     movement.QuantityDelta,
 			"resulting_quantity": movement.ResultingQuantity,
@@ -145,8 +140,8 @@ func (h *StockMovementHandler) Create(c *gin.Context) {
 		h.notif.Emit(
 			domain.NotifStockLow,
 			"Stoc scăzut",
-			fmt.Sprintf("Stocul #%d a atins nivelul minim (%.2f / %.2f) după o mișcare de stoc", movement.StockID, movement.ResultingQuantity, result.Minimum),
-			"stock", strconv.FormatInt(movement.StockID, 10),
+			fmt.Sprintf("Stocul „%s” a atins nivelul minim (%.2f / %.2f) după o mișcare de stoc", movement.ResourceName, movement.ResultingQuantity, result.Minimum),
+			"stock", strconv.FormatInt(movement.ResourceID, 10),
 		)
 	}
 }

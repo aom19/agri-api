@@ -111,12 +111,12 @@ func (service *FieldOperationCompletionService) complete(
 		if usage.Quantity <= 0 {
 			return nil
 		}
-		lock, err := service.movements.LockStockByResource(tx, usage.ResourceID)
+		lock, err := service.movements.LockStock(tx, usage.ResourceID)
 		if err != nil {
 			return err
 		}
 		if lock == nil {
-			return fmt.Errorf("%w: nu există stoc pentru resursa #%d", ErrFieldOperationNotCompletable, usage.ResourceID)
+			return fmt.Errorf("%w: resursa #%d nu există", ErrFieldOperationNotCompletable, usage.ResourceID)
 		}
 		if fuelOnly && lock.Category != fuelCategory {
 			return fmt.Errorf("%w: resursa #%d nu este combustibil", ErrFieldOperationNotCompletable, usage.ResourceID)

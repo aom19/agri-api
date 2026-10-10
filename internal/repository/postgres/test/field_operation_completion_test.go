@@ -15,7 +15,7 @@ func TestCompletion_FuelHasASingleSource(t *testing.T) {
 	now := time.Now().UTC()
 	field := insertField(t, db, "Lot motorină")
 	machine := insertMachine(t, db, "Tractor", "TR-1")
-	fuelStockID, fuelResourceID := insertStock(t, db, "Motorină", 1000, 0, 7)
+	fuelResourceID := insertStock(t, db, "Motorină", 1000, 0, 7)
 
 	// norma de motorină din șablon (8 l/ha × 10 ha = 80 l) e înlocuită de valoarea raportată
 	templateID := insertID(t, db, `INSERT INTO operation_templates (name, operation_type) VALUES ('Arat standard', 'soil_preparation') RETURNING id`)
@@ -38,7 +38,7 @@ func TestCompletion_FuelHasASingleSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := stockQuantity(t, db, fuelStockID); got != 900 {
+	if got := stockQuantity(t, db, fuelResourceID); got != 900 {
 		t.Errorf("stocul de motorină trebuia să scadă cu 100 l, a rămas %.3f", got)
 	}
 	if result.Operation.FuelUsedL == nil || *result.Operation.FuelUsedL != 100 {
@@ -68,7 +68,7 @@ func TestCompletion_FuelHasASingleSource(t *testing.T) {
 func TestCompletion_EstimateMatchesTemplateConsumption(t *testing.T) {
 	db := requireDB(t)
 	field := insertField(t, db, "Lot estimare")
-	stockID, resourceID := insertStock(t, db, "Uree", 500, 0, 2)
+	resourceID := insertStock(t, db, "Uree", 500, 0, 2)
 	if _, err := db.Exec(`UPDATE resource_types SET category = 'fertilizer', default_unit = 'kg'`); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestCompletion_EstimateMatchesTemplateConsumption(t *testing.T) {
 	if _, err := svc.Complete(opID, domain.FieldOperationCompletion{ConsumeFromTemplate: true, AreaCompletedHa: ptr(9.5)}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := stockQuantity(t, db, stockID); got != 500-estimate.Items[0].Quantity {
+	if got := stockQuantity(t, db, resourceID); got != 500-estimate.Items[0].Quantity {
 		t.Errorf("finalizarea a scăzut altă cantitate decât estimarea: stoc %.4f", got)
 	}
 }

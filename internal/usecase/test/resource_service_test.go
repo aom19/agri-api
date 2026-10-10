@@ -1,14 +1,19 @@
 package usecase_test
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 
 	"agri-api/internal/domain"
+	"agri-api/internal/repository"
 	"agri-api/internal/usecase"
+
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
-func newResourceService() (*usecase.ResourceService, *resourceTypeRepoMock, *resourceRepoMock) {
+func newResourceService(t *testing.T) (*usecase.ResourceService, *resourceTypeRepoMock, *resourceRepoMock, sqlmock.Sqlmock) {
+	db, mock := newSQLMock(t)
 	types := &resourceTypeRepoMock{
 		getByID: func(id int64) (*domain.ResourceType, error) {
 			if id == 1 {
@@ -27,11 +32,11 @@ func newResourceService() (*usecase.ResourceService, *resourceTypeRepoMock, *res
 		},
 		create: func(r *domain.Resource) error { r.ID = 1; return nil },
 	}
-	return usecase.NewResourceService(types, resources), types, resources
+	return usecase.NewResourceService(db, types, resources, &stockMovementRepoMock{}), types, resources, mock
 }
 
 func TestResourceService_ResourceTypes(t *testing.T) {
-	svc, types, _ := newResourceService()
+	svc, types, _, _ := newResourceService(t)
 
 	if _, err := svc.GetResourceTypeByID(0); err == nil {
 		t.Error("id invalid trebuie să dea eroare")
@@ -95,7 +100,7 @@ func TestResourceService_ResourceTypes(t *testing.T) {
 }
 
 func TestResourceService_Resources(t *testing.T) {
-	svc, types, resources := newResourceService()
+	svc, types, resources, mock := newResourceService(t)
 
 	if _, err := svc.GetResourceByID(0); err == nil {
 		t.Error("id invalid trebuie să dea eroare")
@@ -112,9 +117,10 @@ func TestResourceService_Resources(t *testing.T) {
 		"nume lipsă":   {ResourceTypeID: 1},
 		"tip lipsă":    {Name: "x"},
 		"preț negativ": {Name: "x", ResourceTypeID: 1, PricePerUnit: -1},
+		"minim <0":     {Name: "x", ResourceTypeID: 1, MinimumQuantity: -1},
 	}
 	for name, in := range invalid {
-		if _, err := svc.CreateResource(in); err == nil {
+		if _, err := svc.CreateResource(in, nil); err == nil {
 			t.Errorf("create %s: mă așteptam la eroare", name)
 		}
 		if _, err := svc.UpdateResource(1, in); err == nil {
@@ -122,10 +128,15 @@ func TestResourceService_Resources(t *testing.T) {
 		}
 	}
 
-	if _, err := svc.CreateResource(&domain.Resource{Name: "x", ResourceTypeID: 99}); err == nil {
+	if _, err := svc.CreateResource(&domain.Resource{Name: "x", ResourceTypeID: 1, Quantity: -1}, nil); err == nil {
+		t.Error("cantitatea inițială negativă trebuie să dea eroare")
+	}
+	if _, err := svc.CreateResource(&domain.Resource{Name: "x", ResourceTypeID: 99}, nil); err == nil {
 		t.Error("tipul inexistent trebuie să dea eroare")
 	}
-	created, err := svc.CreateResource(&domain.Resource{Name: "Diesel", ResourceTypeID: 1, PricePerUnit: 7})
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	created, err := svc.CreateResource(&domain.Resource{Name: "Diesel", ResourceTypeID: 1, PricePerUnit: 7}, nil)
 	if err != nil || created.ID != 1 {
 		t.Fatalf("CreateResource: %v, %+v", err, created)
 	}
@@ -154,7 +165,7 @@ func TestResourceService_Resources(t *testing.T) {
 	}
 
 	types.getByID = func(int64) (*domain.ResourceType, error) { return nil, errors.New("db down") }
-	if _, err := svc.CreateResource(&domain.Resource{Name: "x", ResourceTypeID: 1}); err == nil {
+	if _, err := svc.CreateResource(&domain.Resource{Name: "x", ResourceTypeID: 1}, nil); err == nil {
 		t.Error("eroarea de citire a tipului trebuie propagată")
 	}
 	resources.getByID = func(int64) (*domain.Resource, error) { return nil, errors.New("db down") }
@@ -163,5 +174,73 @@ func TestResourceService_Resources(t *testing.T) {
 	}
 	if err := svc.DeleteResource(1); err == nil {
 		t.Error("eroarea de citire trebuie propagată la ștergere")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// T12: resursa se creează cu stocul ei. Cantitatea inițială devine o ajustare de inventar, în
+// aceeași tranzacție cu resursa; fără cantitate nu se generează nicio mișcare.
+func TestResourceService_CreateWithInitialStock(t *testing.T) {
+	db, mock := newSQLMock(t)
+	stored := map[int64]*domain.Resource{}
+	types := &resourceTypeRepoMock{getByID: func(id int64) (*domain.ResourceType, error) {
+		return &domain.ResourceType{ID: id}, nil
+	}}
+	resources := &resourceRepoMock{
+		create: func(r *domain.Resource) error {
+			r.ID = int64(len(stored) + 1)
+			saved := *r
+			stored[r.ID] = &saved
+			return nil
+		},
+		getByID: func(id int64) (*domain.Resource, error) { return stored[id], nil },
+	}
+	var applied *domain.StockMovement
+	movements := &stockMovementRepoMock{
+		lockStock: func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
+			return &repository.StockLock{ResourceID: id, Quantity: stored[id].Quantity, PriceUnit: 3}, nil
+		},
+		applyMovement: func(_ *sql.Tx, mv *domain.StockMovement) error {
+			applied = mv
+			stored[mv.ResourceID].Quantity = mv.ResultingQuantity
+			return nil
+		},
+	}
+	svc := usecase.NewResourceService(db, types, resources, movements)
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	actor := int64(7)
+	created, err := svc.CreateResource(&domain.Resource{Name: "Uree", ResourceTypeID: 1, Quantity: 5, MinimumQuantity: 1}, &actor)
+	if err != nil {
+		t.Fatalf("CreateResource: %v", err)
+	}
+	if applied == nil || applied.MovementType != domain.StockMovementAdjustment || applied.QuantityDelta != 5 ||
+		applied.ResultingQuantity != 5 || applied.Notes != "Stoc inițial" || *applied.ActorID != 7 {
+		t.Fatalf("mișcarea de stoc inițial: %+v", applied)
+	}
+	if created.Quantity != 5 || created.MinimumQuantity != 1 {
+		t.Errorf("resursa creată trebuie să aibă cantitatea din mișcare: %+v", created)
+	}
+
+	applied = nil
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	if _, err := svc.CreateResource(&domain.Resource{Name: "NPK", ResourceTypeID: 1}, nil); err != nil || applied != nil {
+		t.Errorf("resursă fără stoc inițial: %v, mișcare %+v", err, applied)
+	}
+
+	// o mișcare eșuată anulează și crearea resursei
+	boom := errors.New("db down")
+	movements.applyMovement = func(*sql.Tx, *domain.StockMovement) error { return boom }
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	if _, err := svc.CreateResource(&domain.Resource{Name: "Motorină", ResourceTypeID: 1, Quantity: 10}, nil); !errors.Is(err, boom) {
+		t.Errorf("eroarea la mișcare trebuie propagată: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

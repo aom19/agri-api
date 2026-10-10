@@ -45,8 +45,8 @@ func setProduction(t *testing.T, db *sql.DB, fieldCropID int64, production float
 func harvestState(t *testing.T, db *sql.DB, cropID int64) (quantity float64, movements int) {
 	t.Helper()
 	err := db.QueryRow(`
-		SELECT s.quantity, (SELECT COUNT(*) FROM stock_movements sm WHERE sm.stock_id = s.id)
-		FROM crops c JOIN stocks s ON s.resource_id = c.harvest_resource_id
+		SELECT r.quantity, (SELECT COUNT(*) FROM stock_movements sm WHERE sm.resource_id = r.id)
+		FROM crops c JOIN resources r ON r.id = c.harvest_resource_id
 		WHERE c.id = $1`, cropID).Scan(&quantity, &movements)
 	if err != nil {
 		t.Fatal(err)
@@ -147,11 +147,11 @@ func TestRecordHarvest_FailedCorrectionChangesNothing(t *testing.T) {
 	}
 
 	// se vând 30 t, apoi producția e corectată la 20: ar trebui scoase 20 t, dar în stoc mai sunt 10
-	var stockID int64
-	if err := db.QueryRow(`SELECT s.id FROM crops c JOIN stocks s ON s.resource_id = c.harvest_resource_id WHERE c.id = $1`, cropID).Scan(&stockID); err != nil {
+	var resourceID int64
+	if err := db.QueryRow(`SELECT harvest_resource_id FROM crops WHERE id = $1`, cropID).Scan(&resourceID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := newStockMovementService(db).Create(domain.StockMovementInput{StockID: stockID, MovementType: domain.StockMovementOut, Quantity: 30}); err != nil {
+	if _, err := newStockMovementService(db).Create(domain.StockMovementInput{ResourceID: resourceID, MovementType: domain.StockMovementOut, Quantity: 30}); err != nil {
 		t.Fatal(err)
 	}
 	setProduction(t, db, fieldCropID, 20)

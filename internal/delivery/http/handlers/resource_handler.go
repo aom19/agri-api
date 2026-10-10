@@ -4,6 +4,7 @@ import (
 	"agri-api/internal/domain"
 	"agri-api/internal/usecase"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -44,19 +45,29 @@ type updateResourceTypeRequest struct {
 	DefaultUnit string                  `json:"default_unit" binding:"required"`
 }
 
+// PricePerUnit e pointer ca prețul 0 să fie acceptat (ex. resursele de recoltă, create automat).
 type createResourceRequest struct {
-	Name           string  `json:"name" binding:"required"`
-	ResourceTypeID int64   `json:"resource_type_id" binding:"required"`
-	PricePerUnit   float64 `json:"price_per_unit" binding:"required"`
-	Notes          string  `json:"notes"`
+	Name           string   `json:"name" binding:"required"`
+	ResourceTypeID int64    `json:"resource_type_id" binding:"required"`
+	PricePerUnit   *float64 `json:"price_per_unit" binding:"required,gte=0"`
+	// Cantitatea inițială; se înregistrează ca ajustare de inventar.
+	Quantity        float64 `json:"quantity" binding:"gte=0"`
+	MinimumQuantity float64 `json:"minimum_quantity" binding:"gte=0"`
+	Notes           string  `json:"notes"`
 }
 
+// updateResourceRequest nu acceptă cantitatea: câmpul pointer există ca să respingem explicit
+// încercările de a o schimba altfel decât printr-o mișcare de stoc.
 type updateResourceRequest struct {
-	Name           string  `json:"name" binding:"required"`
-	ResourceTypeID int64   `json:"resource_type_id" binding:"required"`
-	PricePerUnit   float64 `json:"price_per_unit" binding:"required"`
-	Notes          string  `json:"notes"`
+	Name            string   `json:"name" binding:"required"`
+	ResourceTypeID  int64    `json:"resource_type_id" binding:"required"`
+	PricePerUnit    *float64 `json:"price_per_unit" binding:"required,gte=0"`
+	Quantity        *float64 `json:"quantity"`
+	MinimumQuantity *float64 `json:"minimum_quantity" binding:"required,gte=0"`
+	Notes           string   `json:"notes"`
 }
+
+const errResourceQuantityNotEditable = "cantitatea nu se editează direct: înregistrează o mișcare de stoc (ajustare de inventar)"
 
 func (h *ResourceHandler) GetAllResourceTypes(c *gin.Context) {
 	items, err := h.service.GetResourceTypes()
@@ -207,11 +218,13 @@ func (h *ResourceHandler) CreateResource(c *gin.Context) {
 	}
 
 	created, err := h.service.CreateResource(&domain.Resource{
-		Name:           req.Name,
-		ResourceTypeID: req.ResourceTypeID,
-		PricePerUnit:   req.PricePerUnit,
-		Notes:          req.Notes,
-	})
+		Name:            req.Name,
+		ResourceTypeID:  req.ResourceTypeID,
+		PricePerUnit:    *req.PricePerUnit,
+		Quantity:        req.Quantity,
+		MinimumQuantity: req.MinimumQuantity,
+		Notes:           req.Notes,
+	}, currentActorID(c))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -222,6 +235,8 @@ func (h *ResourceHandler) CreateResource(c *gin.Context) {
 		"name":             created.Name,
 		"resource_type_id": created.ResourceTypeID,
 		"price_per_unit":   created.PricePerUnit,
+		"quantity":         created.Quantity,
+		"minimum_quantity": created.MinimumQuantity,
 	})
 }
 
@@ -237,12 +252,18 @@ func (h *ResourceHandler) UpdateResource(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if req.Quantity != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errResourceQuantityNotEditable})
+		return
+	}
 
+	old, _ := h.service.GetResourceByID(id)
 	updated, err := h.service.UpdateResource(id, &domain.Resource{
-		Name:           req.Name,
-		ResourceTypeID: req.ResourceTypeID,
-		PricePerUnit:   req.PricePerUnit,
-		Notes:          req.Notes,
+		Name:            req.Name,
+		ResourceTypeID:  req.ResourceTypeID,
+		PricePerUnit:    *req.PricePerUnit,
+		MinimumQuantity: *req.MinimumQuantity,
+		Notes:           req.Notes,
 	})
 	if err != nil {
 		if errors.Is(err, usecase.ErrResourceNotFound) {
@@ -258,7 +279,18 @@ func (h *ResourceHandler) UpdateResource(c *gin.Context) {
 		"name":             updated.Name,
 		"resource_type_id": updated.ResourceTypeID,
 		"price_per_unit":   updated.PricePerUnit,
+		"minimum_quantity": updated.MinimumQuantity,
 	})
+	// un prag minim nou poate pune stocul existent sub minim
+	minimumRaised := old != nil && updated.MinimumQuantity > old.MinimumQuantity
+	if h.notif != nil && minimumRaised && updated.Quantity <= updated.MinimumQuantity {
+		h.notif.Emit(
+			domain.NotifStockLow,
+			"Stoc scăzut",
+			fmt.Sprintf("Stocul „%s” a atins nivelul minim (%.2f / %.2f)", updated.Name, updated.Quantity, updated.MinimumQuantity),
+			"stock", strconv.FormatInt(updated.ID, 10),
+		)
+	}
 }
 
 func (h *ResourceHandler) DeleteResource(c *gin.Context) {

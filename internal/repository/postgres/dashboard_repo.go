@@ -66,9 +66,9 @@ func (repo *DashboardRepo) GetQuickStats() (*domain.DashboardQuickStats, error) 
 				WHERE deleted_at IS NULL AND asset_status = 'maintenance') AS maintenance_machines,
 			(SELECT COUNT(*) FROM implements
 				WHERE deleted_at IS NULL AND status = 'maintenance') AS maintenance_implements,
-			(SELECT COUNT(*) FROM stocks
+			(SELECT COUNT(*) FROM resources
 				WHERE minimum_quantity > 0 AND quantity <= minimum_quantity) AS low_stocks,
-			(SELECT COUNT(*) FROM stocks) AS total_stocks
+			(SELECT COUNT(*) FROM resources) AS total_stocks
 	`
 
 	stats := &domain.DashboardQuickStats{}

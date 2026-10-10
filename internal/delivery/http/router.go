@@ -18,7 +18,6 @@ type AppDeps struct {
 	Log                             *logger.Logger
 	MachineService                  *usecase.MachineService
 	ResourceService                 *usecase.ResourceService
-	StockService                    *usecase.StockService
 	ImplementService                *usecase.ImplementService
 	OperatorService                 *usecase.OperatorService
 	FieldService                    *usecase.FieldService
@@ -150,21 +149,10 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/resources/:id", perm("resources:write"), resourceHandler.UpdateResource)
 	api.DELETE("/resources/:id", perm("resources:delete"), resourceHandler.DeleteResource)
 
-	// ─── Stocks ──────────────────────────────────────────────────────────────
-	stockHandler := handlers.NewStockHandler(
-		deps.StockService,
-		handlers.WithStockAudit(deps.AuditService),
-		handlers.WithStockNotif(deps.NotificationService),
-	)
-	api.GET("/stocks", perm("stock.view"), stockHandler.GetAll)
-	api.GET("/stocks/:id", perm("stock.view"), stockHandler.GetByID)
-	api.POST("/stocks", perm("stock.create"), stockHandler.Create)
-	api.PATCH("/stocks/:id", perm("stock.update"), stockHandler.Update)
-	api.DELETE("/stocks/:id", perm("stock.delete"), stockHandler.Delete)
-
+	// Stocul face parte din resursă și se modifică doar prin mișcări.
 	stockMovementHandler := handlers.NewStockMovementHandler(deps.StockMovementService, deps.AuditService, deps.NotificationService)
-	api.GET("/stock-movements", perm("stock.view"), stockMovementHandler.List)
-	api.POST("/stock-movements", perm("stock.update"), stockMovementHandler.Create)
+	api.GET("/stock-movements", perm("resources:read"), stockMovementHandler.List)
+	api.POST("/stock-movements", perm("resources:write"), stockMovementHandler.Create)
 
 	// ─── Implements ──────────────────────────────────────────────────────────
 	implementHandler := handlers.NewImplementHandler(

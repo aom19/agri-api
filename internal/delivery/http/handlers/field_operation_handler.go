@@ -452,8 +452,8 @@ func (h *FieldOperationHandler) Complete(c *gin.Context) {
 			h.notif.Emit(
 				domain.NotifStockLow,
 				"Stoc scăzut",
-				fmt.Sprintf("Stocul #%d a atins nivelul minim (%.2f / %.2f) după finalizarea lucrării #%d", low.StockID, low.Quantity, low.Minimum, id),
-				"stock", strconv.FormatInt(low.StockID, 10),
+				fmt.Sprintf("Stocul „%s” a atins nivelul minim (%.2f / %.2f) după finalizarea lucrării #%d", low.ResourceName, low.Quantity, low.Minimum, id),
+				"stock", strconv.FormatInt(low.ResourceID, 10),
 			)
 		}
 	}

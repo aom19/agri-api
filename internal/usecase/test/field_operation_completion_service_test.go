@@ -54,9 +54,9 @@ func TestFieldOperationCompletionService_Complete(t *testing.T) {
 			return []domain.TemplateResourceUsage{{ResourceID: 1, QuantityPerUnit: 2, PricePerUnit: 5}}, nil
 		},
 	}
-	stocks := map[int64]*repository.StockLock{1: {StockID: 10, ResourceID: 1, Quantity: 100, Minimum: 90, PriceUnit: 5}}
+	stocks := map[int64]*repository.StockLock{1: {ResourceID: 1, Quantity: 100, Minimum: 90, PriceUnit: 5}}
 	movements := &stockMovementRepoMock{
-		lockStockByResource: func(_ *sql.Tx, id int64) (*repository.StockLock, error) { return stocks[id], nil },
+		lockStock: func(_ *sql.Tx, id int64) (*repository.StockLock, error) { return stocks[id], nil },
 	}
 	svc := usecase.NewFieldOperationCompletionService(db, ops, movements)
 
@@ -199,12 +199,12 @@ func TestFieldOperationCompletionService_FuelAndOverrides(t *testing.T) {
 		},
 	}
 	stocks := map[int64]*repository.StockLock{
-		1: {StockID: 11, ResourceID: 1, Quantity: 1000, Category: "fertilizer"},
-		2: {StockID: 12, ResourceID: 2, Quantity: 1000, Category: "seed"},
-		5: {StockID: 15, ResourceID: 5, Quantity: 1000, Category: "fuel"},
+		1: {ResourceID: 1, Quantity: 1000, Category: "fertilizer"},
+		2: {ResourceID: 2, Quantity: 1000, Category: "seed"},
+		5: {ResourceID: 5, Quantity: 1000, Category: "fuel"},
 	}
 	movements := &stockMovementRepoMock{
-		lockStockByResource: func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
+		lockStock: func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
 			if lock, ok := stocks[id]; ok {
 				copy := *lock
 				return &copy, nil

@@ -64,8 +64,7 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 		LEFT JOIN fields f ON al.entity_type = 'field' AND f.id::text = al.entity_id
 		LEFT JOIN resource_types rt ON al.entity_type = 'resource_type' AND rt.id::text = al.entity_id
 		LEFT JOIN resources r ON al.entity_type = 'resource' AND r.id::text = al.entity_id
-		LEFT JOIN stocks s ON al.entity_type = 'stock' AND s.id::text = al.entity_id
-		LEFT JOIN resources sr ON sr.id = s.resource_id
+		LEFT JOIN resources sr ON al.entity_type = 'stock' AND sr.id::text = al.entity_id
 		LEFT JOIN users ou ON al.entity_type = 'operator' AND ou.id::text = al.entity_id
 		LEFT JOIN user_profiles oup ON oup.user_id = ou.id
 		LEFT JOIN operation_templates pl ON al.entity_type = 'operation_template' AND pl.id::text = al.entity_id

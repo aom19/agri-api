@@ -23,7 +23,7 @@ const (
 	TagImplements      = "implements"
 	TagFields          = "fields"
 	TagResources       = "resources"  // resources + resource_types
-	TagStocks          = "stocks"     // stocks + stock_movements
+	TagStocks          = "stocks"     // stocul resurselor + stock_movements
 	TagOperations      = "operations" // operation_templates
 	TagFieldOperations = "field_operations"
 	TagCrops           = "crops"   // seasons + crops + field_crops

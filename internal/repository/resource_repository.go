@@ -16,18 +16,9 @@ type ResourceTypeRepository interface {
 type ResourceRepository interface {
 	GetAll() ([]domain.Resource, error)
 	GetByID(id int64) (*domain.Resource, error)
-	Create(r *domain.Resource) error
+	// Create inserează resursa cu stocul 0; cantitatea inițială se adaugă printr-o mișcare.
+	Create(tx *sql.Tx, r *domain.Resource) error
+	// Update nu schimbă cantitatea: ea se modifică doar prin mișcări.
 	Update(id int64, r *domain.Resource) error
-	Delete(id int64) error
-}
-
-type StockRepository interface {
-	GetAll() ([]domain.Stock, error)
-	GetByID(id int64) (*domain.Stock, error)
-	GetByResourceID(resourceID int64) (*domain.Stock, error)
-	// Create inserează stocul cu cantitatea 0; cantitatea inițială se adaugă printr-o mișcare.
-	Create(tx *sql.Tx, s *domain.Stock) error
-	// UpdateMinimum schimbă doar pragul minim. Cantitatea se modifică doar prin mișcări.
-	UpdateMinimum(id int64, minimum float64) error
 	Delete(id int64) error
 }

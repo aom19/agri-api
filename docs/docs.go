@@ -3202,12 +3202,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Filtru stoc",
-                        "name": "stock_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
                         "description": "Filtru resursă",
                         "name": "resource_id",
                         "in": "query"
@@ -4955,9 +4949,6 @@ const docTemplate = `{
                 "resulting_quantity": {
                     "type": "number"
                 },
-                "stock_id": {
-                    "type": "integer"
-                },
                 "total_cost": {
                     "type": "number"
                 },
@@ -5372,7 +5363,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "movement_type",
-                "stock_id"
+                "resource_id"
             ],
             "properties": {
                 "field_operation_id": {
@@ -5392,7 +5383,7 @@ const docTemplate = `{
                 "quantity": {
                     "type": "number"
                 },
-                "stock_id": {
+                "resource_id": {
                     "type": "integer"
                 },
                 "unit_cost": {

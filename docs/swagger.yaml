@@ -1044,8 +1044,6 @@ definitions:
         type: string
       resulting_quantity:
         type: number
-      stock_id:
-        type: integer
       total_cost:
         type: number
       unit:
@@ -1333,13 +1331,13 @@ definitions:
         type: string
       quantity:
         type: number
-      stock_id:
+      resource_id:
         type: integer
       unit_cost:
         type: number
     required:
     - movement_type
-    - stock_id
+    - resource_id
     type: object
   handlers.cropRequest:
     properties:
@@ -3408,10 +3406,6 @@ paths:
   /stock-movements:
     get:
       parameters:
-      - description: Filtru stoc
-        in: query
-        name: stock_id
-        type: integer
       - description: Filtru resursă
         in: query
         name: resource_id

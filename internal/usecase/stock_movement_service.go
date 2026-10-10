@@ -34,8 +34,8 @@ type StockMovementResult struct {
 
 // Create înregistrează o mișcare manuală (recepție, consum sau ajustare de inventar).
 func (service *StockMovementService) Create(input domain.StockMovementInput) (*StockMovementResult, error) {
-	if input.StockID <= 0 {
-		return nil, fmt.Errorf("%w: stocul este obligatoriu", ErrInvalidStockMovement)
+	if input.ResourceID <= 0 {
+		return nil, fmt.Errorf("%w: resursa este obligatorie", ErrInvalidStockMovement)
 	}
 	if input.MovementType != domain.StockMovementAdjustment && input.Quantity <= 0 {
 		return nil, fmt.Errorf("%w: cantitatea trebuie să fie pozitivă", ErrInvalidStockMovement)
@@ -55,12 +55,12 @@ func (service *StockMovementService) Create(input domain.StockMovementInput) (*S
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	lock, err := service.repo.LockStockByID(tx, input.StockID)
+	lock, err := service.repo.LockStock(tx, input.ResourceID)
 	if err != nil {
 		return nil, err
 	}
 	if lock == nil {
-		return nil, ErrStockNotFound
+		return nil, ErrResourceNotFound
 	}
 
 	movement, err := buildMovement(lock, input.MovementType, input.Quantity, input.UnitCost, input.FieldOperationID, input.Notes, input.ActorID)
@@ -80,7 +80,7 @@ func (service *StockMovementService) Create(input domain.StockMovementInput) (*S
 	}, nil
 }
 
-// buildMovement calculează variația și cantitatea rezultată pentru un stoc blocat.
+// buildMovement calculează variația și cantitatea rezultată pentru stocul blocat al unei resurse.
 func buildMovement(
 	lock *repository.StockLock,
 	movementType domain.StockMovementType,
@@ -115,8 +115,9 @@ func buildMovement(
 	total := math.Abs(delta) * cost
 
 	return &domain.StockMovement{
-		StockID:           lock.StockID,
 		ResourceID:        lock.ResourceID,
+		ResourceName:      lock.ResourceName,
+		Category:          lock.Category,
 		FieldOperationID:  fieldOperationID,
 		MovementType:      movementType,
 		QuantityDelta:     delta,
@@ -129,7 +130,7 @@ func buildMovement(
 }
 
 // roundQuantity rotunjește la precizia coloanelor de cantitate (4 zecimale), ca suma
-// variațiilor salvate să fie egală cu cantitatea salvată a stocului.
+// variațiilor salvate să fie egală cu cantitatea salvată a resursei.
 func roundQuantity(value float64) float64 {
 	return math.Round(value*10000) / 10000
 }

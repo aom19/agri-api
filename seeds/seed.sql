@@ -12,8 +12,7 @@ BEGIN
         'fields',
         'implements', 'machines',
         'template_resources', 'template_machine_types', 'template_implement_types',
-        'operation_templates',
-        'stocks'
+        'operation_templates'
     ]) AS t
     WHERE to_regclass('public.' || t) IS NOT NULL;
 
@@ -157,52 +156,29 @@ INSERT INTO resource_types (name, category, default_unit) VALUES
     ('Alte resurse', 'other', 'buc')
 ON CONFLICT DO NOTHING;
 
--- Seed: resurse (consumabile)
-INSERT INTO resources (name, resource_type_id, price_per_unit, notes)
+-- Seed: resurse (consumabile), cu stocul și pragul minim
+INSERT INTO resources (name, resource_type_id, price_per_unit, quantity, minimum_quantity, notes)
 VALUES
-    ('Motorina flota utilaje', 1, 28.95, 'Rezervor principal pentru tractoare si combine'),
-    ('Benzina pentru autoturisme', 1, 31.20, 'Consum pentru vehicule usoare'),
-    ('Uree pentru fertilizare faziala', 2, 7.85, 'Aplicare primavara pe grau'),
-    ('NPK pentru pregatire teren', 2, 6.60, 'Fertilizare de baza inainte de semanat'),
-    ('Samanta grau lot A', 3, 4.75, 'Lot certificat C1'),
-    ('Samanta porumb lot B', 3, 690.00, 'Saci 80.000 boabe'),
-    ('Erbicid camp est', 4, 43.90, 'Tratament post-recoltare'),
-    ('Fungicid lot rapita', 4, 96.50, 'Control boli foliare'),
-    ('Apa sistem pivot 1', 5, 1.35, 'Cost operational mediu'),
-    ('Material absorbant atelier', 6, 18.00, 'Consumabil mentenanta')
+    ('Motorina flota utilaje', 1, 28.95, 12450.0000, 3000.0000, 'Rezervor principal pentru tractoare si combine'),
+    ('Benzina pentru autoturisme', 1, 31.20, 1850.0000, 500.0000, 'Consum pentru vehicule usoare'),
+    ('Uree pentru fertilizare faziala', 2, 7.85, 9200.0000, 2500.0000, 'Aplicare primavara pe grau'),
+    ('NPK pentru pregatire teren', 2, 6.60, 7800.0000, 2000.0000, 'Fertilizare de baza inainte de semanat'),
+    ('Samanta grau lot A', 3, 4.75, 5600.0000, 1500.0000, 'Lot certificat C1'),
+    ('Samanta porumb lot B', 3, 690.00, 140.0000, 40.0000, 'Saci 80.000 boabe'),
+    ('Erbicid camp est', 4, 43.90, 620.0000, 180.0000, 'Tratament post-recoltare'),
+    ('Fungicid lot rapita', 4, 96.50, 240.0000, 80.0000, 'Control boli foliare'),
+    ('Apa sistem pivot 1', 5, 1.35, 48000.0000, 10000.0000, 'Cost operational mediu'),
+    ('Material absorbant atelier', 6, 18.00, 85.0000, 20.0000, 'Consumabil mentenanta')
 ON CONFLICT DO NOTHING;
 
--- Seed: stocuri pentru resurse
-INSERT INTO stocks (resource_id, quantity, minimum_quantity)
-SELECT
-    res.id,
-    s.quantity,
-    s.minimum_quantity
-FROM (
-    VALUES
-        ('Motorina flota utilaje', 12450.0000, 3000.0000),
-        ('Benzina pentru autoturisme', 1850.0000, 500.0000),
-        ('Uree pentru fertilizare faziala', 9200.0000, 2500.0000),
-        ('NPK pentru pregatire teren', 7800.0000, 2000.0000),
-        ('Samanta grau lot A', 5600.0000, 1500.0000),
-        ('Samanta porumb lot B', 140.0000, 40.0000),
-        ('Erbicid camp est', 620.0000, 180.0000),
-        ('Fungicid lot rapita', 240.0000, 80.0000),
-        ('Apa sistem pivot 1', 48000.0000, 10000.0000),
-        ('Material absorbant atelier', 85.0000, 20.0000)
-) AS s(resource_name, quantity, minimum_quantity)
-JOIN resources res ON res.name = s.resource_name
-ON CONFLICT DO NOTHING;
-
--- Seed: cantitatea inițială a fiecărui stoc, ca mișcare (stocul se modifică doar prin mișcări)
+-- Seed: cantitatea inițială a fiecărei resurse, ca mișcare (stocul se modifică doar prin mișcări)
 INSERT INTO stock_movements (
-    stock_id, resource_id, movement_type, quantity_delta, resulting_quantity, unit_cost, total_cost, notes
+    resource_id, movement_type, quantity_delta, resulting_quantity, unit_cost, total_cost, notes
 )
-SELECT s.id, s.resource_id, 'adjustment', s.quantity, s.quantity, r.price_per_unit,
-       s.quantity * r.price_per_unit, 'Stoc inițial'
-FROM stocks s
-JOIN resources r ON r.id = s.resource_id
-WHERE s.quantity <> 0;
+SELECT r.id, 'adjustment', r.quantity, r.quantity, r.price_per_unit,
+       r.quantity * r.price_per_unit, 'Stoc inițial'
+FROM resources r
+WHERE r.quantity <> 0;
 
 -- Seed: template-uri de operatiuni (tipul e unul din cele 6 din domain.OperationType)
 INSERT INTO operation_templates (operation_type, name, description, unit)

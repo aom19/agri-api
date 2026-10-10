@@ -11,14 +11,14 @@ import (
 )
 
 func TestBuildMovement(t *testing.T) {
-	lock := &repository.StockLock{StockID: 1, ResourceID: 2, Quantity: 10, Minimum: 3, PriceUnit: 5}
+	lock := &repository.StockLock{ResourceID: 2, ResourceName: "Motorină", Category: "fuel", Quantity: 10, Minimum: 3, PriceUnit: 5}
 
 	in, err := usecase.BuildMovement(lock, domain.StockMovementIn, 4, nil, nil, "recepție", ptr(int64(9)))
 	if err != nil || in.QuantityDelta != 4 || in.ResultingQuantity != 14 || *in.TotalCost != 20 || *in.UnitCost != 5 {
 		t.Fatalf("intrare: %v, %+v", err, in)
 	}
-	if in.StockID != 1 || in.ResourceID != 2 || in.Notes != "recepție" || *in.ActorID != 9 {
-		t.Errorf("câmpurile mișcării nu sunt copiate din stoc: %+v", in)
+	if in.ResourceID != 2 || in.ResourceName != "Motorină" || in.Category != "fuel" || in.Notes != "recepție" || *in.ActorID != 9 {
+		t.Errorf("câmpurile mișcării nu sunt copiate din stocul resursei: %+v", in)
 	}
 
 	out, err := usecase.BuildMovement(lock, domain.StockMovementOut, 4, ptr(2.0), ptr(int64(3)), "", nil)
@@ -45,10 +45,10 @@ func TestStockMovementService_Create(t *testing.T) {
 	svc := usecase.NewStockMovementService(db, repo)
 
 	invalid := map[string]domain.StockMovementInput{
-		"stoc lipsă":        {MovementType: domain.StockMovementIn, Quantity: 1},
-		"cantitate zero":    {StockID: 1, MovementType: domain.StockMovementIn},
-		"ajustare negativă": {StockID: 1, MovementType: domain.StockMovementAdjustment, Quantity: -1},
-		"tip necunoscut":    {StockID: 1, MovementType: "x", Quantity: 1},
+		"resursă lipsă":     {MovementType: domain.StockMovementIn, Quantity: 1},
+		"cantitate zero":    {ResourceID: 1, MovementType: domain.StockMovementIn},
+		"ajustare negativă": {ResourceID: 1, MovementType: domain.StockMovementAdjustment, Quantity: -1},
+		"tip necunoscut":    {ResourceID: 1, MovementType: "x", Quantity: 1},
 	}
 	for name, in := range invalid {
 		if _, err := svc.Create(in); !errors.Is(err, usecase.ErrInvalidStockMovement) {
@@ -56,15 +56,15 @@ func TestStockMovementService_Create(t *testing.T) {
 		}
 	}
 
-	valid := domain.StockMovementInput{StockID: 1, MovementType: domain.StockMovementOut, Quantity: 8}
+	valid := domain.StockMovementInput{ResourceID: 1, MovementType: domain.StockMovementOut, Quantity: 8}
 
 	mock.ExpectBegin()
-	if _, err := svc.Create(valid); !errors.Is(err, usecase.ErrStockNotFound) {
-		t.Errorf("stoc inexistent: %v", err)
+	if _, err := svc.Create(valid); !errors.Is(err, usecase.ErrResourceNotFound) {
+		t.Errorf("resursă inexistentă: %v", err)
 	}
 
-	repo.lockStockByID = func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
-		return &repository.StockLock{StockID: id, ResourceID: 2, Quantity: 10, Minimum: 3, PriceUnit: 5}, nil
+	repo.lockStock = func(_ *sql.Tx, id int64) (*repository.StockLock, error) {
+		return &repository.StockLock{ResourceID: id, Quantity: 10, Minimum: 3, PriceUnit: 5}, nil
 	}
 	var applied *domain.StockMovement
 	repo.applyMovement = func(_ *sql.Tx, mv *domain.StockMovement) error { applied = mv; return nil }
@@ -80,7 +80,7 @@ func TestStockMovementService_Create(t *testing.T) {
 	}
 
 	mock.ExpectBegin()
-	if _, err := svc.Create(domain.StockMovementInput{StockID: 1, MovementType: domain.StockMovementOut, Quantity: 50}); !errors.Is(err, usecase.ErrInvalidStockMovement) {
+	if _, err := svc.Create(domain.StockMovementInput{ResourceID: 1, MovementType: domain.StockMovementOut, Quantity: 50}); !errors.Is(err, usecase.ErrInvalidStockMovement) {
 		t.Errorf("stoc insuficient: %v", err)
 	}
 
@@ -90,7 +90,7 @@ func TestStockMovementService_Create(t *testing.T) {
 	if _, err := svc.Create(valid); !errors.Is(err, boom) {
 		t.Errorf("eroarea la aplicare trebuie propagată: %v", err)
 	}
-	repo.lockStockByID = func(*sql.Tx, int64) (*repository.StockLock, error) { return nil, boom }
+	repo.lockStock = func(*sql.Tx, int64) (*repository.StockLock, error) { return nil, boom }
 	mock.ExpectBegin()
 	if _, err := svc.Create(valid); !errors.Is(err, boom) {
 		t.Errorf("eroarea la blocare trebuie propagată: %v", err)
