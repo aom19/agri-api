@@ -393,6 +393,7 @@ type fieldOperationRepoMock struct {
 	create                 func(*domain.FieldOperation) error
 	update                 func(int64, *domain.FieldOperation) error
 	getAssetCompatibility  func(int64, *int64, *int64) (*domain.AssetCompatibility, error)
+	archivedReferences     func(*domain.FieldOperation) ([]string, error)
 	getTemplateType        func(int64) (domain.OperationType, error)
 	updateStatus           func(int64, domain.FieldOperationStatus) error
 	markStarted            func(int64, time.Time) error
@@ -439,6 +440,13 @@ func (m *fieldOperationRepoMock) GetAssetCompatibility(templateID int64, machine
 		return m.getAssetCompatibility(templateID, machineID, implementID)
 	}
 	return &domain.AssetCompatibility{}, nil
+}
+
+func (m *fieldOperationRepoMock) ArchivedReferences(op *domain.FieldOperation) ([]string, error) {
+	if m.archivedReferences != nil {
+		return m.archivedReferences(op)
+	}
+	return nil, nil
 }
 
 // GetTemplateOperationType: implicit, orice template există și are tipul Semănat.

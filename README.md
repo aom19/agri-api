@@ -144,6 +144,7 @@ make admin email=adresa@exemplu.ro
 | `make migrate-status` | Afișează versiunea curentă a migrațiilor |
 | `make migrate-create name=nume` | Creează fișiere `.up.sql` și `.down.sql` noi |
 | `make admin email=adresa@exemplu.ro` | Dă rolul admin unui cont existent |
+| `make seed` | Golește și repopulează datele de test: flotă, operatori, resurse cu stoc, terenuri, sezoane, culturi, operațiuni pe teren și mișcări de stoc. Datele lucrărilor sunt relative la ziua rulării |
 | `make lint` | Rulează linter-ul |
 | `make test` | Rulează testele unitare |
 | `make test-cover` | Rulează testele și generează `coverage.out` + `test-report.json` (pentru SonarQube) |
@@ -306,6 +307,27 @@ Fiecare modul are `modul:read` și `modul:write`; `write` include crearea, edita
 | `viewer` | toate `:read`, mai puțin `users:read`, `roles:read` și `audit:read` |
 
 O permisiune nouă cere o migrație nouă, care o adaugă și o dă rolurilor. `TestRBAC_EveryPermissionIsCheckedByARoute` (`make test-db`) verifică după migrații că fiecare permisiune din baza de date e cerută de cel puțin o rută și invers.
+
+### Ștergere
+
+Ce e referit de istoricul lucrărilor se arhivează; restul se șterge definitiv, dar doar cât nu are istoric.
+
+| Ce | Cum se șterge | De ce |
+|---|---|---|
+| Terenuri, mașini, echipamente, template-uri, operațiuni pe teren | Arhivare (`deleted_at`) | Lucrările, mișcările de stoc, rapoartele și jurnalul de audit le păstrează numele |
+| Utilizatori și operatori | Arhivare, care e și dezactivarea; contul se poate reactiva | La fel; e-mailul rămâne al contului |
+| Sezoane, culturi, culturi pe terenuri, resurse (și tipurile de resurse, până la T13) | Definitiv, doar fără istoric; altfel API-ul răspunde 400 cu motivul | Nu au nume de păstrat în istoric, dar istoricul lor nu se pierde |
+
+Un element arhivat dispare din liste și nu mai poate fi ales într-o operațiune nouă sau la schimbarea uneia (400). Excepție: conturile dezactivate rămân în listele Utilizatori și Operatori, marcate inactive, ca să poată fi reactivate. În operațiunile vechi rămâne cu numele; o mașină sau un echipament arhivat apare `inactive`, deci lucrarea nu mai pornește cu el. Codul mașinii sau al echipamentului și numărul cadastral al terenului se pot refolosi după arhivare. O operațiune arhivată își păstrează consumul din stoc.
+
+„Istoric” înseamnă, la ștergerea definitivă:
+
+- sezonul are culturi pe terenuri;
+- cultura e folosită pe terenuri;
+- cultura pe teren are recolta înregistrată în stoc (se corectează producția, nu se șterge cultura); operațiunile legate de o cultură pe teren ștearsă rămân, fără legătură;
+- resursa are mișcări de stoc sau e într-un template.
+
+Baza de date impune regula prin chei străine fără cascadă (migrația `000055_deletion_rule`), iar `deletion_rule_test.go` (`make test-db`) o verifică.
 
 ### Audit și notificări (protejate)
 

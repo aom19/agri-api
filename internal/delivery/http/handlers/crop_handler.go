@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"agri-api/internal/domain"
+	"agri-api/internal/repository"
 	"agri-api/internal/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -49,12 +50,13 @@ type fieldCropRequest struct {
 }
 
 func respondCropError(c *gin.Context, err error) {
+	var inUse *repository.InUseError
 	switch {
 	case errors.Is(err, usecase.ErrCropNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	case errors.Is(err, usecase.ErrCropDuplicate):
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-	case errors.Is(err, usecase.ErrCropInvalid), errors.Is(err, usecase.ErrHarvestNotRecordable):
+	case errors.Is(err, usecase.ErrCropInvalid), errors.Is(err, usecase.ErrHarvestNotRecordable), errors.As(err, &inUse):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

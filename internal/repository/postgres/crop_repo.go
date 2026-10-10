@@ -20,6 +20,15 @@ func wrapUnique(err error) error {
 	return err
 }
 
+// wrapInUse traduce o ștergere refuzată de o cheie străină (rândul are istoric) în motivul dat.
+func wrapInUse(err error, reason string) error {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "23503" {
+		return &repository.InUseError{Reason: reason}
+	}
+	return err
+}
+
 type CropRepo struct {
 	db *sql.DB
 }
@@ -132,7 +141,7 @@ func (repo *CropRepo) UpdateSeason(id int64, season *domain.Season) error {
 func (repo *CropRepo) DeleteSeason(id int64) error {
 	result, err := repo.db.Exec(`DELETE FROM seasons WHERE id = $1`, id)
 	if err != nil {
-		return err
+		return wrapInUse(err, "sezonul are culturi pe terenuri; șterge-le întâi")
 	}
 	if affected, _ := result.RowsAffected(); affected == 0 {
 		return sql.ErrNoRows
@@ -218,11 +227,7 @@ func (repo *CropRepo) UpdateCrop(id int64, crop *domain.Crop) error {
 func (repo *CropRepo) DeleteCrop(id int64) error {
 	result, err := repo.db.Exec(`DELETE FROM crops WHERE id = $1`, id)
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23503" {
-			return fmt.Errorf("cultura este folosită pe terenuri și nu poate fi ștearsă")
-		}
-		return err
+		return wrapInUse(err, "cultura este folosită pe terenuri și nu poate fi ștearsă")
 	}
 	if affected, _ := result.RowsAffected(); affected == 0 {
 		return sql.ErrNoRows
@@ -363,7 +368,7 @@ func (repo *CropRepo) UpdateFieldCrop(id int64, item *domain.FieldCrop) error {
 func (repo *CropRepo) DeleteFieldCrop(id int64) error {
 	result, err := repo.db.Exec(`DELETE FROM field_crops WHERE id = $1`, id)
 	if err != nil {
-		return err
+		return wrapInUse(err, "recolta culturii e înregistrată în stoc, deci cultura nu mai poate fi ștearsă; corectează producția")
 	}
 	if affected, _ := result.RowsAffected(); affected == 0 {
 		return sql.ErrNoRows

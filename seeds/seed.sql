@@ -1,6 +1,9 @@
--- Curăță datele existente. Toate tabelele sunt golite într-un singur TRUNCATE, fără CASCADE,
--- ca tabelele care se referă între ele (ex. field_operations -> implements) să nu blocheze ștergerea,
--- iar datele care nu sunt populate de acest seed (ex. crops) să rămână neatinse.
+-- Curăță datele existente și le repune pe toate: mașini, echipamente, operatori, resurse cu stoc,
+-- template-uri, terenuri, sezoane, culturi pe terenuri, operațiuni pe teren și mișcări de stoc.
+-- Istoricul meteo nu se repune; îl reface procesul orar al API-ului.
+-- Toate tabelele sunt golite într-un singur TRUNCATE, fără CASCADE, ca tabelele care se referă
+-- între ele (ex. field_operations -> implements) să nu blocheze ștergerea, iar datele care nu sunt
+-- populate de acest seed (ex. crops) să rămână neatinse.
 DO $$
 DECLARE
     tables text;
@@ -153,7 +156,8 @@ INSERT INTO resource_types (name, category, default_unit) VALUES
     ('Seminte', 'seed', 'kg'),
     ('Pesticid', 'pesticide', 'L'),
     ('Apa', 'water', 'm3'),
-    ('Alte resurse', 'other', 'buc')
+    ('Alte resurse', 'other', 'buc'),
+    ('Recoltă', 'harvest', 't')
 ON CONFLICT DO NOTHING;
 
 -- Seed: resurse (consumabile), cu stocul și pragul minim
@@ -171,12 +175,13 @@ VALUES
     ('Material absorbant atelier', 6, 18.00, 85.0000, 20.0000, 'Consumabil mentenanta')
 ON CONFLICT DO NOTHING;
 
--- Seed: cantitatea inițială a fiecărei resurse, ca mișcare (stocul se modifică doar prin mișcări)
+-- Seed: cantitatea inițială a fiecărei resurse, ca mișcare (stocul se modifică doar prin mișcări),
+-- datată înaintea operațiunilor de mai jos
 INSERT INTO stock_movements (
-    resource_id, movement_type, quantity_delta, resulting_quantity, unit_cost, total_cost, notes
+    resource_id, movement_type, quantity_delta, resulting_quantity, unit_cost, total_cost, notes, created_at
 )
 SELECT r.id, 'adjustment', r.quantity, r.quantity, r.price_per_unit,
-       r.quantity * r.price_per_unit, 'Stoc inițial'
+       r.quantity * r.price_per_unit, 'Stoc inițial', NOW() - INTERVAL '60 days'
 FROM resources r
 WHERE r.quantity <> 0;
 
@@ -283,3 +288,243 @@ INSERT INTO fields (name, cadastral_number, area_ha, geometry) VALUES
     ('Gotesti - Tarla Mare', '2925501.001.01', 130.03, '{"type":"Polygon","coordinates":[[[28.149476,46.110885],[28.15028,46.110834],[28.151467,46.110765],[28.153161,46.110673],[28.154106,46.110621],[28.155093,46.110573],[28.156034,46.110509],[28.156499,46.110477],[28.156702,46.110478],[28.156954,46.110503],[28.157655,46.110601],[28.157876,46.110609],[28.158084,46.110595],[28.158273,46.110559],[28.158634,46.110484],[28.158938,46.110453],[28.160159,46.110375],[28.161115,46.110296],[28.161402,46.110255],[28.161537,46.110246],[28.161682,46.110261],[28.161798,46.110294],[28.16192,46.110346],[28.16203,46.110431],[28.162113,46.11055],[28.162172,46.110693],[28.1622,46.11085],[28.162227,46.111204],[28.162249,46.111308],[28.162406,46.111633],[28.162589,46.111981],[28.16274,46.112354],[28.16287,46.112748],[28.163061,46.113147],[28.1631,46.113279],[28.163094,46.113334],[28.163049,46.113393],[28.162967,46.113444],[28.162868,46.113475],[28.162639,46.113479],[28.162409,46.113502],[28.162254,46.113548],[28.162105,46.113621],[28.162033,46.11371],[28.162,46.11382],[28.162017,46.114002],[28.16227,46.115859],[28.162499,46.117352],[28.162595,46.118006],[28.162658,46.118304],[28.162727,46.118771],[28.162797,46.11936],[28.162982,46.120641],[28.16302,46.121115],[28.163073,46.121415],[28.163214,46.122247],[28.16172,46.122324],[28.157669,46.122493],[28.152432,46.122689],[28.150748,46.122761],[28.150553,46.122761],[28.150511,46.122396],[28.150398,46.121781],[28.150262,46.120671],[28.150181,46.119987],[28.150047,46.118851],[28.149971,46.117981],[28.149875,46.11732],[28.149846,46.117202],[28.149955,46.117129],[28.150001,46.117074],[28.150015,46.116965],[28.149986,46.116734],[28.149995,46.116291],[28.149973,46.116068],[28.149854,46.115468],[28.149779,46.115249],[28.149748,46.115161],[28.149737,46.115111],[28.149758,46.115064],[28.149804,46.114981],[28.149835,46.114896],[28.14984,46.114755],[28.149779,46.114172],[28.14967,46.113641],[28.149622,46.11337],[28.149626,46.113056],[28.149632,46.112819],[28.149599,46.112659],[28.149549,46.112517],[28.149559,46.111884],[28.149476,46.110885]]]}'), -- OSM way/1327828168, 130.03 ha
     ('Gotesti - Tarla Est', '2925501.002.01', 92.34, '{"type":"Polygon","coordinates":[[[28.222324,46.136253],[28.216824,46.136477],[28.214528,46.136565],[28.212985,46.136616],[28.212987,46.136876],[28.213037,46.137774],[28.213116,46.138903],[28.213183,46.139885],[28.213223,46.140296],[28.213259,46.140463],[28.213251,46.140624],[28.213252,46.140839],[28.213313,46.141576],[28.213382,46.142294],[28.213435,46.142763],[28.213535,46.143714],[28.213583,46.144264],[28.213652,46.144966],[28.213783,46.146277],[28.213898,46.14735],[28.213958,46.147743],[28.214002,46.147864],[28.214014,46.14788],[28.214251,46.147865],[28.214548,46.147826],[28.215046,46.147791],[28.215907,46.147733],[28.216567,46.147684],[28.217498,46.147628],[28.218675,46.147548],[28.220119,46.147454],[28.221477,46.147364],[28.222861,46.147268],[28.223447,46.147215],[28.223522,46.147198],[28.223566,46.147202],[28.223606,46.147221],[28.223696,46.147209],[28.223704,46.147012],[28.223492,46.145088],[28.223146,46.14244],[28.222408,46.136797],[28.222324,46.136253]]]}'), -- OSM way/1327866531, 92.34 ha
     ('Gotesti - Tarla Vest', '2925501.003.01', 68.47, '{"type":"Polygon","coordinates":[[[28.208236,46.11603],[28.208199,46.115913],[28.207479,46.11598],[28.207062,46.116011],[28.205724,46.116076],[28.20478,46.116101],[28.204437,46.116107],[28.204472,46.116369],[28.204511,46.116863],[28.204514,46.117369],[28.204556,46.117504],[28.204552,46.117569],[28.20451,46.117682],[28.204535,46.117894],[28.204577,46.118304],[28.204609,46.118487],[28.204624,46.118811],[28.204961,46.118818],[28.205437,46.1188],[28.205845,46.122009],[28.205394,46.122028],[28.204939,46.122034],[28.204998,46.122754],[28.205085,46.123735],[28.205195,46.124922],[28.205213,46.125176],[28.205247,46.126089],[28.205312,46.12659],[28.205424,46.127895],[28.205482,46.128468],[28.205591,46.129047],[28.205625,46.129269],[28.205686,46.129985],[28.205803,46.13102],[28.205951,46.132258],[28.206122,46.133811],[28.206226,46.134767],[28.20634,46.136017],[28.206383,46.136544],[28.206377,46.136686],[28.206356,46.136848],[28.206468,46.136787],[28.206879,46.136482],[28.207016,46.136259],[28.207103,46.136164],[28.207224,46.136102],[28.207486,46.135861],[28.207943,46.13539],[28.208517,46.13483],[28.208794,46.134591],[28.209156,46.134364],[28.209548,46.134162],[28.21039,46.133795],[28.210754,46.133611],[28.210656,46.133066],[28.210467,46.131437],[28.210189,46.129687],[28.209935,46.127829],[28.20971,46.125945],[28.209491,46.124549],[28.209367,46.123491],[28.20907,46.121299],[28.208818,46.119393],[28.208679,46.118307],[28.208551,46.117453],[28.208523,46.117207],[28.208493,46.117175],[28.208448,46.117159],[28.208372,46.117153],[28.208136,46.11721],[28.207828,46.117272],[28.207639,46.117316],[28.207474,46.117418],[28.207295,46.117512],[28.206958,46.117693],[28.206906,46.117696],[28.206864,46.1176],[28.206878,46.117566],[28.206964,46.117518],[28.207305,46.117325],[28.207427,46.117268],[28.207795,46.117154],[28.208135,46.117024],[28.208254,46.11697],[28.208318,46.116914],[28.208366,46.11685],[28.208251,46.116256],[28.208236,46.11603]]]}'); -- OSM way/1327866514, 68.47 ha
+
+
+-- ─── Sezoane și culturi pe terenuri ──────────────────────────────────────────
+-- Sezonul curent e anul cu recolta de vară deja strânsă: din august e anul curent, până în iulie
+-- e anul trecut. Așa datele recoltei rămân în trecut, oricând ar rula seed-ul.
+CREATE TEMP TABLE seed_season AS
+SELECT EXTRACT(YEAR FROM CURRENT_DATE - INTERVAL '7 months')::int AS year;
+
+INSERT INTO seasons (name, start_date, end_date, is_active, notes)
+SELECT 'Sezon ' || (ss.year - k), make_date(ss.year - k, 1, 1), make_date(ss.year - k, 12, 31), k = 0, ''
+FROM seed_season ss, (VALUES (0), (1)) AS offsets(k)
+ON CONFLICT (name) DO UPDATE SET
+    start_date = EXCLUDED.start_date,
+    end_date   = EXCLUDED.end_date,
+    is_active  = EXCLUDED.is_active,
+    updated_at = NOW();
+
+UPDATE seasons SET is_active = FALSE
+WHERE is_active AND name <> 'Sezon ' || (SELECT year FROM seed_season);
+
+-- culturile folosite mai jos (migrația 041 le creează deja; aici doar dacă au fost șterse)
+INSERT INTO crops (name, code, category, yield_unit) VALUES
+    ('Grâu', 'wheat', 'cereale', 't'),
+    ('Porumb', 'corn', 'cereale', 't'),
+    ('Orz', 'barley', 'cereale', 't'),
+    ('Floarea-soarelui', 'sunflower', 'oleaginoase', 't'),
+    ('Rapiță', 'rapeseed', 'oleaginoase', 't'),
+    ('Soia', 'soy', 'leguminoase', 't')
+ON CONFLICT (name) DO NOTHING;
+
+-- k: 0 = sezonul curent, 1 = cel trecut; planted_year e relativ la anul sezonului (culturile de
+-- toamnă se seamănă în anul dinainte). Recolta „recorded” e mutată în stoc mai jos.
+CREATE TEMP TABLE seed_field_crops (
+    field_name TEXT, k INT, crop_name TEXT,
+    planted_year INT, planted_month INT, planted_day INT,
+    harvest_month INT, harvest_day INT,
+    yield_per_ha NUMERIC, expected_yield_per_ha NUMERIC, recorded BOOLEAN, notes TEXT
+);
+
+INSERT INTO seed_field_crops VALUES
+    ('Tartaul - Tarla Mare',     0, 'Grâu',             -1, 10,  5,    7, 10, 5.0, 5.2, TRUE,  ''),
+    ('Tartaul - Tarla Centrala', 0, 'Orz',              -1, 10, 12,    6, 28, 4.6, 4.8, TRUE,  ''),
+    ('Gotesti - Tarla Vest',     0, 'Grâu',             -1, 10,  8,    7, 14, 4.7, 5.2, TRUE,  'Grindină la înflorire'),
+    ('Gotesti - Tarla Est',      0, 'Rapiță',           -1,  9,  2,    7,  2, 2.9, 3.0, FALSE, 'Producție cântărită, încă în câmp'),
+    ('Gotesti - Tarla Mare',     0, 'Floarea-soarelui',  0,  4, 15,    9, 18, 2.6, 2.8, TRUE,  ''),
+    ('Plopi - Tarla Nord',       0, 'Soia',              0,  5,  6,   10,  3, 2.7, 2.8, TRUE,  ''),
+    ('Plopi - Tarla Mare',       0, 'Porumb',            0,  4, 22, NULL, NULL, NULL, 7.5, FALSE, 'Recoltare în curs'),
+    ('Plopi - Tarla Sud',        0, 'Porumb',            0,  4, 26, NULL, NULL, NULL, 7.5, FALSE, ''),
+    ('Tartaul - Tarla Mare',     1, 'Porumb',            0,  4, 20,   10,  5, 6.8, 7.0, TRUE,  ''),
+    ('Plopi - Tarla Mare',       1, 'Grâu',             -1, 10, 10,    7, 12, 4.4, 5.0, TRUE,  ''),
+    ('Gotesti - Tarla Mare',     1, 'Grâu',             -1, 10,  6,    7, 15, 4.9, 5.0, TRUE,  ''),
+    ('Gotesti - Tarla Est',      1, 'Floarea-soarelui',  0,  4, 18,    9, 22, 2.4, 2.6, TRUE,  '');
+
+INSERT INTO field_crops (
+    field_id, season_id, crop_id, planted_area_ha, planted_at, harvested_at,
+    production_total, expected_yield_per_ha, notes, harvest_recorded_quantity, harvest_recorded_at
+)
+SELECT
+    f.id, s.id, c.id, f.area_ha,
+    make_date(ss.year - sfc.k + sfc.planted_year, sfc.planted_month, sfc.planted_day),
+    harvest.harvested_at,
+    ROUND(f.area_ha::numeric * sfc.yield_per_ha, 3),
+    sfc.expected_yield_per_ha,
+    sfc.notes,
+    CASE WHEN sfc.recorded THEN ROUND(f.area_ha::numeric * sfc.yield_per_ha, 3) END,
+    CASE WHEN sfc.recorded THEN harvest.harvested_at + INTERVAL '1 day 9 hours' END
+FROM seed_field_crops sfc
+CROSS JOIN seed_season ss
+-- o recoltă din sezonul curent nu poate fi în viitor (de exemplu dacă seed-ul rulează în august)
+CROSS JOIN LATERAL (
+    SELECT LEAST(make_date(ss.year - sfc.k, sfc.harvest_month, sfc.harvest_day), CURRENT_DATE - 1) AS harvested_at
+) harvest
+JOIN fields f ON f.name = sfc.field_name
+JOIN seasons s ON s.name = 'Sezon ' || (ss.year - sfc.k)
+JOIN crops c ON c.name = sfc.crop_name;
+
+DROP TABLE seed_field_crops;
+
+-- Recolta înregistrată intră în stoc pe resursa culturii, ca la „Înregistrează recolta” din aplicație.
+INSERT INTO resources (name, resource_type_id, price_per_unit, notes)
+SELECT 'Recoltă ' || c.name, (SELECT id FROM resource_types WHERE category = 'harvest' ORDER BY id LIMIT 1),
+       p.price, 'Stocul recoltei, alimentat la înregistrarea recoltei'
+FROM crops c
+JOIN (VALUES ('Grâu', 3200), ('Orz', 2800), ('Porumb', 2900), ('Floarea-soarelui', 7400), ('Soia', 6800))
+    AS p(crop_name, price) ON p.crop_name = c.name;
+
+UPDATE crops c SET harvest_resource_id = r.id, updated_at = NOW()
+FROM resources r
+WHERE r.name = 'Recoltă ' || c.name;
+
+INSERT INTO stock_movements (
+    resource_id, field_crop_id, movement_type, quantity_delta, resulting_quantity,
+    unit_cost, total_cost, notes, created_at
+)
+SELECT c.harvest_resource_id, fc.id, 'in', fc.harvest_recorded_quantity, 0,
+       r.price_per_unit, ROUND(fc.harvest_recorded_quantity * r.price_per_unit, 2),
+       'Recoltă ' || c.name || ' - ' || f.name || ' (' || s.name || ')', fc.harvest_recorded_at
+FROM field_crops fc
+JOIN crops c ON c.id = fc.crop_id
+JOIN resources r ON r.id = c.harvest_resource_id
+JOIN fields f ON f.id = fc.field_id
+JOIN seasons s ON s.id = fc.season_id
+WHERE fc.harvest_recorded_quantity IS NOT NULL;
+
+-- Recolta sezonului trecut e vândută în mare parte.
+INSERT INTO stock_movements (resource_id, movement_type, quantity_delta, resulting_quantity, unit_cost, total_cost, notes, created_at)
+SELECT m.resource_id, 'out', -ROUND(SUM(m.quantity_delta) * 0.9, 3), 0, MAX(m.unit_cost),
+       ROUND(SUM(m.quantity_delta) * 0.9 * MAX(m.unit_cost), 2), 'Vânzare recoltă ' || s.name, s.end_date + INTERVAL '20 days'
+FROM stock_movements m
+JOIN field_crops fc ON fc.id = m.field_crop_id
+JOIN seasons s ON s.id = fc.season_id
+WHERE s.name = 'Sezon ' || ((SELECT year FROM seed_season) - 1)
+GROUP BY m.resource_id, s.name, s.end_date;
+
+-- ─── Operațiuni pe teren ─────────────────────────────────────────────────────
+-- Datele sunt relative la ziua seed-ului, ca rapoartele pe ultimele 30 de zile și pagina Alocări
+-- să aibă date: lucrări finalizate (una cu întârziere), în lucru (una depășită), planificate și
+-- una anulată. Fără template, operațiunea are tip propriu (recoltările de porumb, soia și floarea-soarelui).
+CREATE TEMP TABLE seed_operations (
+    field_name TEXT, template_name TEXT, operation_type TEXT,
+    machine_code TEXT, implement_code TEXT, operator_email TEXT, status TEXT,
+    start_day INT, planned_hours INT, start_delay_hours INT, actual_hours INT,
+    area_completed_pct NUMERIC, notes TEXT, completion_notes TEXT
+);
+
+INSERT INTO seed_operations VALUES
+    ('Tartaul - Tarla Mare',     'Arat adanc standard',      NULL,         'MCH-0004', 'IMP-0001', 'alexandru.ionescu@agri.ro', 'completed',   -40, 30, 0, 32,   1.00, '', 'Sol uscat, arat mai lent'),
+    ('Tartaul - Tarla Mare',     'Pregatire pat germinativ', NULL,         'MCH-0001', 'IMP-0007', 'mihai.popescu@agri.ro',     'completed',   -30, 20, 1, 19,   1.00, '', ''),
+    ('Tartaul - Tarla Mare',     'Semanat grau standard',    NULL,         'MCH-0006', 'IMP-0002', 'vasile.marin@agri.ro',      'completed',   -20, 18, 0, 17,   1.00, '', ''),
+    ('Gotesti - Tarla Mare',     NULL,                       'harvesting', 'MCH-0011', 'IMP-0006', 'nicolae.stancu@agri.ro',    'completed',   -22, 40, 2, 44,   1.00, 'Recoltare floarea-soarelui', ''),
+    ('Tartaul - Tarla Centrala', 'Arat adanc standard',      NULL,         'MCH-0007', 'IMP-0001', 'alexandru.ionescu@agri.ro', 'completed',   -12, 22, 0, 21,   0.95, '', 'Colțul de nord-est rămas nearat, prea umed'),
+    ('Gotesti - Tarla Vest',     'Pregatire pat germinativ', NULL,         'MCH-0002', 'IMP-0003', 'octavian.rus@agri.ro',      'completed',   -15, 16, 0, 15,   1.00, '', ''),
+    ('Gotesti - Tarla Vest',     'Semanat grau standard',    NULL,         'MCH-0001', 'IMP-0002', 'bogdan.stoica@agri.ro',     'completed',    -8, 14, 3, 20,   1.00, '', 'Pană la semănătoare, terminat a doua zi'),
+    ('Plopi - Tarla Nord',       NULL,                       'harvesting', 'MCH-0012', 'IMP-0006', 'sorin.enache@agri.ro',      'completed',    -6, 20, 0, 18,   1.00, 'Recoltare soia', ''),
+    ('Plopi - Tarla Mare',       NULL,                       'harvesting', 'MCH-0012', 'IMP-0006', 'mihai.popescu@agri.ro',     'in_progress',  -1, 72, 1, NULL, NULL, 'Recoltare porumb', ''),
+    ('Tartaul - Tarla Centrala', 'Pregatire pat germinativ', NULL,         'MCH-0004', 'IMP-0007', 'vasile.marin@agri.ro',      'in_progress',  -3, 30, 2, NULL, NULL, '', ''),
+    ('Plopi - Tarla Sud',        NULL,                       'harvesting', 'MCH-0011', NULL,       'sorin.enache@agri.ro',      'planned',       2, 24, 0, NULL, NULL, 'Recoltare porumb', ''),
+    ('Tartaul - Tarla Centrala', 'Semanat grau standard',    NULL,         'MCH-0006', 'IMP-0002', 'octavian.rus@agri.ro',      'planned',       3, 16, 0, NULL, NULL, '', ''),
+    ('Gotesti - Tarla Est',      'Arat adanc standard',      NULL,         'MCH-0002', 'IMP-0001', 'bogdan.stoica@agri.ro',     'planned',       5, 40, 0, NULL, NULL, '', ''),
+    ('Tartaul - Tarla Mare',     'Erbicidare camp est',      NULL,         'MCH-0019', NULL,       'nicolae.stancu@agri.ro',    'planned',       7, 10, 0, NULL, NULL, 'Erbicidare de toamnă', ''),
+    ('Gotesti - Tarla Vest',     'Fertilizare faziala grau', NULL,         'MCH-0007', 'IMP-0003', 'alexandru.ionescu@agri.ro', 'planned',      14, 12, 0, NULL, NULL, '', ''),
+    ('Lingura - Vie Est',        'Erbicidare camp est',      NULL,         'MCH-0010', NULL,       'sorin.enache@agri.ro',      'canceled',    -10,  4, 0, NULL, NULL, 'Anulată: vânt puternic', '');
+
+INSERT INTO field_operations (
+    field_id, operation_template_id, operation_type, machine_id, implement_id, operator_id,
+    planned_start_at, planned_end_at, area_planned_ha, status,
+    actual_start_at, actual_end_at, area_completed_ha, machine_hours, notes, completion_notes, created_at
+)
+SELECT
+    f.id, t.id, so.operation_type, m.id, i.id, u.id,
+    planned.start_at, planned.start_at + so.planned_hours * INTERVAL '1 hour', f.area_ha, so.status,
+    CASE WHEN so.status IN ('in_progress', 'completed') THEN planned.start_at + so.start_delay_hours * INTERVAL '1 hour' END,
+    CASE WHEN so.status = 'completed' THEN planned.start_at + (so.start_delay_hours + so.actual_hours) * INTERVAL '1 hour' END,
+    CASE WHEN so.status = 'completed' THEN ROUND((f.area_ha * so.area_completed_pct)::numeric, 2)::float8 END,
+    CASE WHEN so.status = 'completed' THEN ROUND(so.actual_hours * 0.85, 1) END,
+    so.notes, so.completion_notes,
+    LEAST(planned.start_at, NOW()) - INTERVAL '2 days'
+FROM seed_operations so
+CROSS JOIN LATERAL (
+    SELECT date_trunc('day', NOW()) + so.start_day * INTERVAL '1 day' + INTERVAL '7 hours' AS start_at
+) planned
+JOIN fields f ON f.name = so.field_name
+JOIN machines m ON m.code = so.machine_code
+JOIN users u ON u.email = so.operator_email
+LEFT JOIN operation_templates t ON t.name = so.template_name
+LEFT JOIN implements i ON i.code = so.implement_code;
+
+DROP TABLE seed_operations;
+
+-- Legătura operațiune → cultura terenului din sezon, după data planificată (ca la salvarea culturii).
+UPDATE field_operations fo
+SET field_crop_id = fc.id
+FROM field_crops fc
+JOIN seasons s ON s.id = fc.season_id
+WHERE fo.field_id = fc.field_id
+  AND fo.planned_start_at >= s.start_date
+  AND fo.planned_start_at < s.end_date + INTERVAL '1 day';
+
+-- ─── Mișcări de stoc ─────────────────────────────────────────────────────────
+
+-- aprovizionări, ca stocul de NPK și sămânță să acopere semănatul
+INSERT INTO stock_movements (resource_id, movement_type, quantity_delta, resulting_quantity, unit_cost, total_cost, notes, created_at)
+SELECT r.id, 'in', d.quantity, 0, r.price_per_unit, ROUND(d.quantity * r.price_per_unit, 2), d.notes, NOW() - d.days_ago * INTERVAL '1 day'
+FROM (VALUES
+    ('NPK pentru pregatire teren', 20000.0, 35, 'Aprovizionare furnizor'),
+    ('Samanta grau lot A',         30000.0, 25, 'Aprovizionare lot certificat')
+) AS d(resource_name, quantity, days_ago, notes)
+JOIN resources r ON r.name = d.resource_name;
+
+-- consumul la finalizare: normele template-ului × suprafața lucrată, cu o abatere mică pe lucrare;
+-- motorina e cea raportată la finalizare, singura sursă a combustibilului în rapoarte
+INSERT INTO stock_movements (
+    resource_id, field_operation_id, movement_type, quantity_delta, resulting_quantity,
+    unit_cost, total_cost, notes, created_at
+)
+SELECT r.id, fo.id, 'out', -usage.quantity, 0, r.price_per_unit, ROUND(usage.quantity * r.price_per_unit, 2),
+       CASE WHEN rt.category = 'fuel' THEN 'Combustibil raportat la finalizare' ELSE 'Consum la finalizarea operațiunii' END,
+       fo.actual_end_at
+FROM field_operations fo
+JOIN template_resources tr ON tr.template_id = fo.operation_template_id
+JOIN resources r ON r.id = tr.resource_id
+JOIN resource_types rt ON rt.id = r.resource_type_id
+CROSS JOIN LATERAL (
+    SELECT ROUND(tr.quantity_per_unit::numeric * fo.area_completed_ha::numeric * (0.96 + (fo.id % 5) * 0.02), 3) AS quantity
+) usage
+WHERE fo.status = 'completed';
+
+-- recoltările fără template raportează doar motorina
+INSERT INTO stock_movements (
+    resource_id, field_operation_id, movement_type, quantity_delta, resulting_quantity,
+    unit_cost, total_cost, notes, created_at
+)
+SELECT r.id, fo.id, 'out', -usage.quantity, 0, r.price_per_unit, ROUND(usage.quantity * r.price_per_unit, 2),
+       'Combustibil raportat la finalizare', fo.actual_end_at
+FROM field_operations fo
+JOIN resources r ON r.name = 'Motorina flota utilaje'
+CROSS JOIN LATERAL (SELECT ROUND(fo.area_completed_ha::numeric * 14.5, 3) AS quantity) usage
+WHERE fo.status = 'completed' AND fo.operation_template_id IS NULL;
+
+-- Stocul e suma mișcărilor; cantitatea rezultată se recalculează în ordinea în care au avut loc.
+UPDATE stock_movements sm
+SET resulting_quantity = running.total
+FROM (
+    SELECT id, SUM(quantity_delta) OVER (PARTITION BY resource_id ORDER BY created_at, id) AS total
+    FROM stock_movements
+) running
+WHERE running.id = sm.id;
+
+UPDATE resources r
+SET quantity = COALESCE((SELECT SUM(sm.quantity_delta) FROM stock_movements sm WHERE sm.resource_id = r.id), 0),
+    updated_at = NOW();
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM stock_movements WHERE resulting_quantity < 0) THEN
+        RAISE EXCEPTION 'seed: o mișcare de stoc lasă stocul pe minus';
+    END IF;
+END $$;
+
+DROP TABLE seed_season;

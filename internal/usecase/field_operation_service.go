@@ -5,6 +5,7 @@ import (
 	"agri-api/internal/dto"
 	"agri-api/internal/repository"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ var (
 	ErrFieldOperationCannotStart           = errors.New("lucrarea nu poate fi pornită din statusul curent")
 	ErrFieldOperationMachineIncompatible   = errors.New("tipul mașinii nu este acceptat de template-ul operațiunii")
 	ErrFieldOperationImplementIncompatible = errors.New("tipul echipamentului nu este acceptat de template-ul operațiunii")
+	ErrFieldOperationArchivedReference     = errors.New("nu poți alege elemente șterse")
 )
 
 type FieldOperationService struct {
@@ -63,6 +65,9 @@ func (s *FieldOperationService) Create(input *domain.FieldOperation) (*dto.Field
 	if err := s.validate(input); err != nil {
 		return nil, err
 	}
+	if err := s.validateActiveReferences(input, nil); err != nil {
+		return nil, err
+	}
 	if input.Status == "" {
 		input.Status = domain.FieldOperationStatusPlanned
 	}
@@ -83,6 +88,9 @@ func (s *FieldOperationService) Update(id int64, input *domain.FieldOperation) (
 		return nil, ErrFieldOperationNotFound
 	}
 	if err := s.validate(input); err != nil {
+		return nil, err
+	}
+	if err := s.validateActiveReferences(input, existing); err != nil {
 		return nil, err
 	}
 	if input.Status == "" {
@@ -213,6 +221,44 @@ func (s *FieldOperationService) validateAssetCompatibility(input *domain.FieldOp
 		return ErrFieldOperationImplementIncompatible
 	}
 	return nil
+}
+
+// validateActiveReferences refuză un teren, template, mașină, echipament sau operator șters
+// (arhivat). La editare se verifică doar ce se schimbă: o lucrare veche rămâne editabilă și după
+// ce mașina ei a fost scoasă din flotă.
+func (s *FieldOperationService) validateActiveReferences(input *domain.FieldOperation, existing *dto.FieldOperationResponse) error {
+	refs := domain.FieldOperation{
+		FieldID:             input.FieldID,
+		OperationTemplateID: input.OperationTemplateID,
+		MachineID:           input.MachineID,
+		ImplementID:         input.ImplementID,
+		OperatorID:          input.OperatorID,
+	}
+	if existing != nil {
+		if refs.FieldID == existing.FieldID {
+			refs.FieldID = ""
+		}
+		refs.OperationTemplateID = changedID(refs.OperationTemplateID, existing.OperationTemplateID)
+		refs.MachineID = changedID(refs.MachineID, existing.MachineID)
+		refs.ImplementID = changedID(refs.ImplementID, existing.ImplementID)
+		refs.OperatorID = changedID(refs.OperatorID, existing.OperatorID)
+	}
+	archived, err := s.repo.ArchivedReferences(&refs)
+	if err != nil {
+		return err
+	}
+	if len(archived) > 0 {
+		return fmt.Errorf("%w: %s", ErrFieldOperationArchivedReference, strings.Join(archived, ", "))
+	}
+	return nil
+}
+
+// changedID întoarce id-ul nou doar dacă diferă de cel existent.
+func changedID(next, current *int64) *int64 {
+	if next != nil && current != nil && *next == *current {
+		return nil
+	}
+	return next
 }
 
 func typeAllowed(allowed []string, assetType string) bool {

@@ -70,9 +70,10 @@ docker-build:
 
 ## ─── Seed ────────────────────────────────────────────────────────────────────
 
-## Populează baza de date cu date de test (rulează manual, nu la migrate-up)
+## Populează baza de date cu date de test (rulează manual, nu la migrate-up). Rulează într-o singură
+## tranzacție: la prima eroare nu se schimbă nimic.
 seed:
-	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) < seeds/seed.sql
+	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 --single-transaction < seeds/seed.sql
 
 ## Dă rolul admin unui cont existent: make admin email=ana@exemplu.ro
 ## Rolurile și permisiunile vin din migrații (000054), iar înregistrarea dă mereu viewer.

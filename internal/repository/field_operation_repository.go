@@ -30,6 +30,9 @@ type FieldOperationRepository interface {
 	// GetAssetCompatibility returnează tipurile de mașini și echipamente acceptate de template
 	// și tipurile mașinii și echipamentului date (nil = neales).
 	GetAssetCompatibility(templateID int64, machineID, implementID *int64) (*domain.AssetCompatibility, error)
+	// ArchivedReferences întoarce, dintre terenul, template-ul, mașina, echipamentul și operatorul
+	// operațiunii, pe cele șterse (arhivate); câmpurile goale nu se verifică.
+	ArchivedReferences(op *domain.FieldOperation) ([]string, error)
 	// GetTemplateOperationType returnează tipul template-ului (gol = template inexistent).
 	GetTemplateOperationType(templateID int64) (domain.OperationType, error)
 	// GetTemplateResources returnează normele de consum ale șablonului (resurse + prețuri).

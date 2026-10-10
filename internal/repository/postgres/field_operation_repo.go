@@ -52,14 +52,20 @@ func operationTypeNameExpr(typeExpr string) string {
 	return sb.String()
 }
 
+// archivedAsInactive afișează o mașină sau un echipament șters (arhivat) ca inactiv: rămâne în
+// istoricul lucrării, dar lucrarea nu mai poate porni cu el.
+func archivedAsInactive(alias, column string) string {
+	return fmt.Sprintf("CASE WHEN %[1]s.deleted_at IS NULL THEN %[1]s.%[2]s ELSE 'inactive' END", alias, column)
+}
+
 var fieldOperationBaseSelect = `
 	SELECT
 		fo.id,
 		fo.field_id, f.name, f.geometry,
 		` + fieldOperationTypeExpr + `, ` + fieldOperationTypeNameExpr + `,
 		fo.operation_template_id, t.name,
-		fo.machine_id, m.name, m.asset_status,
-		fo.implement_id, imp.name, imp.status,
+		fo.machine_id, m.name, ` + archivedAsInactive("m", "asset_status") + `,
+		fo.implement_id, imp.name, ` + archivedAsInactive("imp", "status") + `,
 		fo.operator_id, ` + operatorNameExpr + `,
 		fo.planned_start_at,
 		fo.planned_end_at,
@@ -427,6 +433,29 @@ func (repo *FieldOperationRepo) GetAssetCompatibility(templateID int64, machineI
 		return nil, err
 	}
 	return &c, nil
+}
+
+func (repo *FieldOperationRepo) ArchivedReferences(op *domain.FieldOperation) ([]string, error) {
+	rows, err := repo.db.Query(`
+		SELECT 'terenul' FROM fields WHERE id::text = $1 AND deleted_at IS NOT NULL
+		UNION ALL SELECT 'template-ul' FROM operation_templates WHERE id = $2 AND deleted_at IS NOT NULL
+		UNION ALL SELECT 'mașina' FROM machines WHERE id = $3 AND deleted_at IS NOT NULL
+		UNION ALL SELECT 'echipamentul' FROM implements WHERE id = $4 AND deleted_at IS NOT NULL
+		UNION ALL SELECT 'operatorul' FROM users WHERE id = $5 AND deleted_at IS NOT NULL`,
+		op.FieldID, op.OperationTemplateID, op.MachineID, op.ImplementID, op.OperatorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var archived []string
+	for rows.Next() {
+		var label string
+		if err := rows.Scan(&label); err != nil {
+			return nil, err
+		}
+		archived = append(archived, label)
+	}
+	return archived, rows.Err()
 }
 
 func (repo *FieldOperationRepo) GetTemplateOperationType(templateID int64) (domain.OperationType, error) {
