@@ -8,12 +8,12 @@ import (
 // ReportFilter conține filtrele comune tuturor rapoartelor. Intervalul este
 // [From, To) — To este exclusiv (ziua următoare ultimei zile selectate).
 type ReportFilter struct {
-	From            time.Time
-	To              time.Time
-	FieldID         string
-	OperationTypeID int64
-	MachineID       int64
-	OperatorID      int64
+	From          time.Time
+	To            time.Time
+	FieldID       string
+	OperationType OperationType
+	MachineID     int64
+	OperatorID    int64
 }
 
 // ReportPeriod descrie intervalul raportat și intervalul anterior de aceeași lungime,
@@ -92,12 +92,12 @@ type ReportNamedValue struct {
 }
 
 type ReportOperationTypeStat struct {
-	OperationTypeID   int64   `json:"operation_type_id"`
-	OperationTypeName string  `json:"operation_type_name"`
-	Total             int     `json:"total"`
-	Completed         int     `json:"completed"`
-	AreaHa            float64 `json:"area_ha"`
-	EstimatedCost     float64 `json:"estimated_cost"`
+	OperationType     OperationType `json:"operation_type"`
+	OperationTypeName string        `json:"operation_type_name"`
+	Total             int           `json:"total"`
+	Completed         int           `json:"completed"`
+	AreaHa            float64       `json:"area_ha"`
+	EstimatedCost     float64       `json:"estimated_cost"`
 }
 
 type ReportOperationRow struct {

@@ -2331,9 +2331,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filtru tip operațiune",
-                        "name": "operation_type_id",
+                        "type": "string",
+                        "description": "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)",
+                        "name": "operation_type",
                         "in": "query"
                     },
                     {
@@ -2415,9 +2415,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filtru tip operațiune",
-                        "name": "operation_type_id",
+                        "type": "string",
+                        "description": "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)",
+                        "name": "operation_type",
                         "in": "query"
                     },
                     {
@@ -2499,9 +2499,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filtru tip operațiune",
-                        "name": "operation_type_id",
+                        "type": "string",
+                        "description": "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)",
+                        "name": "operation_type",
                         "in": "query"
                     },
                     {
@@ -2583,9 +2583,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filtru tip operațiune",
-                        "name": "operation_type_id",
+                        "type": "string",
+                        "description": "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)",
+                        "name": "operation_type",
                         "in": "query"
                     },
                     {
@@ -2667,9 +2667,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filtru tip operațiune",
-                        "name": "operation_type_id",
+                        "type": "string",
+                        "description": "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)",
+                        "name": "operation_type",
                         "in": "query"
                     },
                     {
@@ -2881,9 +2881,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filtru tip operațiune",
-                        "name": "operation_type_id",
+                        "type": "string",
+                        "description": "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)",
+                        "name": "operation_type",
                         "in": "query"
                     },
                     {
@@ -3878,6 +3878,25 @@ const docTemplate = `{
                 "MachineTypeOther"
             ]
         },
+        "domain.OperationType": {
+            "type": "string",
+            "enum": [
+                "soil_preparation",
+                "seeding",
+                "fertilization",
+                "spraying",
+                "harvesting",
+                "irrigation"
+            ],
+            "x-enum-varnames": [
+                "OperationTypeSoilPreparation",
+                "OperationTypeSeeding",
+                "OperationTypeFertilization",
+                "OperationTypeSpraying",
+                "OperationTypeHarvesting",
+                "OperationTypeIrrigation"
+            ]
+        },
         "domain.Operator": {
             "type": "object",
             "properties": {
@@ -4449,8 +4468,8 @@ const docTemplate = `{
                 "estimated_cost": {
                     "type": "number"
                 },
-                "operation_type_id": {
-                    "type": "integer"
+                "operation_type": {
+                    "$ref": "#/definitions/domain.OperationType"
                 },
                 "operation_type_name": {
                     "type": "string"

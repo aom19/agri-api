@@ -31,11 +31,32 @@ const fuelUsedExpr = `(
 		WHERE fsm.field_operation_id = fo.id AND fsm.movement_type = 'out' AND frt.category = 'fuel'
 	)`
 
-const fieldOperationBaseSelect = `
+// fieldOperationTypeExpr este tipul efectiv al unei operațiuni (alias `fo`): al template-ului
+// când are unul, altfel tipul propriu. Este singura sursă pentru tip, folosită și de rapoarte.
+const fieldOperationTypeExpr = `COALESCE(
+		(SELECT fot.operation_type FROM operation_templates fot WHERE fot.id = fo.operation_template_id),
+		fo.operation_type
+	)`
+
+// fieldOperationTypeNameExpr este numele afișat al tipului efectiv.
+var fieldOperationTypeNameExpr = operationTypeNameExpr(fieldOperationTypeExpr)
+
+// operationTypeNameExpr traduce în SQL codul de tip dat în numele lui din domain.
+func operationTypeNameExpr(typeExpr string) string {
+	var sb strings.Builder
+	sb.WriteString("CASE " + typeExpr)
+	for _, t := range domain.OperationTypes {
+		fmt.Fprintf(&sb, " WHEN '%s' THEN '%s'", t, strings.ReplaceAll(t.Label(), "'", "''"))
+	}
+	sb.WriteString(" ELSE " + typeExpr + " END")
+	return sb.String()
+}
+
+var fieldOperationBaseSelect = `
 	SELECT
 		fo.id,
 		fo.field_id, f.name, f.geometry,
-		fo.operation_type_id, ot.code, ot.name,
+		` + fieldOperationTypeExpr + `, ` + fieldOperationTypeNameExpr + `,
 		fo.operation_template_id, t.name,
 		fo.machine_id, m.name, m.asset_status,
 		fo.implement_id, imp.name, imp.status,
@@ -56,7 +77,6 @@ const fieldOperationBaseSelect = `
 		fo.updated_at
 	FROM field_operations fo
 	JOIN fields f              ON f.id  = fo.field_id
-	JOIN operation_types ot    ON ot.id = fo.operation_type_id
 	LEFT JOIN operation_templates t ON t.id  = fo.operation_template_id
 	LEFT JOIN machines m       ON m.id  = fo.machine_id
 	LEFT JOIN implements imp   ON imp.id = fo.implement_id
@@ -75,7 +95,7 @@ func scanFieldOperationRow(row interface {
 	if err := row.Scan(
 		&r.ID,
 		&r.FieldID, &r.FieldName, &fieldGeometry,
-		&r.OperationTypeID, &r.OperationTypeCode, &r.OperationTypeName,
+		&r.OperationType, &r.OperationTypeName,
 		&r.OperationTemplateID, &r.OperationTemplate,
 		&r.MachineID, &r.MachineName, &r.MachineStatus,
 		&r.ImplementID, &r.ImplementName, &r.ImplementStatus,
@@ -120,9 +140,9 @@ func (repo *FieldOperationRepo) GetAll(filter repository.FieldOperationFilter) (
 		args = append(args, filter.FieldID)
 		i++
 	}
-	if filter.OperationTypeID != "" {
-		query += fmt.Sprintf(" AND fo.operation_type_id = $%d", i)
-		args = append(args, filter.OperationTypeID)
+	if filter.OperationType != "" {
+		query += fmt.Sprintf(" AND "+fieldOperationTypeExpr+" = $%d", i)
+		args = append(args, filter.OperationType)
 		i++
 	}
 	if filter.MachineID != "" {
@@ -189,11 +209,11 @@ func (repo *FieldOperationRepo) GetByIDForAssignedUser(id int64, userID int64) (
 func (repo *FieldOperationRepo) Create(op *domain.FieldOperation) error {
 	query := `
 		INSERT INTO field_operations (
-			field_id, operation_type_id, operation_template_id,
+			field_id, operation_type, operation_template_id,
 			machine_id, implement_id, operator_id,
 			planned_start_at, planned_end_at, area_planned_ha,
 			notes, status, field_crop_id
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, (
+		) VALUES ($1,NULLIF($2, ''),$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, (
 				SELECT fc.id
 				FROM field_crops fc
 				JOIN seasons s ON s.id = fc.season_id
@@ -207,7 +227,7 @@ func (repo *FieldOperationRepo) Create(op *domain.FieldOperation) error {
 	`
 	return repo.db.QueryRow(query,
 		op.FieldID,
-		op.OperationTypeID,
+		op.OperationType,
 		op.OperationTemplateID,
 		op.MachineID,
 		op.ImplementID,
@@ -225,7 +245,7 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 	query := `
 		UPDATE field_operations SET
 			field_id              = $1,
-			operation_type_id     = $2,
+			operation_type        = NULLIF($2, ''),
 			operation_template_id = $3,
 			machine_id            = $4,
 			implement_id          = $5,
@@ -263,7 +283,7 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 	`
 	_, err := repo.db.Exec(query,
 		op.FieldID,
-		op.OperationTypeID,
+		op.OperationType,
 		op.OperationTemplateID,
 		op.MachineID,
 		op.ImplementID,
@@ -303,7 +323,7 @@ func (repo *FieldOperationRepo) GetOverdueInProgress(now time.Time) ([]dto.Overd
 		SELECT
 			fo.id,
 			f.name,
-			ot.name,
+			` + fieldOperationTypeNameExpr + `,
 			fo.operator_id,
 			` + operatorNameExpr + `,
 			CASE WHEN ou.deleted_at IS NULL THEN ou.id END,
@@ -311,7 +331,6 @@ func (repo *FieldOperationRepo) GetOverdueInProgress(now time.Time) ([]dto.Overd
 			fo.planned_end_at
 		FROM field_operations fo
 		JOIN fields f           ON f.id  = fo.field_id
-		JOIN operation_types ot ON ot.id = fo.operation_type_id
 		` + operatorJoin + `
 		WHERE fo.deleted_at IS NULL
 		  AND fo.status = $1
@@ -408,6 +427,15 @@ func (repo *FieldOperationRepo) GetAssetCompatibility(templateID int64, machineI
 		return nil, err
 	}
 	return &c, nil
+}
+
+func (repo *FieldOperationRepo) GetTemplateOperationType(templateID int64) (domain.OperationType, error) {
+	var t domain.OperationType
+	err := repo.db.QueryRow(`SELECT operation_type FROM operation_templates WHERE id = $1`, templateID).Scan(&t)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return t, err
 }
 
 func (repo *FieldOperationRepo) GetTemplateResources(templateID int64) ([]domain.TemplateResourceUsage, error) {

@@ -8,12 +8,12 @@ import (
 )
 
 type FieldOperationFilter struct {
-	Status          string
-	FieldID         string
-	OperationTypeID string
-	MachineID       string
-	OperatorID      string
-	AssignedUserID  int64
+	Status         string
+	FieldID        string
+	OperationType  string
+	MachineID      string
+	OperatorID     string
+	AssignedUserID int64
 }
 
 type FieldOperationRepository interface {
@@ -30,6 +30,8 @@ type FieldOperationRepository interface {
 	// GetAssetCompatibility returnează tipurile de mașini și echipamente acceptate de template
 	// și tipurile mașinii și echipamentului date (nil = neales).
 	GetAssetCompatibility(templateID int64, machineID, implementID *int64) (*domain.AssetCompatibility, error)
+	// GetTemplateOperationType returnează tipul template-ului (gol = template inexistent).
+	GetTemplateOperationType(templateID int64) (domain.OperationType, error)
 	// GetTemplateResources returnează normele de consum ale șablonului (resurse + prețuri).
 	GetTemplateResources(templateID int64) ([]domain.TemplateResourceUsage, error)
 	// AddMachineHours adaugă ore de funcționare la mașină, în tranzacția dată.

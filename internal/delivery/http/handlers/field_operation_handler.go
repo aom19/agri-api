@@ -39,8 +39,9 @@ func WithFieldOpNotif(n *usecase.NotificationService) func(*FieldOperationHandle
 }
 
 type createFieldOperationRequest struct {
-	FieldID             string                      `json:"field_id" binding:"required"`
-	OperationTypeID     int64                       `json:"operation_type_id" binding:"required"`
+	FieldID string `json:"field_id" binding:"required"`
+	// Tipul propriu, obligatoriu doar fără template; cu template, tipul vine din el.
+	OperationType       domain.OperationType        `json:"operation_type"`
 	OperationTemplateID *int64                      `json:"operation_template_id"`
 	MachineID           *int64                      `json:"machine_id"`
 	ImplementID         *int64                      `json:"implement_id"`
@@ -59,7 +60,7 @@ type updateFieldOperationRequest = createFieldOperationRequest
 func toDomainFieldOperation(req createFieldOperationRequest) *domain.FieldOperation {
 	return &domain.FieldOperation{
 		FieldID:             req.FieldID,
-		OperationTypeID:     req.OperationTypeID,
+		OperationType:       req.OperationType,
 		OperationTemplateID: req.OperationTemplateID,
 		MachineID:           req.MachineID,
 		ImplementID:         req.ImplementID,
@@ -114,11 +115,11 @@ func currentActorID(c *gin.Context) *int64 {
 
 func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 	filter := repository.FieldOperationFilter{
-		Status:          c.Query("status"),
-		FieldID:         c.Query("field_id"),
-		OperationTypeID: c.Query("operation_type_id"),
-		MachineID:       c.Query("machine_id"),
-		OperatorID:      c.Query("operator_id"),
+		Status:        c.Query("status"),
+		FieldID:       c.Query("field_id"),
+		OperationType: c.Query("operation_type"),
+		MachineID:     c.Query("machine_id"),
+		OperatorID:    c.Query("operator_id"),
 	}
 	if isOperatorRequest(c) {
 		userID, ok := currentUserID(c)

@@ -12,9 +12,10 @@ const (
 )
 
 type FieldOperation struct {
-	ID                  int64                `json:"id"`
-	FieldID             string               `json:"field_id"`
-	OperationTypeID     int64                `json:"operation_type_id"`
+	ID      int64  `json:"id"`
+	FieldID string `json:"field_id"`
+	// OperationType este tipul propriu, reținut doar fără template; cu template, tipul vine din el.
+	OperationType       OperationType        `json:"operation_type,omitempty"`
 	OperationTemplateID *int64               `json:"operation_template_id,omitempty"`
 	MachineID           *int64               `json:"machine_id,omitempty"`
 	ImplementID         *int64               `json:"implement_id,omitempty"`

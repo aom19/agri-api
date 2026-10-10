@@ -47,11 +47,10 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 				r.name,
 				sr.name,
 				CASE WHEN ou.id IS NOT NULL THEN ` + operatorNameExpr + ` END,
-				opt.name,
 				pl.name,
 				NULLIF(BTRIM(CONCAT_WS(' ', eup.first_name, eup.last_name)), ''),
 				eu.email,
-				NULLIF(BTRIM(CONCAT_WS(' - ', ot.name, fof.name)), '')
+				NULLIF(BTRIM(CONCAT_WS(' - ', ` + fieldOperationTypeNameExpr + `, fof.name)), '')
 			) AS entity_name,
 			al.action,
 			al.actor_id,
@@ -69,12 +68,10 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 		LEFT JOIN resources sr ON sr.id = s.resource_id
 		LEFT JOIN users ou ON al.entity_type = 'operator' AND ou.id::text = al.entity_id
 		LEFT JOIN user_profiles oup ON oup.user_id = ou.id
-		LEFT JOIN operation_types opt ON al.entity_type = 'operation_type' AND opt.id::text = al.entity_id
 		LEFT JOIN operation_templates pl ON al.entity_type = 'operation_template' AND pl.id::text = al.entity_id
 		LEFT JOIN users eu ON al.entity_type = 'user' AND eu.id::text = al.entity_id
 		LEFT JOIN user_profiles eup ON eup.user_id = eu.id
 		LEFT JOIN field_operations fo ON al.entity_type = 'field_operation' AND fo.id::text = al.entity_id
-		LEFT JOIN operation_types ot ON ot.id = fo.operation_type_id
 		LEFT JOIN fields fof ON fof.id = fo.field_id
 		WHERE 1=1`
 	args := []interface{}{}

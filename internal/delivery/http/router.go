@@ -226,15 +226,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 		handlers.WithOperationAudit(deps.AuditService),
 		handlers.WithOperationNotif(deps.NotificationService),
 	)
-	api.GET("/operation-types", perm("operations:read"), operationHandler.GetAllTypes)
-	api.GET("/operation-types/:id", perm("operations:read"), operationHandler.GetTypeByID)
-	api.POST("/operation-types", perm("operations:write"), operationHandler.CreateType)
-	api.PATCH("/operation-types/:id", perm("operations:write"), operationHandler.UpdateType)
-	api.DELETE("/operation-types/:id", perm("operations:delete"), operationHandler.DeleteType)
-
 	api.GET("/operation-templates", perm("operations:read"), operationHandler.GetAllTemplates)
 	api.GET("/operation-templates/:id", perm("operations:read"), operationHandler.GetTemplateByID)
-	api.GET("/operation-types/:id/templates", perm("operations:read"), operationHandler.GetTemplatesByType)
 	api.POST("/operation-templates", perm("operations:write"), operationHandler.CreateTemplate)
 	api.PATCH("/operation-templates/:id", perm("operations:write"), operationHandler.UpdateTemplate)
 	api.DELETE("/operation-templates/:id", perm("operations:delete"), operationHandler.DeleteTemplate)

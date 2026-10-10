@@ -106,7 +106,7 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 			sm.id, sm.stock_id, sm.resource_id, r.name, rt.category, rt.default_unit,
 			sm.field_operation_id,
 			CASE
-				WHEN fo.id IS NOT NULL THEN CONCAT_WS(' - ', ot.name, f.name)
+				WHEN fo.id IS NOT NULL THEN CONCAT_WS(' - ', `+fieldOperationTypeNameExpr+`, f.name)
 				WHEN hc.id IS NOT NULL THEN CONCAT_WS(' - ', 'Recoltă ' || hcr.name, hf.name)
 				ELSE NULL
 			END,
@@ -119,7 +119,6 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 		JOIN resources r ON r.id = sm.resource_id
 		JOIN resource_types rt ON rt.id = r.resource_type_id
 		LEFT JOIN field_operations fo ON fo.id = sm.field_operation_id
-		LEFT JOIN operation_types ot ON ot.id = fo.operation_type_id
 		LEFT JOIN fields f ON f.id = fo.field_id
 		LEFT JOIN user_profiles up ON up.user_id = sm.actor_id
 		LEFT JOIN field_crops hc ON hc.id = sm.field_crop_id

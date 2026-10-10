@@ -22,6 +22,17 @@ func TestEnumValidation(t *testing.T) {
 	if !domain.ResourceCategoryHarvest.IsValid() || domain.ResourceCategory("gaz").IsValid() {
 		t.Error("ResourceCategory.IsValid")
 	}
+	if !domain.OperationTypeSeeding.IsValid() || domain.OperationType("plowing").IsValid() || domain.OperationType("").IsValid() {
+		t.Error("OperationType.IsValid")
+	}
+	for _, ot := range domain.OperationTypes {
+		if !ot.IsValid() || ot.Label() == string(ot) {
+			t.Errorf("tipul %q nu are etichetă", ot)
+		}
+	}
+	if domain.OperationType("plowing").Label() != "plowing" {
+		t.Error("un tip necunoscut rămâne codul lui")
+	}
 }
 
 func TestFieldCrop_ComputeYield(t *testing.T) {

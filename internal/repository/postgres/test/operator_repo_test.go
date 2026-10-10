@@ -70,8 +70,7 @@ func TestOperators_AreUsersWithProfile(t *testing.T) {
 
 	// lucrarea asignată operatorului e văzută de contul lui, cu numele din profil
 	field := insertField(t, db, "Lot operator")
-	opType := insertID(t, db, `INSERT INTO operation_types (code, name) VALUES ('plowing', 'Arat') RETURNING id`)
-	opID := insertFieldOperation(t, db, fieldOperation{FieldID: field, OperationTypeID: opType, OperatorID: &withEmail.ID, Status: "planned", PlannedStart: time.Now()})
+	opID := insertFieldOperation(t, db, fieldOperation{FieldID: field, OperationType: "soil_preparation", OperatorID: &withEmail.ID, Status: "planned", PlannedStart: time.Now()})
 	ops := postgres.NewFieldOperationRepo(db)
 	mine, err := ops.GetByIDForAssignedUser(opID, withEmail.ID)
 	if err != nil || mine == nil || mine.OperatorName == nil || strings.TrimSpace(*mine.OperatorName) != "Mihai" {

@@ -14,8 +14,7 @@ import (
 func TestFieldOperations_TemplateAssetCompatibility(t *testing.T) {
 	db := requireDB(t)
 	field := insertField(t, db, "Lot semănat")
-	opType := insertID(t, db, `INSERT INTO operation_types (code, name) VALUES ('sowing', 'Semănat') RETURNING id`)
-	templateID := insertID(t, db, `INSERT INTO operation_templates (name, operation_type_id) VALUES ('Semănat porumb', $1) RETURNING id`, opType)
+	templateID := insertID(t, db, `INSERT INTO operation_templates (name, operation_type) VALUES ('Semănat porumb', 'seeding') RETURNING id`)
 	for _, query := range []string{
 		`INSERT INTO template_machine_types (template_id, machine_type) VALUES ($1, 'tractor')`,
 		`INSERT INTO template_implement_types (template_id, implement_type) VALUES ($1, 'seeder')`,
@@ -32,7 +31,7 @@ func TestFieldOperations_TemplateAssetCompatibility(t *testing.T) {
 	svc := usecase.NewFieldOperationService(postgres.NewFieldOperationRepo(db))
 	operation := func(template, machine, implement *int64) *domain.FieldOperation {
 		return &domain.FieldOperation{
-			FieldID: field, OperationTypeID: opType,
+			FieldID: field, OperationType: domain.OperationTypeSeeding,
 			OperationTemplateID: template, MachineID: machine, ImplementID: implement,
 		}
 	}

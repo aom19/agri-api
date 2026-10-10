@@ -7,103 +7,18 @@ import (
 )
 
 var (
-	ErrOperationTypeNotFound     = errors.New("operation type not found")
 	ErrOperationTemplateNotFound = errors.New("operation template not found")
-	ErrOperationTypeCodeRequired = errors.New("code is required")
-	ErrOperationTypeNameRequired = errors.New("name is required")
 	ErrTemplateNameRequired      = errors.New("template name is required")
 	ErrTemplateUnitRequired      = errors.New("template unit is required")
-	ErrInvalidOperationTypeID    = errors.New("invalid operation_type_id")
+	ErrInvalidOperationType      = errors.New("invalid operation_type")
 )
 
 type OperationService struct {
-	typeRepo     repository.OperationTypeRepository
 	templateRepo repository.OperationTemplateRepository
 }
 
-func NewOperationService(
-	typeRepo repository.OperationTypeRepository,
-	templateRepo repository.OperationTemplateRepository,
-) *OperationService {
-	return &OperationService{
-		typeRepo:     typeRepo,
-		templateRepo: templateRepo,
-	}
-}
-
-// ─── OperationType CRUD ──────────────────────────────────────────────────────
-
-func (s *OperationService) GetAllTypes() ([]domain.OperationType, error) {
-	return s.typeRepo.GetAll()
-}
-
-func (s *OperationService) GetTypeByID(id int64) (*domain.OperationType, error) {
-	ot, err := s.typeRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	if ot == nil {
-		return nil, ErrOperationTypeNotFound
-	}
-	return ot, nil
-}
-
-func (s *OperationService) CreateType(input *domain.OperationType) (*domain.OperationType, error) {
-	if input.Code == "" {
-		return nil, ErrOperationTypeCodeRequired
-	}
-	if input.Name == "" {
-		return nil, ErrOperationTypeNameRequired
-	}
-
-	ot := &domain.OperationType{
-		Code:        input.Code,
-		Name:        input.Name,
-		Description: input.Description,
-	}
-	if err := s.typeRepo.Create(ot); err != nil {
-		return nil, err
-	}
-	return ot, nil
-}
-
-func (s *OperationService) UpdateType(id int64, input *domain.OperationType) (*domain.OperationType, error) {
-	existing, err := s.typeRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	if existing == nil {
-		return nil, ErrOperationTypeNotFound
-	}
-
-	if input.Code == "" {
-		return nil, ErrOperationTypeCodeRequired
-	}
-	if input.Name == "" {
-		return nil, ErrOperationTypeNameRequired
-	}
-
-	ot := &domain.OperationType{
-		Code:        input.Code,
-		Name:        input.Name,
-		Description: input.Description,
-	}
-	if err := s.typeRepo.Update(id, ot); err != nil {
-		return nil, err
-	}
-	ot.ID = id
-	return ot, nil
-}
-
-func (s *OperationService) DeleteType(id int64) error {
-	existing, err := s.typeRepo.GetByID(id)
-	if err != nil {
-		return err
-	}
-	if existing == nil {
-		return ErrOperationTypeNotFound
-	}
-	return s.typeRepo.Delete(id)
+func NewOperationService(templateRepo repository.OperationTemplateRepository) *OperationService {
+	return &OperationService{templateRepo: templateRepo}
 }
 
 // ─── OperationTemplate CRUD ──────────────────────────────────────────────────
@@ -123,10 +38,6 @@ func (s *OperationService) GetTemplateByID(id int64) (*domain.OperationTemplate,
 	return t, nil
 }
 
-func (s *OperationService) GetTemplatesByOperationType(operationTypeID int64) ([]domain.OperationTemplate, error) {
-	return s.templateRepo.GetByOperationType(operationTypeID)
-}
-
 func (s *OperationService) CreateTemplate(input *domain.OperationTemplate) (*domain.OperationTemplate, error) {
 	if input.Name == "" {
 		return nil, ErrTemplateNameRequired
@@ -134,25 +45,16 @@ func (s *OperationService) CreateTemplate(input *domain.OperationTemplate) (*dom
 	if input.Unit == "" {
 		return nil, ErrTemplateUnitRequired
 	}
-	if input.OperationTypeID <= 0 {
-		return nil, ErrInvalidOperationTypeID
-	}
-
-	// Validate operation type exists
-	ot, err := s.typeRepo.GetByID(input.OperationTypeID)
-	if err != nil {
-		return nil, err
-	}
-	if ot == nil {
-		return nil, ErrOperationTypeNotFound
+	if !input.OperationType.IsValid() {
+		return nil, ErrInvalidOperationType
 	}
 
 	t := &domain.OperationTemplate{
-		OperationTypeID: input.OperationTypeID,
-		Name:            input.Name,
-		Description:     input.Description,
-		Unit:            input.Unit,
-		CropID:          input.CropID,
+		OperationType: input.OperationType,
+		Name:          input.Name,
+		Description:   input.Description,
+		Unit:          input.Unit,
+		CropID:        input.CropID,
 	}
 	if err := s.templateRepo.Create(t); err != nil {
 		return nil, err
@@ -193,16 +95,16 @@ func (s *OperationService) UpdateTemplate(id int64, input *domain.OperationTempl
 	if input.Unit == "" {
 		return nil, ErrTemplateUnitRequired
 	}
-	if input.OperationTypeID <= 0 {
-		return nil, ErrInvalidOperationTypeID
+	if !input.OperationType.IsValid() {
+		return nil, ErrInvalidOperationType
 	}
 
 	t := &domain.OperationTemplate{
-		OperationTypeID: input.OperationTypeID,
-		Name:            input.Name,
-		Description:     input.Description,
-		Unit:            input.Unit,
-		CropID:          input.CropID,
+		OperationType: input.OperationType,
+		Name:          input.Name,
+		Description:   input.Description,
+		Unit:          input.Unit,
+		CropID:        input.CropID,
 	}
 	if err := s.templateRepo.Update(id, t); err != nil {
 		return nil, err

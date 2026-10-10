@@ -24,7 +24,7 @@ const migrationsDir = "../../../../migrations"
 var dataTables = []string{
 	"stock_movements", "stocks", "resources", "resource_types",
 	"field_operations", "field_crops", "seasons", "crops",
-	"machines", "implements", "users", "fields", "operation_types",
+	"machines", "implements", "users", "fields", "operation_templates",
 }
 
 var testDB *sql.DB
@@ -196,18 +196,19 @@ func insertOperator(t *testing.T, db *sql.DB, name string) int64 {
 
 // fieldOperation descrie o operațiune pe teren; câmpurile nil rămân NULL în baza de date.
 type fieldOperation struct {
-	FieldID         string
-	OperationTypeID int64
-	MachineID       *int64
-	OperatorID      *int64
-	Status          string
-	PlannedStart    time.Time
-	PlannedEnd      *time.Time
-	ActualEnd       *time.Time
-	AreaPlannedHa   float64
-	FuelUsedL       *float64
-	MachineHours    *float64
-	Deleted         bool
+	FieldID       string
+	OperationType string // tipul propriu, doar fără template
+	TemplateID    *int64
+	MachineID     *int64
+	OperatorID    *int64
+	Status        string
+	PlannedStart  time.Time
+	PlannedEnd    *time.Time
+	ActualEnd     *time.Time
+	AreaPlannedHa float64
+	FuelUsedL     *float64
+	MachineHours  *float64
+	Deleted       bool
 }
 
 // insertFieldOperation inserează operațiunea; FuelUsedL devine ieșire din stocul de motorină
@@ -220,12 +221,12 @@ func insertFieldOperation(t *testing.T, db *sql.DB, op fieldOperation) int64 {
 	}
 	id := insertID(t, db, `
 		INSERT INTO field_operations (
-			field_id, operation_type_id, machine_id, operator_id, status,
+			field_id, operation_type, operation_template_id, machine_id, operator_id, status,
 			planned_start_at, planned_end_at, actual_end_at, area_planned_ha,
 			machine_hours, deleted_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		) VALUES ($1, NULLIF($2, ''), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id`,
-		op.FieldID, op.OperationTypeID, op.MachineID, op.OperatorID, op.Status,
+		op.FieldID, op.OperationType, op.TemplateID, op.MachineID, op.OperatorID, op.Status,
 		op.PlannedStart, op.PlannedEnd, op.ActualEnd, op.AreaPlannedHa,
 		op.MachineHours, deletedAt,
 	)

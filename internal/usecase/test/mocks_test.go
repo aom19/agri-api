@@ -370,55 +370,15 @@ func (m *fieldRepoMock) Delete(id string) error {
 
 // ─── Operation types / templates ─────────────────────────────────────────────
 
-type operationTypeRepoMock struct {
-	getAll  func() ([]domain.OperationType, error)
-	getByID func(int64) (*domain.OperationType, error)
-	create  func(*domain.OperationType) error
-	update  func(int64, *domain.OperationType) error
-	delete  func(int64) error
-}
-
-func (m *operationTypeRepoMock) GetAll() ([]domain.OperationType, error) {
-	if m.getAll != nil {
-		return m.getAll()
-	}
-	return nil, nil
-}
-func (m *operationTypeRepoMock) GetByID(id int64) (*domain.OperationType, error) {
-	if m.getByID != nil {
-		return m.getByID(id)
-	}
-	return nil, nil
-}
-func (m *operationTypeRepoMock) Create(x *domain.OperationType) error {
-	if m.create != nil {
-		return m.create(x)
-	}
-	return nil
-}
-func (m *operationTypeRepoMock) Update(id int64, x *domain.OperationType) error {
-	if m.update != nil {
-		return m.update(id, x)
-	}
-	return nil
-}
-func (m *operationTypeRepoMock) Delete(id int64) error {
-	if m.delete != nil {
-		return m.delete(id)
-	}
-	return nil
-}
-
 type operationTemplateRepoMock struct {
-	getAll             func() ([]domain.OperationTemplate, error)
-	getByID            func(int64) (*domain.OperationTemplate, error)
-	getByOperationType func(int64) ([]domain.OperationTemplate, error)
-	create             func(*domain.OperationTemplate) error
-	update             func(int64, *domain.OperationTemplate) error
-	delete             func(int64) error
-	setResources       func(int64, []domain.TemplateResource) error
-	setMachineTypes    func(int64, []string) error
-	setImplementTypes  func(int64, []string) error
+	getAll            func() ([]domain.OperationTemplate, error)
+	getByID           func(int64) (*domain.OperationTemplate, error)
+	create            func(*domain.OperationTemplate) error
+	update            func(int64, *domain.OperationTemplate) error
+	delete            func(int64) error
+	setResources      func(int64, []domain.TemplateResource) error
+	setMachineTypes   func(int64, []string) error
+	setImplementTypes func(int64, []string) error
 }
 
 func (m *operationTemplateRepoMock) GetAll() ([]domain.OperationTemplate, error) {
@@ -430,12 +390,6 @@ func (m *operationTemplateRepoMock) GetAll() ([]domain.OperationTemplate, error)
 func (m *operationTemplateRepoMock) GetByID(id int64) (*domain.OperationTemplate, error) {
 	if m.getByID != nil {
 		return m.getByID(id)
-	}
-	return nil, nil
-}
-func (m *operationTemplateRepoMock) GetByOperationType(id int64) ([]domain.OperationTemplate, error) {
-	if m.getByOperationType != nil {
-		return m.getByOperationType(id)
 	}
 	return nil, nil
 }
@@ -485,6 +439,7 @@ type fieldOperationRepoMock struct {
 	create                 func(*domain.FieldOperation) error
 	update                 func(int64, *domain.FieldOperation) error
 	getAssetCompatibility  func(int64, *int64, *int64) (*domain.AssetCompatibility, error)
+	getTemplateType        func(int64) (domain.OperationType, error)
 	updateStatus           func(int64, domain.FieldOperationStatus) error
 	markStarted            func(int64, time.Time) error
 	complete               func(*sql.Tx, int64, domain.FieldOperationCompletion, time.Time) error
@@ -530,6 +485,14 @@ func (m *fieldOperationRepoMock) GetAssetCompatibility(templateID int64, machine
 		return m.getAssetCompatibility(templateID, machineID, implementID)
 	}
 	return &domain.AssetCompatibility{}, nil
+}
+
+// GetTemplateOperationType: implicit, orice template există și are tipul Semănat.
+func (m *fieldOperationRepoMock) GetTemplateOperationType(templateID int64) (domain.OperationType, error) {
+	if m.getTemplateType != nil {
+		return m.getTemplateType(templateID)
+	}
+	return domain.OperationTypeSeeding, nil
 }
 func (m *fieldOperationRepoMock) UpdateStatus(id int64, s domain.FieldOperationStatus) error {
 	if m.updateStatus != nil {

@@ -83,9 +83,8 @@ func main() {
 	fieldService := usecase.NewFieldService(fieldRepo)
 
 	// 2.4 Creează repository-urile pentru operațiuni și serviciul aferent
-	operationTypeRepo := postgres.NewOperationTypeRepo(sqlDB)
 	operationTemplateRepo := postgres.NewOperationTemplateRepo(sqlDB)
-	operationService := usecase.NewOperationService(operationTypeRepo, operationTemplateRepo)
+	operationService := usecase.NewOperationService(operationTemplateRepo)
 
 	// 2.4.1 Repository și serviciul pentru operațiuni pe teren
 	fieldOperationRepo := postgres.NewFieldOperationRepo(sqlDB)

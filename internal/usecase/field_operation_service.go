@@ -15,6 +15,9 @@ var (
 	ErrFieldOperationInvalidStatus         = errors.New("statusul operațiunii nu este valid")
 	ErrFieldOperationFieldRequired         = errors.New("terenul este obligatoriu")
 	ErrFieldOperationTypeRequired          = errors.New("tipul operațiunii este obligatoriu")
+	ErrFieldOperationTypeInvalid           = errors.New("tipul operațiunii nu este valid")
+	ErrFieldOperationTemplateNotFound      = errors.New("template-ul operațiunii nu a fost găsit")
+	ErrFieldOperationTypeMismatch          = errors.New("tipul operațiunii nu corespunde template-ului")
 	ErrFieldOperationBadDates              = errors.New("sfârșitul planificat nu poate fi înaintea începutului planificat")
 	ErrFieldOperationResourcesUnavailable  = errors.New("mașina și echipamentul trebuie să fie active înainte de pornire")
 	ErrFieldOperationCannotStart           = errors.New("lucrarea nu poate fi pornită din statusul curent")
@@ -151,8 +154,8 @@ func (s *FieldOperationService) validate(input *domain.FieldOperation) error {
 	if strings.TrimSpace(input.FieldID) == "" {
 		return ErrFieldOperationFieldRequired
 	}
-	if input.OperationTypeID <= 0 {
-		return ErrFieldOperationTypeRequired
+	if err := s.resolveOperationType(input); err != nil {
+		return err
 	}
 	if input.Status != "" && !isValidFieldOperationStatus(input.Status) {
 		return ErrFieldOperationInvalidStatus
@@ -165,6 +168,32 @@ func (s *FieldOperationService) validate(input *domain.FieldOperation) error {
 		return ErrFieldOperationBadDates
 	}
 	return s.validateAssetCompatibility(input)
+}
+
+// resolveOperationType aplică regula tipului: cu template, operațiunea moștenește tipul lui și nu
+// reține unul propriu (un tip trimis trebuie să fie același); fără template, tipul e obligatoriu.
+func (s *FieldOperationService) resolveOperationType(input *domain.FieldOperation) error {
+	if input.OperationTemplateID == nil {
+		if input.OperationType == "" {
+			return ErrFieldOperationTypeRequired
+		}
+		if !input.OperationType.IsValid() {
+			return ErrFieldOperationTypeInvalid
+		}
+		return nil
+	}
+	templateType, err := s.repo.GetTemplateOperationType(*input.OperationTemplateID)
+	if err != nil {
+		return err
+	}
+	if templateType == "" {
+		return ErrFieldOperationTemplateNotFound
+	}
+	if input.OperationType != "" && input.OperationType != templateType {
+		return ErrFieldOperationTypeMismatch
+	}
+	input.OperationType = ""
+	return nil
 }
 
 // validateAssetCompatibility verifică mașina și echipamentul față de tipurile acceptate de

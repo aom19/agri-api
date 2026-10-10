@@ -14,22 +14,18 @@ func TestCompletion_FuelHasASingleSource(t *testing.T) {
 	db := requireDB(t)
 	now := time.Now().UTC()
 	field := insertField(t, db, "Lot motorină")
-	opType := insertID(t, db, `INSERT INTO operation_types (code, name) VALUES ('plowing', 'Arat') RETURNING id`)
 	machine := insertMachine(t, db, "Tractor", "TR-1")
 	fuelStockID, fuelResourceID := insertStock(t, db, "Motorină", 1000, 0, 7)
 
 	// norma de motorină din șablon (8 l/ha × 10 ha = 80 l) e înlocuită de valoarea raportată
-	templateID := insertID(t, db, `INSERT INTO operation_templates (name, operation_type_id) VALUES ('Arat standard', $1) RETURNING id`, opType)
+	templateID := insertID(t, db, `INSERT INTO operation_templates (name, operation_type) VALUES ('Arat standard', 'soil_preparation') RETURNING id`)
 	if _, err := db.Exec(`INSERT INTO template_resources (template_id, resource_id, quantity_per_unit) VALUES ($1, $2, 8)`, templateID, fuelResourceID); err != nil {
 		t.Fatal(err)
 	}
 	opID := insertFieldOperation(t, db, fieldOperation{
-		FieldID: field, OperationTypeID: opType, MachineID: &machine, Status: "in_progress",
+		FieldID: field, TemplateID: &templateID, MachineID: &machine, Status: "in_progress",
 		PlannedStart: now.Add(-3 * time.Hour), AreaPlannedHa: 10,
 	})
-	if _, err := db.Exec(`UPDATE field_operations SET operation_template_id = $1 WHERE id = $2`, templateID, opID); err != nil {
-		t.Fatal(err)
-	}
 
 	ops := postgres.NewFieldOperationRepo(db)
 	svc := usecase.NewFieldOperationCompletionService(db, ops, postgres.NewStockMovementRepo(db))
@@ -72,19 +68,15 @@ func TestCompletion_FuelHasASingleSource(t *testing.T) {
 func TestCompletion_EstimateMatchesTemplateConsumption(t *testing.T) {
 	db := requireDB(t)
 	field := insertField(t, db, "Lot estimare")
-	opType := insertID(t, db, `INSERT INTO operation_types (code, name) VALUES ('fertilizing', 'Fertilizare') RETURNING id`)
 	stockID, resourceID := insertStock(t, db, "Uree", 500, 0, 2)
 	if _, err := db.Exec(`UPDATE resource_types SET category = 'fertilizer', default_unit = 'kg'`); err != nil {
 		t.Fatal(err)
 	}
-	templateID := insertID(t, db, `INSERT INTO operation_templates (name, operation_type_id) VALUES ('Fertilizare uree', $1) RETURNING id`, opType)
+	templateID := insertID(t, db, `INSERT INTO operation_templates (name, operation_type) VALUES ('Fertilizare uree', 'fertilization') RETURNING id`)
 	if _, err := db.Exec(`INSERT INTO template_resources (template_id, resource_id, quantity_per_unit) VALUES ($1, $2, 1.5)`, templateID, resourceID); err != nil {
 		t.Fatal(err)
 	}
-	opID := insertFieldOperation(t, db, fieldOperation{FieldID: field, OperationTypeID: opType, Status: "in_progress", PlannedStart: time.Now(), AreaPlannedHa: 12})
-	if _, err := db.Exec(`UPDATE field_operations SET operation_template_id = $1 WHERE id = $2`, templateID, opID); err != nil {
-		t.Fatal(err)
-	}
+	opID := insertFieldOperation(t, db, fieldOperation{FieldID: field, TemplateID: &templateID, Status: "in_progress", PlannedStart: time.Now(), AreaPlannedHa: 12})
 
 	svc := usecase.NewFieldOperationCompletionService(db, postgres.NewFieldOperationRepo(db), postgres.NewStockMovementRepo(db))
 	estimate, err := svc.Estimate(opID, ptr(9.5))

@@ -24,7 +24,7 @@ const (
 	TagFields          = "fields"
 	TagResources       = "resources"  // resources + resource_types
 	TagStocks          = "stocks"     // stocks + stock_movements
-	TagOperations      = "operations" // operation_types + operation_templates
+	TagOperations      = "operations" // operation_templates
 	TagFieldOperations = "field_operations"
 	TagCrops           = "crops"   // seasons + crops + field_crops
 	TagUsers           = "users"   // users + user_profiles + roles + permissions

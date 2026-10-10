@@ -2,29 +2,62 @@ package domain
 
 import "time"
 
-type OperationType struct {
-	ID          int64      `json:"id"`
-	Code        string     `json:"code"`
-	Name        string     `json:"name"`
-	Description string     `json:"description,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   *time.Time `json:"-"`
+// OperationType — tipul lucrării agricole. Lista e fixă: rapoartele grupează după ea.
+type OperationType string
+
+const (
+	OperationTypeSoilPreparation OperationType = "soil_preparation"
+	OperationTypeSeeding         OperationType = "seeding"
+	OperationTypeFertilization   OperationType = "fertilization"
+	OperationTypeSpraying        OperationType = "spraying"
+	OperationTypeHarvesting      OperationType = "harvesting"
+	OperationTypeIrrigation      OperationType = "irrigation"
+)
+
+// OperationTypes sunt toate tipurile, în ordinea de afișare.
+var OperationTypes = []OperationType{
+	OperationTypeSoilPreparation,
+	OperationTypeSeeding,
+	OperationTypeFertilization,
+	OperationTypeSpraying,
+	OperationTypeHarvesting,
+	OperationTypeIrrigation,
+}
+
+var operationTypeLabels = map[OperationType]string{
+	OperationTypeSoilPreparation: "Pregătire sol",
+	OperationTypeSeeding:         "Semănat",
+	OperationTypeFertilization:   "Fertilizare",
+	OperationTypeSpraying:        "Stropire",
+	OperationTypeHarvesting:      "Recoltare",
+	OperationTypeIrrigation:      "Irigare",
+}
+
+func (t OperationType) IsValid() bool {
+	_, ok := operationTypeLabels[t]
+	return ok
+}
+
+// Label este numele afișat al tipului; un tip necunoscut rămâne codul lui.
+func (t OperationType) Label() string {
+	if label, ok := operationTypeLabels[t]; ok {
+		return label
+	}
+	return string(t)
 }
 
 type OperationTemplate struct {
-	ID              int64      `json:"id"`
-	OperationTypeID int64      `json:"operation_type_id"`
-	Name            string     `json:"name"`
-	Description     string     `json:"description,omitempty"`
-	Unit            string     `json:"unit"`
-	CropID          *int64     `json:"crop_id,omitempty"`
-	CropName        *string    `json:"crop_name,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	DeletedAt       *time.Time `json:"-"`
+	ID            int64         `json:"id"`
+	OperationType OperationType `json:"operation_type"`
+	Name          string        `json:"name"`
+	Description   string        `json:"description,omitempty"`
+	Unit          string        `json:"unit"`
+	CropID        *int64        `json:"crop_id,omitempty"`
+	CropName      *string       `json:"crop_name,omitempty"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+	DeletedAt     *time.Time    `json:"-"`
 
-	OperationType  *OperationType     `json:"operation_type,omitempty"`
 	Resources      []TemplateResource `json:"resources,omitempty"`
 	MachineTypes   []string           `json:"machine_types,omitempty"`
 	ImplementTypes []string           `json:"implement_types,omitempty"`

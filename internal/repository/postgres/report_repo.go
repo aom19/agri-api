@@ -74,9 +74,9 @@ func operationsWhere(filter domain.ReportFilter, start int) (string, []interface
 		args = append(args, filter.FieldID)
 		idx++
 	}
-	if filter.OperationTypeID > 0 {
-		fmt.Fprintf(&sb, " AND fo.operation_type_id = $%d", idx)
-		args = append(args, filter.OperationTypeID)
+	if filter.OperationType != "" {
+		fmt.Fprintf(&sb, " AND %s = $%d", fieldOperationTypeExpr, idx)
+		args = append(args, filter.OperationType)
 		idx++
 	}
 	if filter.MachineID > 0 {
@@ -218,17 +218,16 @@ func (repo *ReportRepo) GetOperationsByType(filter domain.ReportFilter) ([]domai
 	where, args := operationsWhere(filter, 1)
 	query := fmt.Sprintf(`
 		SELECT
-			ot.id,
-			ot.name,
+			%s,
+			%s,
 			COUNT(*),
 			COUNT(*) FILTER (WHERE fo.status = 'completed'),
 			COALESCE(SUM(fo.area_planned_ha), 0),
 			COALESCE(SUM(%s), 0)
 		FROM field_operations fo
-		JOIN operation_types ot ON ot.id = fo.operation_type_id
 		WHERE %s
-		GROUP BY ot.id, ot.name
-		ORDER BY COUNT(*) DESC, ot.name`, reportEstimatedCostExpr, where)
+		GROUP BY 1, 2
+		ORDER BY COUNT(*) DESC, 2`, fieldOperationTypeExpr, fieldOperationTypeNameExpr, reportEstimatedCostExpr, where)
 
 	rows, err := repo.db.Query(query, args...)
 	if err != nil {
@@ -239,7 +238,7 @@ func (repo *ReportRepo) GetOperationsByType(filter domain.ReportFilter) ([]domai
 	stats := []domain.ReportOperationTypeStat{}
 	for rows.Next() {
 		var stat domain.ReportOperationTypeStat
-		if err := rows.Scan(&stat.OperationTypeID, &stat.OperationTypeName, &stat.Total, &stat.Completed, &stat.AreaHa, &stat.EstimatedCost); err != nil {
+		if err := rows.Scan(&stat.OperationType, &stat.OperationTypeName, &stat.Total, &stat.Completed, &stat.AreaHa, &stat.EstimatedCost); err != nil {
 			return nil, err
 		}
 		stats = append(stats, stat)
@@ -255,7 +254,7 @@ func (repo *ReportRepo) GetOperationRows(filter domain.ReportFilter, limit int) 
 			fo.id,
 			fo.field_id,
 			f.name,
-			ot.name,
+			`+fieldOperationTypeNameExpr+`,
 			tpl.name,
 			m.name,
 			i.name,
@@ -275,7 +274,6 @@ func (repo *ReportRepo) GetOperationRows(filter domain.ReportFilter, limit int) 
 			%s
 		FROM field_operations fo
 		JOIN fields f ON f.id = fo.field_id
-		JOIN operation_types ot ON ot.id = fo.operation_type_id
 		LEFT JOIN operation_templates tpl ON tpl.id = fo.operation_template_id
 		LEFT JOIN machines m ON m.id = fo.machine_id
 		LEFT JOIN implements i ON i.id = fo.implement_id
@@ -709,7 +707,7 @@ func nullStringPtr(value sql.NullString) *string {
 func (repo *ReportRepo) GetRealConsumption(filter domain.ReportFilter) ([]domain.ReportResourceConsumption, error) {
 	args := []interface{}{filter.From, filter.To}
 	entityClause := ""
-	if filter.FieldID != "" || filter.OperationTypeID > 0 || filter.MachineID > 0 || filter.OperatorID > 0 {
+	if filter.FieldID != "" || filter.OperationType != "" || filter.MachineID > 0 || filter.OperatorID > 0 {
 		where, whereArgs := operationsWhere(filter, 3)
 		args = append(args, whereArgs...)
 		entityClause = fmt.Sprintf(" AND sm.field_operation_id IN (SELECT fo.id FROM field_operations fo WHERE %s)", where)

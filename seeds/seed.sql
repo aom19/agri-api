@@ -12,7 +12,7 @@ BEGIN
         'fields',
         'implements', 'machines',
         'template_resources', 'template_machine_types', 'template_implement_types',
-        'operation_templates', 'operation_types',
+        'operation_templates',
         'stocks'
     ]) AS t
     WHERE to_regclass('public.' || t) IS NOT NULL;
@@ -204,19 +204,9 @@ FROM stocks s
 JOIN resources r ON r.id = s.resource_id
 WHERE s.quantity <> 0;
 
--- Seed: tipuri de operatiuni agricole
-INSERT INTO operation_types (code, name, description) VALUES
-    ('soil_preparation', 'Pregatire sol', 'Lucrari de pregatire a patului germinativ'),
-    ('seeding', 'Semanat', 'Operatiuni de semanat culturi agricole'),
-    ('fertilization', 'Fertilizare', 'Aplicare fertilizanti solizi sau lichizi'),
-    ('spraying', 'Stropire', 'Tratamente fitosanitare si erbicidare'),
-    ('harvesting', 'Recoltare', 'Operatiuni de recoltare si transport recolta'),
-    ('irrigation', 'Irigare', 'Aplicare apa pentru culturi')
-ON CONFLICT DO NOTHING;
-
--- Seed: template-uri de operatiuni
-INSERT INTO operation_templates (operation_type_id, name, description, unit)
-SELECT ot.id, t.name, t.description, t.unit
+-- Seed: template-uri de operatiuni (tipul e unul din cele 6 din domain.OperationType)
+INSERT INTO operation_templates (operation_type, name, description, unit)
+SELECT t.operation_type, t.name, t.description, t.unit
 FROM (
     VALUES
         ('soil_preparation', 'Arat adanc standard', 'Arat cu tractor si plug reversibil pentru pregatirea solului', 'ha'),
@@ -228,8 +218,7 @@ FROM (
         ('spraying', 'Tratament fungicid rapita', 'Aplicare fungicid pentru boli foliare la rapita', 'ha'),
         ('harvesting', 'Recoltare grau', 'Recoltare cereale paioase cu combina si header', 'ha'),
         ('irrigation', 'Irigare pivot', 'Irigare prin sistem pivot cu norma operationala medie', 'ha')
-) AS t(operation_code, name, description, unit)
-JOIN operation_types ot ON ot.code = t.operation_code
+) AS t(operation_type, name, description, unit)
 ON CONFLICT DO NOTHING;
 
 -- Seed: resurse necesare per template

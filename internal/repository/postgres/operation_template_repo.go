@@ -15,11 +15,9 @@ func NewOperationTemplateRepo(db *sql.DB) *OperationTemplateRepo {
 
 func (r *OperationTemplateRepo) GetAll() ([]domain.OperationTemplate, error) {
 	rows, err := r.db.Query(
-		`SELECT t.id, t.operation_type_id, t.name, COALESCE(t.description, ''), t.unit, t.crop_id, c.name,
-		        t.created_at, t.updated_at,
-		        ot.id, ot.code, ot.name, COALESCE(ot.description, ''), ot.created_at, ot.updated_at
+		`SELECT t.id, t.operation_type, t.name, COALESCE(t.description, ''), t.unit, t.crop_id, c.name,
+		        t.created_at, t.updated_at
 		 FROM operation_templates t
-		 JOIN operation_types ot ON ot.id = t.operation_type_id
 		 LEFT JOIN crops c ON c.id = t.crop_id
 		 WHERE t.deleted_at IS NULL
 		 ORDER BY t.name`)
@@ -32,15 +30,12 @@ func (r *OperationTemplateRepo) GetAll() ([]domain.OperationTemplate, error) {
 	var result []domain.OperationTemplate
 	for rows.Next() {
 		var t domain.OperationTemplate
-		var ot domain.OperationType
 		if err := rows.Scan(
-			&t.ID, &t.OperationTypeID, &t.Name, &t.Description, &t.Unit, &t.CropID, &t.CropName,
+			&t.ID, &t.OperationType, &t.Name, &t.Description, &t.Unit, &t.CropID, &t.CropName,
 			&t.CreatedAt, &t.UpdatedAt,
-			&ot.ID, &ot.Code, &ot.Name, &ot.Description, &ot.CreatedAt, &ot.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
-		t.OperationType = &ot
 		t.Resources = []domain.TemplateResource{}
 		t.MachineTypes = []string{}
 		t.ImplementTypes = []string{}
@@ -156,20 +151,16 @@ func (r *OperationTemplateRepo) attachImplementTypes(byID map[int64]*domain.Oper
 
 func (r *OperationTemplateRepo) GetByID(id int64) (*domain.OperationTemplate, error) {
 	var t domain.OperationTemplate
-	var ot domain.OperationType
 
 	err := r.db.QueryRow(
-		`SELECT t.id, t.operation_type_id, t.name, COALESCE(t.description, ''), t.unit, t.crop_id, c.name,
-		        t.created_at, t.updated_at,
-		        ot.id, ot.code, ot.name, COALESCE(ot.description, ''), ot.created_at, ot.updated_at
+		`SELECT t.id, t.operation_type, t.name, COALESCE(t.description, ''), t.unit, t.crop_id, c.name,
+		        t.created_at, t.updated_at
 		 FROM operation_templates t
-		 JOIN operation_types ot ON ot.id = t.operation_type_id
 		 LEFT JOIN crops c ON c.id = t.crop_id
 		 WHERE t.id = $1 AND t.deleted_at IS NULL`, id,
 	).Scan(
-		&t.ID, &t.OperationTypeID, &t.Name, &t.Description, &t.Unit, &t.CropID, &t.CropName,
+		&t.ID, &t.OperationType, &t.Name, &t.Description, &t.Unit, &t.CropID, &t.CropName,
 		&t.CreatedAt, &t.UpdatedAt,
-		&ot.ID, &ot.Code, &ot.Name, &ot.Description, &ot.CreatedAt, &ot.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -177,7 +168,6 @@ func (r *OperationTemplateRepo) GetByID(id int64) (*domain.OperationTemplate, er
 	if err != nil {
 		return nil, err
 	}
-	t.OperationType = &ot
 
 	// Load resources
 	resources, err := r.loadResources(id)
@@ -203,44 +193,22 @@ func (r *OperationTemplateRepo) GetByID(id int64) (*domain.OperationTemplate, er
 	return &t, nil
 }
 
-func (r *OperationTemplateRepo) GetByOperationType(operationTypeID int64) ([]domain.OperationTemplate, error) {
-	rows, err := r.db.Query(
-		`SELECT id, operation_type_id, name, COALESCE(description, ''), unit, crop_id, created_at, updated_at
-		 FROM operation_templates
-		 WHERE operation_type_id = $1 AND deleted_at IS NULL
-		 ORDER BY name`, operationTypeID)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	var result []domain.OperationTemplate
-	for rows.Next() {
-		var t domain.OperationTemplate
-		if err := rows.Scan(&t.ID, &t.OperationTypeID, &t.Name, &t.Description, &t.Unit, &t.CropID, &t.CreatedAt, &t.UpdatedAt); err != nil {
-			return nil, err
-		}
-		result = append(result, t)
-	}
-	return result, rows.Err()
-}
-
 func (r *OperationTemplateRepo) Create(t *domain.OperationTemplate) error {
 	return r.db.QueryRow(
-		`INSERT INTO operation_templates (operation_type_id, name, description, unit, crop_id)
+		`INSERT INTO operation_templates (operation_type, name, description, unit, crop_id)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, created_at, updated_at`,
-		t.OperationTypeID, t.Name, t.Description, t.Unit, t.CropID,
+		t.OperationType, t.Name, t.Description, t.Unit, t.CropID,
 	).Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt)
 }
 
 func (r *OperationTemplateRepo) Update(id int64, t *domain.OperationTemplate) error {
 	return r.db.QueryRow(
 		`UPDATE operation_templates
-		 SET operation_type_id=$1, name=$2, description=$3, unit=$4, crop_id=$6, updated_at=NOW()
+		 SET operation_type=$1, name=$2, description=$3, unit=$4, crop_id=$6, updated_at=NOW()
 		 WHERE id=$5 AND deleted_at IS NULL
 		 RETURNING updated_at`,
-		t.OperationTypeID, t.Name, t.Description, t.Unit, id, t.CropID,
+		t.OperationType, t.Name, t.Description, t.Unit, id, t.CropID,
 	).Scan(&t.UpdatedAt)
 }
 

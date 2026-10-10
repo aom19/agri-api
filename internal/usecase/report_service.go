@@ -11,12 +11,12 @@ import (
 
 // ReportQuery sunt filtrele brute primite din query string.
 type ReportQuery struct {
-	From            string
-	To              string
-	FieldID         string
-	OperationTypeID int64
-	MachineID       int64
-	OperatorID      int64
+	From          string
+	To            string
+	FieldID       string
+	OperationType string
+	MachineID     int64
+	OperatorID    int64
 }
 
 var ErrInvalidReportPeriod = errors.New("interval invalid: folosește formatul YYYY-MM-DD, cu data de început înaintea celei de sfârșit (maxim 3 ani)")
@@ -70,12 +70,12 @@ func (service *ReportService) resolvePeriod(query ReportQuery) (domain.ReportFil
 	}
 
 	filter := domain.ReportFilter{
-		From:            fromDate,
-		To:              toDate.AddDate(0, 0, 1),
-		FieldID:         query.FieldID,
-		OperationTypeID: query.OperationTypeID,
-		MachineID:       query.MachineID,
-		OperatorID:      query.OperatorID,
+		From:          fromDate,
+		To:            toDate.AddDate(0, 0, 1),
+		FieldID:       query.FieldID,
+		OperationType: domain.OperationType(query.OperationType),
+		MachineID:     query.MachineID,
+		OperatorID:    query.OperatorID,
 	}
 	previousFrom := fromDate.AddDate(0, 0, -spanDays)
 	period := domain.ReportPeriod{

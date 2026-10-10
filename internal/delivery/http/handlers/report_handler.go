@@ -27,15 +27,16 @@ func NewReportHandler(service *usecase.ReportService, opts ...func(*ReportHandle
 
 func parseReportQuery(c *gin.Context) (usecase.ReportQuery, error) {
 	query := usecase.ReportQuery{
-		From:    c.Query("from"),
-		To:      c.Query("to"),
-		FieldID: c.Query("field_id"),
+		From:          c.Query("from"),
+		To:            c.Query("to"),
+		FieldID:       c.Query("field_id"),
+		OperationType: c.Query("operation_type"),
+	}
+	if query.OperationType != "" && !domain.OperationType(query.OperationType).IsValid() {
+		return query, errors.New("operation_type invalid")
 	}
 
 	var err error
-	if query.OperationTypeID, err = optionalInt64Query(c.Query("operation_type_id")); err != nil {
-		return query, errors.New("operation_type_id invalid")
-	}
 	if query.MachineID, err = optionalInt64Query(c.Query("machine_id")); err != nil {
 		return query, errors.New("machine_id invalid")
 	}
@@ -72,7 +73,7 @@ func respondReport(c *gin.Context, payload interface{}, err error) {
 // @Param        from query string false "Data de început (YYYY-MM-DD, implicit ultimele 30 de zile)"
 // @Param        to query string false "Data de sfârșit (YYYY-MM-DD, implicit azi)"
 // @Param        field_id query string false "Filtru teren"
-// @Param        operation_type_id query int false "Filtru tip operațiune"
+// @Param        operation_type query string false "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)"
 // @Param        machine_id query int false "Filtru mașină"
 // @Param        operator_id query int false "Filtru operator"
 // @Success      200 {object} domain.ReportSummary
@@ -97,7 +98,7 @@ func (h *ReportHandler) GetSummary(c *gin.Context) {
 // @Param        from query string false "Data de început (YYYY-MM-DD)"
 // @Param        to query string false "Data de sfârșit (YYYY-MM-DD)"
 // @Param        field_id query string false "Filtru teren"
-// @Param        operation_type_id query int false "Filtru tip operațiune"
+// @Param        operation_type query string false "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)"
 // @Param        machine_id query int false "Filtru mașină"
 // @Param        operator_id query int false "Filtru operator"
 // @Success      200 {object} domain.ReportOperations
@@ -122,7 +123,7 @@ func (h *ReportHandler) GetOperations(c *gin.Context) {
 // @Param        from query string false "Data de început (YYYY-MM-DD)"
 // @Param        to query string false "Data de sfârșit (YYYY-MM-DD)"
 // @Param        field_id query string false "Filtru teren"
-// @Param        operation_type_id query int false "Filtru tip operațiune"
+// @Param        operation_type query string false "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)"
 // @Param        machine_id query int false "Filtru mașină"
 // @Param        operator_id query int false "Filtru operator"
 // @Success      200 {object} domain.ReportFields
@@ -147,7 +148,7 @@ func (h *ReportHandler) GetFields(c *gin.Context) {
 // @Param        from query string false "Data de început (YYYY-MM-DD)"
 // @Param        to query string false "Data de sfârșit (YYYY-MM-DD)"
 // @Param        field_id query string false "Filtru teren"
-// @Param        operation_type_id query int false "Filtru tip operațiune"
+// @Param        operation_type query string false "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)"
 // @Param        machine_id query int false "Filtru mașină"
 // @Param        operator_id query int false "Filtru operator"
 // @Success      200 {object} domain.ReportFleet
@@ -172,7 +173,7 @@ func (h *ReportHandler) GetFleet(c *gin.Context) {
 // @Param        from query string false "Data de început (YYYY-MM-DD)"
 // @Param        to query string false "Data de sfârșit (YYYY-MM-DD)"
 // @Param        field_id query string false "Filtru teren"
-// @Param        operation_type_id query int false "Filtru tip operațiune"
+// @Param        operation_type query string false "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)"
 // @Param        machine_id query int false "Filtru mașină"
 // @Param        operator_id query int false "Filtru operator"
 // @Success      200 {object} domain.ReportOperators
@@ -197,7 +198,7 @@ func (h *ReportHandler) GetOperators(c *gin.Context) {
 // @Param        from query string false "Data de început (YYYY-MM-DD)"
 // @Param        to query string false "Data de sfârșit (YYYY-MM-DD)"
 // @Param        field_id query string false "Filtru teren"
-// @Param        operation_type_id query int false "Filtru tip operațiune"
+// @Param        operation_type query string false "Filtru tip operațiune (soil_preparation, seeding, fertilization, spraying, harvesting, irrigation)"
 // @Param        machine_id query int false "Filtru mașină"
 // @Param        operator_id query int false "Filtru operator"
 // @Success      200 {object} domain.ReportStocks

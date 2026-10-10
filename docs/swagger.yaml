@@ -329,6 +329,22 @@ definitions:
     - MachineTypeCar
     - MachineTypeSmallTruck
     - MachineTypeOther
+  domain.OperationType:
+    enum:
+    - soil_preparation
+    - seeding
+    - fertilization
+    - spraying
+    - harvesting
+    - irrigation
+    type: string
+    x-enum-varnames:
+    - OperationTypeSoilPreparation
+    - OperationTypeSeeding
+    - OperationTypeFertilization
+    - OperationTypeSpraying
+    - OperationTypeHarvesting
+    - OperationTypeIrrigation
   domain.Operator:
     properties:
       email:
@@ -707,8 +723,8 @@ definitions:
         type: integer
       estimated_cost:
         type: number
-      operation_type_id:
-        type: integer
+      operation_type:
+        $ref: '#/definitions/domain.OperationType'
       operation_type_name:
         type: string
       total:
@@ -2845,10 +2861,11 @@ paths:
         in: query
         name: field_id
         type: string
-      - description: Filtru tip operațiune
+      - description: Filtru tip operațiune (soil_preparation, seeding, fertilization,
+          spraying, harvesting, irrigation)
         in: query
-        name: operation_type_id
-        type: integer
+        name: operation_type
+        type: string
       - description: Filtru mașină
         in: query
         name: machine_id
@@ -2898,10 +2915,11 @@ paths:
         in: query
         name: field_id
         type: string
-      - description: Filtru tip operațiune
+      - description: Filtru tip operațiune (soil_preparation, seeding, fertilization,
+          spraying, harvesting, irrigation)
         in: query
-        name: operation_type_id
-        type: integer
+        name: operation_type
+        type: string
       - description: Filtru mașină
         in: query
         name: machine_id
@@ -2951,10 +2969,11 @@ paths:
         in: query
         name: field_id
         type: string
-      - description: Filtru tip operațiune
+      - description: Filtru tip operațiune (soil_preparation, seeding, fertilization,
+          spraying, harvesting, irrigation)
         in: query
-        name: operation_type_id
-        type: integer
+        name: operation_type
+        type: string
       - description: Filtru mașină
         in: query
         name: machine_id
@@ -3004,10 +3023,11 @@ paths:
         in: query
         name: field_id
         type: string
-      - description: Filtru tip operațiune
+      - description: Filtru tip operațiune (soil_preparation, seeding, fertilization,
+          spraying, harvesting, irrigation)
         in: query
-        name: operation_type_id
-        type: integer
+        name: operation_type
+        type: string
       - description: Filtru mașină
         in: query
         name: machine_id
@@ -3057,10 +3077,11 @@ paths:
         in: query
         name: field_id
         type: string
-      - description: Filtru tip operațiune
+      - description: Filtru tip operațiune (soil_preparation, seeding, fertilization,
+          spraying, harvesting, irrigation)
         in: query
-        name: operation_type_id
-        type: integer
+        name: operation_type
+        type: string
       - description: Filtru mașină
         in: query
         name: machine_id
@@ -3188,10 +3209,11 @@ paths:
         in: query
         name: field_id
         type: string
-      - description: Filtru tip operațiune
+      - description: Filtru tip operațiune (soil_preparation, seeding, fertilization,
+          spraying, harvesting, irrigation)
         in: query
-        name: operation_type_id
-        type: integer
+        name: operation_type
+        type: string
       - description: Filtru mașină
         in: query
         name: machine_id

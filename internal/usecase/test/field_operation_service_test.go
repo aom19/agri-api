@@ -28,10 +28,10 @@ func TestFieldOperationService_Validate(t *testing.T) {
 		in  *domain.FieldOperation
 		err error
 	}{
-		"teren lipsă":    {&domain.FieldOperation{OperationTypeID: 1}, usecase.ErrFieldOperationFieldRequired},
+		"teren lipsă":    {&domain.FieldOperation{OperationType: domain.OperationTypeSeeding}, usecase.ErrFieldOperationFieldRequired},
 		"tip lipsă":      {&domain.FieldOperation{FieldID: "f"}, usecase.ErrFieldOperationTypeRequired},
-		"status invalid": {&domain.FieldOperation{FieldID: "f", OperationTypeID: 1, Status: "x"}, usecase.ErrFieldOperationInvalidStatus},
-		"date inversate": {&domain.FieldOperation{FieldID: "f", OperationTypeID: 1, PlannedStartAt: &start, PlannedEndAt: &before}, usecase.ErrFieldOperationBadDates},
+		"status invalid": {&domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding, Status: "x"}, usecase.ErrFieldOperationInvalidStatus},
+		"date inversate": {&domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding, PlannedStartAt: &start, PlannedEndAt: &before}, usecase.ErrFieldOperationBadDates},
 	}
 	for name, c := range cases {
 		if _, err := svc.Create(c.in); !errors.Is(err, c.err) {
@@ -41,8 +41,60 @@ func TestFieldOperationService_Validate(t *testing.T) {
 	if _, err := svc.Create(nil); err == nil {
 		t.Error("payload nil trebuie să dea eroare")
 	}
-	if _, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationTypeID: 1, AreaPlannedHa: ptr(-1.0)}); err == nil {
+	if _, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding, AreaPlannedHa: ptr(-1.0)}); err == nil {
 		t.Error("suprafața negativă trebuie să dea eroare")
+	}
+}
+
+// T14: cu template, operațiunea moștenește tipul lui și nu reține unul propriu.
+func TestFieldOperationService_OperationTypeFromTemplate(t *testing.T) {
+	var saved *domain.FieldOperation
+	repo := &fieldOperationRepoMock{
+		getTemplateType: func(id int64) (domain.OperationType, error) {
+			if id == 3 {
+				return domain.OperationTypeSpraying, nil
+			}
+			return "", nil
+		},
+		create: func(op *domain.FieldOperation) error { saved = op; return nil },
+		update: func(_ int64, op *domain.FieldOperation) error { saved = op; return nil },
+		getByID: func(int64) (*dto.FieldOperationResponse, error) {
+			return &dto.FieldOperationResponse{ID: 1, Status: "planned"}, nil
+		},
+	}
+	svc := usecase.NewFieldOperationService(repo)
+
+	for name, own := range map[string]domain.OperationType{"fără tip trimis": "", "același tip": domain.OperationTypeSpraying} {
+		saved = nil
+		if _, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationTemplateID: ptr(int64(3)), OperationType: own}); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if saved.OperationType != "" {
+			t.Errorf("%s: operațiunea cu template a reținut tipul %q", name, saved.OperationType)
+		}
+	}
+
+	cases := map[string]struct {
+		in  *domain.FieldOperation
+		err error
+	}{
+		"tip diferit de template": {&domain.FieldOperation{FieldID: "f", OperationTemplateID: ptr(int64(3)), OperationType: domain.OperationTypeSeeding}, usecase.ErrFieldOperationTypeMismatch},
+		"template inexistent":     {&domain.FieldOperation{FieldID: "f", OperationTemplateID: ptr(int64(9))}, usecase.ErrFieldOperationTemplateNotFound},
+		"tip în afara enum-ului":  {&domain.FieldOperation{FieldID: "f", OperationType: "plowing"}, usecase.ErrFieldOperationTypeInvalid},
+	}
+	for name, c := range cases {
+		if _, err := svc.Create(c.in); !errors.Is(err, c.err) {
+			t.Errorf("create %s: %v", name, err)
+		}
+		if _, err := svc.Update(1, c.in); !errors.Is(err, c.err) {
+			t.Errorf("update %s: %v", name, err)
+		}
+	}
+
+	dbErr := errors.New("db down")
+	repo.getTemplateType = func(int64) (domain.OperationType, error) { return "", dbErr }
+	if _, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationTemplateID: ptr(int64(3))}); !errors.Is(err, dbErr) {
+		t.Error("eroarea de citire a template-ului trebuie propagată")
 	}
 }
 
@@ -59,7 +111,7 @@ func TestFieldOperationService_CreateUpdateDelete(t *testing.T) {
 	}
 	svc := usecase.NewFieldOperationService(repo)
 
-	created, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationTypeID: 1, Notes: "  note  "})
+	created, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding, Notes: "  note  "})
 	if err != nil || created.ID != 5 {
 		t.Fatalf("Create: %v, %+v", err, created)
 	}
@@ -67,7 +119,7 @@ func TestFieldOperationService_CreateUpdateDelete(t *testing.T) {
 		t.Errorf("statusul implicit / notele nu au fost normalizate: %+v", saved)
 	}
 
-	if _, err := svc.Update(9, &domain.FieldOperation{FieldID: "f", OperationTypeID: 1}); !errors.Is(err, usecase.ErrFieldOperationNotFound) {
+	if _, err := svc.Update(9, &domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding}); !errors.Is(err, usecase.ErrFieldOperationNotFound) {
 		t.Errorf("update pe operațiune inexistentă: %v", err)
 	}
 	if _, err := svc.Update(1, &domain.FieldOperation{}); err == nil {
@@ -75,7 +127,7 @@ func TestFieldOperationService_CreateUpdateDelete(t *testing.T) {
 	}
 	var updated *domain.FieldOperation
 	repo.update = func(_ int64, op *domain.FieldOperation) error { updated = op; return nil }
-	if _, err := svc.Update(1, &domain.FieldOperation{FieldID: "f", OperationTypeID: 1}); err != nil {
+	if _, err := svc.Update(1, &domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding}); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if updated.Status != domain.FieldOperationStatusPlanned {
@@ -100,14 +152,14 @@ func TestFieldOperationService_CreateUpdateDelete(t *testing.T) {
 
 	boom := errors.New("db down")
 	repo.create = func(*domain.FieldOperation) error { return boom }
-	if _, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationTypeID: 1}); !errors.Is(err, boom) {
+	if _, err := svc.Create(&domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding}); !errors.Is(err, boom) {
 		t.Error("eroarea de creare trebuie propagată")
 	}
 	repo.getByID = func(int64) (*dto.FieldOperationResponse, error) { return nil, boom }
 	if _, err := svc.GetByID(1); !errors.Is(err, boom) {
 		t.Error("eroarea de citire trebuie propagată")
 	}
-	if _, err := svc.Update(1, &domain.FieldOperation{FieldID: "f", OperationTypeID: 1}); !errors.Is(err, boom) {
+	if _, err := svc.Update(1, &domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSeeding}); !errors.Is(err, boom) {
 		t.Error("eroarea de citire trebuie propagată la update")
 	}
 	if err := svc.Delete(1); !errors.Is(err, boom) {
@@ -245,7 +297,7 @@ func TestFieldOperationService_AssetCompatibility(t *testing.T) {
 	svc := usecase.NewFieldOperationService(repo)
 	input := func() *domain.FieldOperation {
 		return &domain.FieldOperation{
-			FieldID: "f", OperationTypeID: 1,
+			FieldID: "f", OperationType: domain.OperationTypeSeeding,
 			OperationTemplateID: ptr(int64(3)), MachineID: ptr(int64(4)), ImplementID: ptr(int64(5)),
 		}
 	}

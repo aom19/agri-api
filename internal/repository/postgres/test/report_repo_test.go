@@ -24,14 +24,13 @@ func seedReportData(t *testing.T, db *sql.DB) reportFixture {
 
 	f := reportFixture{filter: domain.ReportFilter{From: from, To: to}}
 	field := insertField(t, db, "Lot raport")
-	opType := insertID(t, db, `INSERT INTO operation_types (code, name) VALUES ('plowing', 'Arat') RETURNING id`)
 	f.machine1 = insertMachine(t, db, "Tractor A", "TR-A")
 	f.machine2 = insertMachine(t, db, "Tractor B", "TR-B")
 	f.operator1 = insertOperator(t, db, "Ana")
 	f.operator2 = insertOperator(t, db, "Bogdan")
 	f.op3 = insertOperator(t, db, "Cristi") // fără operațiuni: apare în raport cu zero
 
-	base := fieldOperation{FieldID: field, OperationTypeID: opType}
+	base := fieldOperation{FieldID: field, OperationType: "soil_preparation"}
 	with := func(change func(*fieldOperation)) fieldOperation {
 		op := base
 		change(&op)
