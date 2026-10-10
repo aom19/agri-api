@@ -54,7 +54,7 @@ func (machineService *MachineService) CreateMachine(machine *domain.Machine) (*d
 		Year:               machine.Year,
 		RegistrationNumber: machine.RegistrationNumber,
 		FuelType:           machine.FuelType,
-		Status:             domain.MachineStatusActive,
+		Status:             domain.AssetStatusActive,
 		Notes:              machine.Notes,
 	}
 	if err := machineService.machineRepo.Create(m); err != nil {

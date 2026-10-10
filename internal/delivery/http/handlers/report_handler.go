@@ -13,7 +13,7 @@ import (
 
 type ReportHandler struct {
 	service *usecase.ReportService
-	digest  *usecase.ReportDigestService
+	email   *usecase.ReportEmailService
 	users   *usecase.UserService
 }
 
@@ -215,10 +215,10 @@ func (h *ReportHandler) GetStocks(c *gin.Context) {
 	respondReport(c, report, err)
 }
 
-// WithReportDigest injectează serviciul de abonamente/e-mail și serviciul de utilizatori.
-func WithReportDigest(digest *usecase.ReportDigestService, users *usecase.UserService) func(*ReportHandler) {
+// WithReportEmail injectează serviciul de trimitere pe e-mail și serviciul de utilizatori.
+func WithReportEmail(email *usecase.ReportEmailService, users *usecase.UserService) func(*ReportHandler) {
 	return func(h *ReportHandler) {
-		h.digest = digest
+		h.email = email
 		h.users = users
 	}
 }
@@ -266,120 +266,20 @@ func (h *ReportHandler) GetWeather(c *gin.Context) {
 	respondReport(c, report, err)
 }
 
-type reportSubscriptionRequest struct {
-	Frequency string `json:"frequency" binding:"required,oneof=daily weekly monthly"`
-	SendHour  int    `json:"send_hour"`
-	Weekday   int    `json:"weekday"`
-	IsActive  bool   `json:"is_active"`
-}
-
-// GetSubscription returnează abonamentul utilizatorului curent la raportul pe e-mail.
-// @Summary      Abonament raport e-mail
+// SendSummaryEmail trimite sumarul perioadei pe e-mailul utilizatorului curent.
+// @Summary      Trimitere sumar pe e-mail
 // @Tags         reports
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200 {object} domain.ReportSubscription
-// @Success      204
-// @Router       /reports/subscription [get]
-func (h *ReportHandler) GetSubscription(c *gin.Context) {
-	if h.digest == nil {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "rapoartele pe e-mail nu sunt configurate"})
-		return
-	}
-	userID, ok := currentUserID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
-		return
-	}
-	subscription, err := h.digest.GetSubscription(userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if subscription == nil {
-		c.Status(http.StatusNoContent)
-		return
-	}
-	c.JSON(http.StatusOK, subscription)
-}
-
-// UpsertSubscription creează sau actualizează abonamentul utilizatorului curent.
-// @Summary      Setare abonament raport e-mail
-// @Tags         reports
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param        payload body reportSubscriptionRequest true "Abonamentul"
-// @Success      200 {object} domain.ReportSubscription
-// @Failure      400 {object} object{error=string}
-// @Router       /reports/subscription [put]
-func (h *ReportHandler) UpsertSubscription(c *gin.Context) {
-	if h.digest == nil {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "rapoartele pe e-mail nu sunt configurate"})
-		return
-	}
-	userID, ok := currentUserID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
-		return
-	}
-	var req reportSubscriptionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	subscription, err := h.digest.UpsertSubscription(&domain.ReportSubscription{
-		UserID:    userID,
-		Frequency: domain.ReportFrequency(req.Frequency),
-		SendHour:  req.SendHour,
-		Weekday:   req.Weekday,
-		IsActive:  req.IsActive,
-	})
-	if err != nil {
-		if errors.Is(err, usecase.ErrReportSubscriptionInvalid) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, subscription)
-}
-
-// DeleteSubscription dezactivează abonamentul utilizatorului curent.
-// @Summary      Dezactivare abonament raport e-mail
-// @Tags         reports
-// @Security     BearerAuth
-// @Success      204
-// @Router       /reports/subscription [delete]
-func (h *ReportHandler) DeleteSubscription(c *gin.Context) {
-	if h.digest == nil {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "rapoartele pe e-mail nu sunt configurate"})
-		return
-	}
-	userID, ok := currentUserID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
-		return
-	}
-	if err := h.digest.Deactivate(userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
-// SendDigestNow trimite imediat raportul sumar pe e-mailul utilizatorului curent.
-// @Summary      Trimitere imediată raport e-mail
-// @Tags         reports
-// @Produce      json
-// @Security     BearerAuth
+// @Param        from query string false "Data de început (YYYY-MM-DD)"
+// @Param        to query string false "Data de sfârșit (YYYY-MM-DD)"
 // @Success      200 {object} object{message=string}
+// @Failure      400 {object} object{error=string}
 // @Failure      500 {object} object{error=string}
-// @Router       /reports/subscription/send-now [post]
-func (h *ReportHandler) SendDigestNow(c *gin.Context) {
-	if h.digest == nil || h.users == nil {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "rapoartele pe e-mail nu sunt configurate"})
+// @Router       /reports/summary/email [post]
+func (h *ReportHandler) SendSummaryEmail(c *gin.Context) {
+	if h.email == nil || h.users == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "trimiterea pe e-mail nu este configurată"})
 		return
 	}
 	userID, ok := currentUserID(c)
@@ -393,8 +293,9 @@ func (h *ReportHandler) SendDigestNow(c *gin.Context) {
 		return
 	}
 	displayName, _ := h.users.GetUserDisplayName(userID)
-	if err := h.digest.SendNow(userID, user.Email, displayName); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	query := usecase.ReportQuery{From: c.Query("from"), To: c.Query("to")}
+	if err := h.email.SendSummary(query, user.Email, displayName); err != nil {
+		respondReport(c, nil, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Raportul a fost trimis pe " + user.Email})

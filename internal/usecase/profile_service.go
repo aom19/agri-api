@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"agri-api/internal/domain"
-	"agri-api/internal/store"
+	"agri-api/internal/repository"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -12,17 +12,17 @@ import (
 )
 
 type ProfileService struct {
-	store     *store.Store
+	users     repository.UserRepository
 	uploadDir string
 	baseURL   string
 }
 
-func NewProfileService(s *store.Store, uploadDir, baseURL string) *ProfileService {
-	return &ProfileService{store: s, uploadDir: uploadDir, baseURL: baseURL}
+func NewProfileService(users repository.UserRepository, uploadDir, baseURL string) *ProfileService {
+	return &ProfileService{users: users, uploadDir: uploadDir, baseURL: baseURL}
 }
 
 func (svc *ProfileService) GetProfile(userID int64) (*domain.UserProfile, error) {
-	return svc.store.UserRepo.GetProfile(userID)
+	return svc.users.GetProfile(userID)
 }
 
 func (svc *ProfileService) UpdateProfile(userID int64, firstName, lastName string, dob *time.Time) (*domain.UserProfile, error) {
@@ -34,15 +34,15 @@ func (svc *ProfileService) UpdateProfile(userID int64, firstName, lastName strin
 	}
 
 	// Preserve existing photo
-	existing, err := svc.store.UserRepo.GetProfile(userID)
+	existing, err := svc.users.GetProfile(userID)
 	if err == nil && existing != nil {
 		profile.ProfilePhoto = existing.ProfilePhoto
 	}
 
-	if err := svc.store.UserRepo.UpsertProfile(profile); err != nil {
+	if err := svc.users.UpsertProfile(profile); err != nil {
 		return nil, err
 	}
-	return svc.store.UserRepo.GetProfile(userID)
+	return svc.users.GetProfile(userID)
 }
 
 func (svc *ProfileService) UploadPhoto(userID int64, file multipart.File, header *multipart.FileHeader) (string, error) {
@@ -74,12 +74,12 @@ func (svc *ProfileService) UploadPhoto(userID int64, file multipart.File, header
 	photoURL := fmt.Sprintf("%s/uploads/avatars/%s", svc.baseURL, filename)
 
 	// Update only the photo field
-	profile, _ := svc.store.UserRepo.GetProfile(userID)
+	profile, _ := svc.users.GetProfile(userID)
 	if profile == nil {
 		profile = &domain.UserProfile{UserID: userID}
 	}
 	profile.ProfilePhoto = photoURL
-	_ = svc.store.UserRepo.UpsertProfile(profile)
+	_ = svc.users.UpsertProfile(profile)
 
 	return photoURL, nil
 }

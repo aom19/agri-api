@@ -6,11 +6,7 @@ type RoleRepository interface {
 	GetAll() ([]domain.Role, error)
 	GetByID(id int64) (*domain.Role, error)
 	GetByCode(code string) (*domain.Role, error)
-	Create(role *domain.Role) error
-	Update(role *domain.Role) error
-	Delete(id int64) error
 	GetPermissions(roleID int64) ([]domain.Permission, error)
-	SetPermissions(roleID int64, permissionIDs []int64) error
 }
 
 type PermissionRepository interface {

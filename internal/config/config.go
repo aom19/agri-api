@@ -51,8 +51,6 @@ type Config struct {
 
 	// Intervalul la care se salvează observațiile meteo pentru terenuri ("0" dezactivează)
 	WeatherSnapshotInterval string
-	// Intervalul la care se verifică abonamentele la rapoartele pe e-mail
-	ReportDigestCheckInterval string
 }
 
 func LoadConfig() *Config {
@@ -92,7 +90,6 @@ func LoadConfig() *Config {
 
 		FieldOperationOverdueCheckInterval: getEnv("FIELD_OPERATION_OVERDUE_CHECK_INTERVAL", "1m"),
 		WeatherSnapshotInterval:            getEnv("WEATHER_SNAPSHOT_INTERVAL", "1h"),
-		ReportDigestCheckInterval:          getEnv("REPORT_DIGEST_CHECK_INTERVAL", "1m"),
 	}
 }
 

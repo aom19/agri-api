@@ -26,9 +26,6 @@ var (
 	BuildOverdueMessage            = buildOverdueMessage
 	FillTimeline                   = fillTimeline
 	TruncateTo                     = truncateTo
-	IsDigestDue                    = isDigestDue
-	IsoWeekday                     = isoWeekday
-	DigestPeriod                   = digestPeriod
 	FormatRomanianDate             = formatRomanianDate
 	PolygonCentroid                = polygonCentroid
 	WeatherDescription             = weatherDescription
@@ -58,12 +55,6 @@ func (s *NotificationService) SubscriberCount(userID int64) int { return len(s.s
 func (service *ReportService) ResolvePeriod(query ReportQuery) (domain.ReportFilter, domain.ReportPeriod, error) {
 	return service.resolvePeriod(query)
 }
-
-func (service *ReportDigestService) Interval() time.Duration { return service.interval }
-
-func (service *ReportDigestService) SetInterval(interval time.Duration) { service.interval = interval }
-
-func (service *ReportDigestService) SetNow(now func() time.Time) { service.now = now }
 
 func (service *WeatherService) SetHTTPClient(client *http.Client) { service.client = client }
 

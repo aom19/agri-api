@@ -63,7 +63,7 @@ type machineRepoMock struct {
 	getByID      func(int64) (*domain.Machine, error)
 	update       func(int64, *domain.Machine) error
 	delete       func(int64) error
-	updateStatus func(*sql.Tx, int64, domain.MachineStatus) error
+	updateStatus func(*sql.Tx, int64, domain.AssetStatus) error
 }
 
 func (m *machineRepoMock) Create(x *domain.Machine) error {
@@ -96,7 +96,7 @@ func (m *machineRepoMock) Delete(id int64) error {
 	}
 	return nil
 }
-func (m *machineRepoMock) UpdateStatus(tx *sql.Tx, id int64, s domain.MachineStatus) error {
+func (m *machineRepoMock) UpdateStatus(tx *sql.Tx, id int64, s domain.AssetStatus) error {
 	if m.updateStatus != nil {
 		return m.updateStatus(tx, id, s)
 	}
@@ -720,11 +720,7 @@ type roleRepoMock struct {
 	getAll         func() ([]domain.Role, error)
 	getByID        func(int64) (*domain.Role, error)
 	getByCode      func(string) (*domain.Role, error)
-	create         func(*domain.Role) error
-	update         func(*domain.Role) error
-	delete         func(int64) error
 	getPermissions func(int64) ([]domain.Permission, error)
-	setPermissions func(int64, []int64) error
 }
 
 func (m *roleRepoMock) GetAll() ([]domain.Role, error) {
@@ -745,35 +741,11 @@ func (m *roleRepoMock) GetByCode(code string) (*domain.Role, error) {
 	}
 	return nil, nil
 }
-func (m *roleRepoMock) Create(r *domain.Role) error {
-	if m.create != nil {
-		return m.create(r)
-	}
-	return nil
-}
-func (m *roleRepoMock) Update(r *domain.Role) error {
-	if m.update != nil {
-		return m.update(r)
-	}
-	return nil
-}
-func (m *roleRepoMock) Delete(id int64) error {
-	if m.delete != nil {
-		return m.delete(id)
-	}
-	return nil
-}
 func (m *roleRepoMock) GetPermissions(id int64) ([]domain.Permission, error) {
 	if m.getPermissions != nil {
 		return m.getPermissions(id)
 	}
 	return nil, nil
-}
-func (m *roleRepoMock) SetPermissions(id int64, ids []int64) error {
-	if m.setPermissions != nil {
-		return m.setPermissions(id, ids)
-	}
-	return nil
 }
 
 type permissionRepoMock struct {
@@ -981,7 +953,7 @@ func (m *cropRepoMock) MarkHarvestRecorded(tx *sql.Tx, id int64, qty float64) er
 	return nil
 }
 
-// ─── Weather snapshots / report subscriptions ────────────────────────────────
+// ─── Weather snapshots ───────────────────────────────────────────────────────
 
 type weatherSnapshotRepoMock struct {
 	insert             func(*domain.WeatherSnapshot) (bool, error)
@@ -1013,45 +985,6 @@ func (m *weatherSnapshotRepoMock) CountInPeriod(f domain.ReportFilter) (int, int
 		return m.countInPeriod(f)
 	}
 	return 0, 0, nil
-}
-
-type reportSubscriptionRepoMock struct {
-	getByUser            func(int64) (*domain.ReportSubscription, error)
-	upsert               func(*domain.ReportSubscription) error
-	deactivate           func(int64) error
-	listActiveRecipients func() ([]domain.ReportSubscriptionRecipient, error)
-	markSent             func(int64, time.Time) error
-}
-
-func (m *reportSubscriptionRepoMock) GetByUser(id int64) (*domain.ReportSubscription, error) {
-	if m.getByUser != nil {
-		return m.getByUser(id)
-	}
-	return nil, nil
-}
-func (m *reportSubscriptionRepoMock) Upsert(s *domain.ReportSubscription) error {
-	if m.upsert != nil {
-		return m.upsert(s)
-	}
-	return nil
-}
-func (m *reportSubscriptionRepoMock) Deactivate(id int64) error {
-	if m.deactivate != nil {
-		return m.deactivate(id)
-	}
-	return nil
-}
-func (m *reportSubscriptionRepoMock) ListActiveRecipients() ([]domain.ReportSubscriptionRecipient, error) {
-	if m.listActiveRecipients != nil {
-		return m.listActiveRecipients()
-	}
-	return nil, nil
-}
-func (m *reportSubscriptionRepoMock) MarkSent(id int64, at time.Time) error {
-	if m.markSent != nil {
-		return m.markSent(id, at)
-	}
-	return nil
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ func TestEnumValidation(t *testing.T) {
 	if !domain.ImplementTypePlow.IsValid() || domain.ImplementType("x").IsValid() {
 		t.Error("ImplementType.IsValid")
 	}
-	if !domain.AssetStatusMaintenance.IsValid() || domain.AssetStatus("pierdut").IsValid() || !domain.MachineStatusActive.IsValid() {
+	if !domain.AssetStatusMaintenance.IsValid() || domain.AssetStatus("pierdut").IsValid() || !domain.AssetStatusActive.IsValid() {
 		t.Error("AssetStatus.IsValid")
 	}
 	if !domain.ResourceCategoryHarvest.IsValid() || domain.ResourceCategory("gaz").IsValid() {

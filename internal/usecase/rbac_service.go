@@ -3,31 +3,48 @@ package usecase
 import (
 	"agri-api/internal/auth"
 	"agri-api/internal/domain"
-	"agri-api/internal/store"
+	"agri-api/internal/repository"
 	"context"
 	"errors"
-	"strings"
 )
 
 type RBACService struct {
-	store       *store.Store
+	roles       repository.RoleRepository
+	permissions repository.PermissionRepository
+	users       repository.UserRepository
 	jwtService  *auth.JWTService
 	refreshRepo *auth.Repo
 	blacklist   *auth.Blacklist
 }
 
-func NewRBACService(s *store.Store, jwt *auth.JWTService, refreshRepo *auth.Repo, blacklist *auth.Blacklist) *RBACService {
-	return &RBACService{store: s, jwtService: jwt, refreshRepo: refreshRepo, blacklist: blacklist}
+func NewRBACService(
+	roles repository.RoleRepository,
+	permissions repository.PermissionRepository,
+	users repository.UserRepository,
+	jwt *auth.JWTService,
+	refreshRepo *auth.Repo,
+	blacklist *auth.Blacklist,
+) *RBACService {
+	return &RBACService{
+		roles:       roles,
+		permissions: permissions,
+		users:       users,
+		jwtService:  jwt,
+		refreshRepo: refreshRepo,
+		blacklist:   blacklist,
+	}
 }
 
-// ─── Roles CRUD ───────────────────────────────────────────────────────────────
+// ─── Roles ────────────────────────────────────────────────────────────────────
+
+// Rolurile sunt fixe, definite în migrația 000054_fixed_roles_and_permissions; aici doar se citesc.
 
 func (s *RBACService) GetAllRoles() ([]domain.Role, error) {
-	return s.store.RoleRepo.GetAll()
+	return s.roles.GetAll()
 }
 
 func (s *RBACService) GetRoleByID(id int64) (*domain.Role, error) {
-	role, err := s.store.RoleRepo.GetByID(id)
+	role, err := s.roles.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -35,62 +52,16 @@ func (s *RBACService) GetRoleByID(id int64) (*domain.Role, error) {
 		return nil, errors.New("role not found")
 	}
 	return role, nil
-}
-
-func (s *RBACService) CreateRole(code, name, description string) (*domain.Role, error) {
-	existing, err := s.store.RoleRepo.GetByCode(code)
-	if err != nil {
-		return nil, err
-	}
-	if existing != nil {
-		return nil, errors.New("role code already exists")
-	}
-	role := &domain.Role{Code: code, Name: name, Description: description}
-	if err := s.store.RoleRepo.Create(role); err != nil {
-		return nil, err
-	}
-	return role, nil
-}
-
-func (s *RBACService) UpdateRole(id int64, code, name, description string) (*domain.Role, error) {
-	role, err := s.store.RoleRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	if role == nil {
-		return nil, errors.New("role not found")
-	}
-	role.Code = code
-	role.Name = name
-	role.Description = description
-	if err := s.store.RoleRepo.Update(role); err != nil {
-		return nil, err
-	}
-	return role, nil
-}
-
-func (s *RBACService) DeleteRole(id int64) error {
-	role, err := s.store.RoleRepo.GetByID(id)
-	if err != nil {
-		return err
-	}
-	if role == nil {
-		return errors.New("role not found")
-	}
-	if strings.EqualFold(role.Code, "admin") {
-		return errors.New("admin role cannot be deleted")
-	}
-	return s.store.RoleRepo.Delete(id)
 }
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
 
 func (s *RBACService) GetAllPermissions() ([]domain.Permission, error) {
-	return s.store.PermissionRepo.GetAllPermissions()
+	return s.permissions.GetAllPermissions()
 }
 
 func (s *RBACService) GetPermissionByID(id int64) (*domain.Permission, error) {
-	permission, err := s.store.PermissionRepo.GetPermissionByID(id)
+	permission, err := s.permissions.GetPermissionByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -101,25 +72,14 @@ func (s *RBACService) GetPermissionByID(id int64) (*domain.Permission, error) {
 }
 
 func (s *RBACService) GetRolePermissions(roleID int64) ([]domain.Permission, error) {
-	role, err := s.store.RoleRepo.GetByID(roleID)
+	role, err := s.roles.GetByID(roleID)
 	if err != nil {
 		return nil, err
 	}
 	if role == nil {
 		return nil, errors.New("role not found")
 	}
-	return s.store.RoleRepo.GetPermissions(roleID)
-}
-
-func (s *RBACService) SetRolePermissions(roleID int64, permissionIDs []int64) error {
-	role, err := s.store.RoleRepo.GetByID(roleID)
-	if err != nil {
-		return err
-	}
-	if role == nil {
-		return errors.New("role not found")
-	}
-	return s.store.RoleRepo.SetPermissions(roleID, permissionIDs)
+	return s.roles.GetPermissions(roleID)
 }
 
 // ─── User role assignment ─────────────────────────────────────────────────────
@@ -127,7 +87,7 @@ func (s *RBACService) SetRolePermissions(roleID int64, permissionIDs []int64) er
 // AssignRoleToUser schimbă rolul unui user și revocă toate sesiunile active ale
 // acestuia (forțând re-login cu noul role_id în JWT).
 func (s *RBACService) AssignRoleToUser(userID int64, roleID int64) error {
-	role, err := s.store.RoleRepo.GetByID(roleID)
+	role, err := s.roles.GetByID(roleID)
 	if err != nil {
 		return err
 	}
@@ -135,7 +95,7 @@ func (s *RBACService) AssignRoleToUser(userID int64, roleID int64) error {
 		return errors.New("role not found")
 	}
 
-	if err := s.store.UserRepo.UpdateRole(userID, roleID); err != nil {
+	if err := s.users.UpdateRole(userID, roleID); err != nil {
 		return err
 	}
 

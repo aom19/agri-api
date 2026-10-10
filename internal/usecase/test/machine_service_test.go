@@ -20,7 +20,7 @@ func TestMachineService_CreateMachine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("eroare neașteptată: %v", err)
 	}
-	if created.ID != 7 || created.Status != domain.MachineStatusActive {
+	if created.ID != 7 || created.Status != domain.AssetStatusActive {
 		t.Errorf("mașina creată trebuie să aibă ID-ul din repo și statusul activ, am primit %+v", created)
 	}
 
@@ -43,7 +43,7 @@ func TestMachineService_CreateMachine(t *testing.T) {
 }
 
 func TestMachineService_UpdateMachine(t *testing.T) {
-	existing := &domain.Machine{ID: 1, Name: "Vechi", Code: "OLD", Type: domain.MachineTypeCombine, Status: domain.MachineStatusActive}
+	existing := &domain.Machine{ID: 1, Name: "Vechi", Code: "OLD", Type: domain.MachineTypeCombine, Status: domain.AssetStatusActive}
 	repo := &machineRepoMock{getByID: func(id int64) (*domain.Machine, error) {
 		if id == 1 {
 			return existing, nil
@@ -57,21 +57,21 @@ func TestMachineService_UpdateMachine(t *testing.T) {
 	}
 
 	input := validMachine()
-	input.Status = domain.MachineStatusMaintenance
+	input.Status = domain.AssetStatusMaintenance
 	updated, err := svc.UpdateMachine(1, input)
 	if err != nil {
 		t.Fatalf("eroare neașteptată: %v", err)
 	}
-	if updated.Name != "Tractor 1" || updated.Status != domain.MachineStatusMaintenance || updated.ID != 1 {
+	if updated.Name != "Tractor 1" || updated.Status != domain.AssetStatusMaintenance || updated.ID != 1 {
 		t.Errorf("câmpurile nu au fost actualizate: %+v", updated)
 	}
 
 	invalid := map[string]*domain.Machine{
-		"câmpuri lipsă":  {Name: "x", Status: domain.MachineStatusActive},
-		"tip invalid":    {Name: "x", Code: "c", Type: "barca", Status: domain.MachineStatusActive},
+		"câmpuri lipsă":  {Name: "x", Status: domain.AssetStatusActive},
+		"tip invalid":    {Name: "x", Code: "c", Type: "barca", Status: domain.AssetStatusActive},
 		"status invalid": {Name: "x", Code: "c", Type: domain.MachineTypeCar, Status: "pierdut"},
-		"an invalid":     {Name: "x", Code: "c", Type: domain.MachineTypeCar, Status: domain.MachineStatusActive, Year: ptr(2200)},
-		"combustibil":    {Name: "x", Code: "c", Type: domain.MachineTypeCar, Status: domain.MachineStatusActive, FuelType: ptr(domain.FuelType("apa"))},
+		"an invalid":     {Name: "x", Code: "c", Type: domain.MachineTypeCar, Status: domain.AssetStatusActive, Year: ptr(2200)},
+		"combustibil":    {Name: "x", Code: "c", Type: domain.MachineTypeCar, Status: domain.AssetStatusActive, FuelType: ptr(domain.FuelType("apa"))},
 	}
 	for name, in := range invalid {
 		if _, err := svc.UpdateMachine(1, in); err == nil {

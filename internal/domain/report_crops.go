@@ -1,35 +1,5 @@
 package domain
 
-import "time"
-
-type ReportFrequency string
-
-const (
-	ReportFrequencyDaily   ReportFrequency = "daily"
-	ReportFrequencyWeekly  ReportFrequency = "weekly"
-	ReportFrequencyMonthly ReportFrequency = "monthly"
-)
-
-// ReportSubscription este abonamentul unui utilizator la raportul sumar trimis pe e-mail.
-type ReportSubscription struct {
-	ID         int64           `json:"id"`
-	UserID     int64           `json:"user_id"`
-	Frequency  ReportFrequency `json:"frequency"`
-	SendHour   int             `json:"send_hour"`
-	Weekday    int             `json:"weekday"`
-	IsActive   bool            `json:"is_active"`
-	LastSentAt *time.Time      `json:"last_sent_at,omitempty"`
-	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt  time.Time       `json:"updated_at"`
-}
-
-// ReportSubscriptionRecipient este abonamentul împreună cu datele de contact ale utilizatorului.
-type ReportSubscriptionRecipient struct {
-	ReportSubscription
-	Email     string
-	FirstName string
-}
-
 // Tipurile rapoartelor pe culturi.
 type ReportCropStat struct {
 	CropID             int64    `json:"crop_id"`

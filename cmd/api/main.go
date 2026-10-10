@@ -13,7 +13,6 @@ import (
 	"agri-api/internal/logger"
 	redisclient "agri-api/internal/redis"
 	"agri-api/internal/repository/postgres"
-	"agri-api/internal/store"
 	"agri-api/internal/usecase"
 
 	_ "agri-api/docs"
@@ -117,7 +116,6 @@ func main() {
 	cropRepo := postgres.NewCropRepo(sqlDB)
 	cropService := usecase.NewCropService(cropRepo, fieldRepo, sqlDB, stockMovementRepo)
 	weatherSnapshotRepo := postgres.NewWeatherSnapshotRepo(sqlDB)
-	reportSubscriptionRepo := postgres.NewReportSubscriptionRepo(sqlDB)
 	reportService := usecase.NewReportService(reportRepo).WithCrops(cropRepo).WithWeather(weatherSnapshotRepo)
 	weatherService := usecase.NewWeatherService(cfg.OpenWeatherAPIKey)
 
@@ -131,8 +129,9 @@ func main() {
 		go weatherSnapshotMonitor.Start(context.Background())
 	}
 
-	// 3. Inițializează store-ul cu toate repository-urile și serviciul de asignări
-	appStore := store.NewInitialiedStore(sqlDB)
+	// 3. Repository-urile pentru conturi, roluri și permisiuni
+	userRepo := postgres.NewUserRepo(sqlDB)
+	rbacRepo := postgres.NewRBACRepo(sqlDB)
 
 	// 4. Inițializează serviciile de autentificare
 	accessTTL, err := time.ParseDuration(cfg.AccessTokenTTL)
@@ -163,21 +162,16 @@ func main() {
 		log,
 	)
 
-	// 5.1 Rapoarte programate pe e-mail (abonamente zilnice/săptămânale/lunare)
-	digestInterval, err := time.ParseDuration(cfg.ReportDigestCheckInterval)
-	if err != nil || digestInterval <= 0 {
-		digestInterval = time.Minute
-	}
-	reportDigestService := usecase.NewReportDigestService(reportSubscriptionRepo, reportService, emailService, cfg.ClientOrigin, log, digestInterval)
-	go reportDigestService.Start(context.Background())
+	// 5.1 Sumarul din Rapoarte, trimis pe e-mail la cerere („Trimite pe e-mail”)
+	reportEmailService := usecase.NewReportEmailService(reportService, emailService, cfg.ClientOrigin)
 
-	authService := usecase.NewAuthService(appStore, jwtService, refreshRepo, blacklist, emailService, cfg.ClientOrigin)
-	rbacService := usecase.NewRBACService(appStore, jwtService, refreshRepo, blacklist)
-	userService := usecase.NewUserService(appStore)
+	authService := usecase.NewAuthService(userRepo, rbacRepo, jwtService, refreshRepo, blacklist, emailService, cfg.ClientOrigin)
+	rbacService := usecase.NewRBACService(rbacRepo, rbacRepo, userRepo, jwtService, refreshRepo, blacklist)
+	userService := usecase.NewUserService(userRepo, rbacRepo)
 
 	// 6. Profile service
 	uploadDir := "uploads/avatars"
-	profileService := usecase.NewProfileService(appStore, uploadDir, cfg.PublicURL)
+	profileService := usecase.NewProfileService(userRepo, uploadDir, cfg.PublicURL)
 
 	// Configurează serverul HTTP Gin fără middleware implicit
 	server := gin.New()
@@ -215,7 +209,7 @@ func main() {
 		ReportService:                   reportService,
 		StockMovementService:            stockMovementService,
 		CropService:                     cropService,
-		ReportDigestService:             reportDigestService,
+		ReportEmailService:              reportEmailService,
 		FieldOperationCompletionService: fieldOperationCompletionService,
 		WeatherService:                  weatherService,
 		AuditService:                    auditService,
@@ -225,7 +219,7 @@ func main() {
 		ProfileService:                  profileService,
 		RBACService:                     rbacService,
 		UserService:                     userService,
-		PermissionRepo:                  appStore.PermissionRepo,
+		PermissionRepo:                  rbacRepo,
 		UploadDir:                       uploadDir,
 		JWTService:                      jwtService,
 		Blacklist:                       blacklist,

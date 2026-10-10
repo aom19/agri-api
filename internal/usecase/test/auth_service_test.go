@@ -10,7 +10,6 @@ import (
 	"agri-api/internal/auth"
 	"agri-api/internal/domain"
 	"agri-api/internal/email"
-	"agri-api/internal/store"
 	"agri-api/internal/usecase"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -68,16 +67,16 @@ func newAuthService(t *testing.T, emailSvc *email.EmailService) (*usecase.AuthSe
 		return nil, nil
 	}}
 	jwt := auth.NewJWTService("secret", 15*time.Minute, time.Hour)
-	svc := usecase.NewAuthService(&store.Store{UserRepo: users, RoleRepo: roles}, jwt, auth.NewRepo(db), deadBlacklist(), emailSvc, "http://front/")
+	svc := usecase.NewAuthService(users, roles, jwt, auth.NewRepo(db), deadBlacklist(), emailSvc, "http://front/")
 	return svc, users, roles, mock
 }
 
 func TestNewAuthService_ClientOrigin(t *testing.T) {
-	svc := usecase.NewAuthService(nil, nil, nil, nil, nil, "")
+	svc := usecase.NewAuthService(nil, nil, nil, nil, nil, nil, "")
 	if svc.ClientOrigin() != "http://localhost:3000" {
 		t.Errorf("origin implicit: %s", svc.ClientOrigin())
 	}
-	svc = usecase.NewAuthService(nil, nil, nil, nil, nil, "http://app/")
+	svc = usecase.NewAuthService(nil, nil, nil, nil, nil, nil, "http://app/")
 	if svc.ClientOrigin() != "http://app" {
 		t.Errorf("origin fără slash final: %s", svc.ClientOrigin())
 	}

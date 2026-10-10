@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"agri-api/internal/domain"
-	"agri-api/internal/store"
 	"agri-api/internal/usecase"
 )
 
@@ -20,7 +19,7 @@ func TestProfileService_GetAndUpdate(t *testing.T) {
 		getProfile:    func(id int64) (*domain.UserProfile, error) { return saved[id], nil },
 		upsertProfile: func(p *domain.UserProfile) error { saved[p.UserID] = p; return nil },
 	}
-	svc := usecase.NewProfileService(&store.Store{UserRepo: users}, t.TempDir(), "http://api")
+	svc := usecase.NewProfileService(users, t.TempDir(), "http://api")
 
 	if p, err := svc.GetProfile(1); err != nil || p.UserID != 1 {
 		t.Errorf("GetProfile: %v", err)
@@ -48,7 +47,7 @@ func TestProfileService_UploadPhoto(t *testing.T) {
 		upsertProfile: func(p *domain.UserProfile) error { saved[p.UserID] = p; return nil },
 	}
 	dir := filepath.Join(t.TempDir(), "avatars")
-	svc := usecase.NewProfileService(&store.Store{UserRepo: users}, dir, "http://api")
+	svc := usecase.NewProfileService(users, dir, "http://api")
 
 	tmp, err := os.CreateTemp(t.TempDir(), "photo-*.png")
 	if err != nil {
@@ -89,7 +88,7 @@ func TestProfileService_UploadPhoto(t *testing.T) {
 	if err := os.WriteFile(blocked, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	svc = usecase.NewProfileService(&store.Store{UserRepo: users}, filepath.Join(blocked, "sub"), "http://api")
+	svc = usecase.NewProfileService(users, filepath.Join(blocked, "sub"), "http://api")
 	if _, err := svc.UploadPhoto(1, tmp, &multipart.FileHeader{Filename: "a.png", Size: 9}); err == nil {
 		t.Error("eroarea de creare a directorului trebuie propagată")
 	}

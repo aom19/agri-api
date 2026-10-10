@@ -46,17 +46,17 @@ type CreateMachineRequest struct {
 	WorkingHours       *float64           `json:"working_hours"`
 }
 type UpdateMachineRequest struct {
-	Name               string               `json:"name" binding:"required"`
-	Code               string               `json:"code" binding:"required"`
-	Type               domain.MachineType   `json:"type" binding:"required"`
-	Brand              string               `json:"brand"`
-	Model              string               `json:"model"`
-	Year               *int                 `json:"year"`
-	RegistrationNumber string               `json:"registration_number"`
-	FuelType           *domain.FuelType     `json:"fuel_type"`
-	Status             domain.MachineStatus `json:"status" binding:"required"`
-	Notes              string               `json:"notes"`
-	WorkingHours       *float64             `json:"working_hours"`
+	Name               string             `json:"name" binding:"required"`
+	Code               string             `json:"code" binding:"required"`
+	Type               domain.MachineType `json:"type" binding:"required"`
+	Brand              string             `json:"brand"`
+	Model              string             `json:"model"`
+	Year               *int               `json:"year"`
+	RegistrationNumber string             `json:"registration_number"`
+	FuelType           *domain.FuelType   `json:"fuel_type"`
+	Status             domain.AssetStatus `json:"status" binding:"required"`
+	Notes              string             `json:"notes"`
+	WorkingHours       *float64           `json:"working_hours"`
 }
 
 // Create creează o mașină nouă

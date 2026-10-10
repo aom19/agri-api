@@ -3,25 +3,26 @@ package usecase
 import (
 	"agri-api/internal/auth"
 	"agri-api/internal/domain"
-	"agri-api/internal/store"
+	"agri-api/internal/repository"
 	"errors"
 	"strings"
 )
 
 type UserService struct {
-	store *store.Store
+	users repository.UserRepository
+	roles repository.RoleRepository
 }
 
-func NewUserService(s *store.Store) *UserService {
-	return &UserService{store: s}
+func NewUserService(users repository.UserRepository, roles repository.RoleRepository) *UserService {
+	return &UserService{users: users, roles: roles}
 }
 
 func (s *UserService) GetAllUsers() ([]domain.User, error) {
-	return s.store.UserRepo.GetAll()
+	return s.users.GetAll()
 }
 
 func (s *UserService) GetUserByID(id int64) (*domain.User, error) {
-	user, err := s.store.UserRepo.GetByID(id)
+	user, err := s.users.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -32,12 +33,12 @@ func (s *UserService) GetUserByID(id int64) (*domain.User, error) {
 }
 
 func (s *UserService) GetUserDisplayName(id int64) (string, error) {
-	user, err := s.store.UserRepo.GetByID(id)
+	user, err := s.users.GetByID(id)
 	if err != nil {
 		return "", err
 	}
 	if user == nil {
-		users, err := s.store.UserRepo.GetAll()
+		users, err := s.users.GetAll()
 		if err != nil {
 			return "", err
 		}
@@ -52,7 +53,7 @@ func (s *UserService) GetUserDisplayName(id int64) (string, error) {
 		return "", errors.New("user not found")
 	}
 
-	profile, err := s.store.UserRepo.GetProfile(id)
+	profile, err := s.users.GetProfile(id)
 	if err == nil && profile != nil {
 		name := strings.TrimSpace(strings.Join([]string{profile.FirstName, profile.LastName}, " "))
 		if name != "" {
@@ -64,7 +65,7 @@ func (s *UserService) GetUserDisplayName(id int64) (string, error) {
 }
 
 func (s *UserService) CreateUser(email, password string, roleID int64, emailConfirmed bool) (*domain.User, error) {
-	existing, err := s.store.UserRepo.GetByEmail(email)
+	existing, err := s.users.GetByEmail(email)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (s *UserService) CreateUser(email, password string, roleID int64, emailConf
 		return nil, errors.New("email already in use")
 	}
 
-	role, err := s.store.RoleRepo.GetByID(roleID)
+	role, err := s.roles.GetByID(roleID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,12 +98,12 @@ func (s *UserService) CreateUser(email, password string, roleID int64, emailConf
 		RoleName:     role.Name,
 	}
 
-	if err := s.store.UserRepo.Create(user); err != nil {
+	if err := s.users.Create(user); err != nil {
 		return nil, err
 	}
 
 	if emailConfirmed {
-		if err := s.store.UserRepo.MarkEmailConfirmed(user.ID); err != nil {
+		if err := s.users.MarkEmailConfirmed(user.ID); err != nil {
 			return nil, err
 		}
 		user.EmailConfirmed = true
@@ -112,7 +113,7 @@ func (s *UserService) CreateUser(email, password string, roleID int64, emailConf
 }
 
 func (s *UserService) UpdateUser(id int64, email string, roleID int64, emailConfirmed bool, password string) (*domain.User, error) {
-	current, err := s.store.UserRepo.GetByID(id)
+	current, err := s.users.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +121,7 @@ func (s *UserService) UpdateUser(id int64, email string, roleID int64, emailConf
 		return nil, errors.New("user not found")
 	}
 
-	otherUser, err := s.store.UserRepo.GetByEmail(email)
+	otherUser, err := s.users.GetByEmail(email)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +129,7 @@ func (s *UserService) UpdateUser(id int64, email string, roleID int64, emailConf
 		return nil, errors.New("email already in use")
 	}
 
-	role, err := s.store.RoleRepo.GetByID(roleID)
+	role, err := s.roles.GetByID(roleID)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +142,7 @@ func (s *UserService) UpdateUser(id int64, email string, roleID int64, emailConf
 	current.RoleCode = role.Code
 	current.RoleName = role.Name
 	current.EmailConfirmed = emailConfirmed
-	if err := s.store.UserRepo.Update(current); err != nil {
+	if err := s.users.Update(current); err != nil {
 		return nil, err
 	}
 
@@ -150,7 +151,7 @@ func (s *UserService) UpdateUser(id int64, email string, roleID int64, emailConf
 		if err != nil {
 			return nil, err
 		}
-		if err := s.store.UserRepo.UpdatePassword(id, hash); err != nil {
+		if err := s.users.UpdatePassword(id, hash); err != nil {
 			return nil, err
 		}
 	}
@@ -159,29 +160,29 @@ func (s *UserService) UpdateUser(id int64, email string, roleID int64, emailConf
 }
 
 func (s *UserService) DeleteUser(id int64) error {
-	user, err := s.store.UserRepo.GetByID(id)
+	user, err := s.users.GetByID(id)
 	if err != nil {
 		return err
 	}
 	if user == nil {
 		return errors.New("user not found")
 	}
-	return s.store.UserRepo.Delete(id)
+	return s.users.Delete(id)
 }
 
 func (s *UserService) DisableUsers(id int64) error {
-	user, err := s.store.UserRepo.GetByID(id)
+	user, err := s.users.GetByID(id)
 	if err != nil {
 		return err
 	}
 	if user == nil {
 		return errors.New("user not found")
 	}
-	return s.store.UserRepo.Disable(id)
+	return s.users.Disable(id)
 }
 
 func (s *UserService) EnableUsers(id int64) error {
-	users, err := s.store.UserRepo.GetAll()
+	users, err := s.users.GetAll()
 	if err != nil {
 		return err
 	}
@@ -193,7 +194,7 @@ func (s *UserService) EnableUsers(id int64) error {
 		if !user.Disabled {
 			return errors.New("user already enabled")
 		}
-		return s.store.UserRepo.Enable(id)
+		return s.users.Enable(id)
 	}
 
 	return errors.New("user not found")

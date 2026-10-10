@@ -131,7 +131,7 @@ func (machineRepo *MachineRepo) Delete(id int64) error {
 	return err
 }
 
-func (machineRepo *MachineRepo) UpdateStatus(tx *sql.Tx, id int64, status domain.MachineStatus) error {
+func (machineRepo *MachineRepo) UpdateStatus(tx *sql.Tx, id int64, status domain.AssetStatus) error {
 	query := `UPDATE machines SET asset_status = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`
 	_, err := tx.Exec(query, status, id)
 	return err

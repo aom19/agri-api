@@ -5,17 +5,11 @@ definitions:
     - active
     - maintenance
     - inactive
-    - active
-    - maintenance
-    - inactive
     type: string
     x-enum-varnames:
     - AssetStatusActive
     - AssetStatusMaintenance
     - AssetStatusInactive
-    - MachineStatusActive
-    - MachineStatusMaintenance
-    - MachineStatusInactive
   domain.ConsumptionEstimate:
     properties:
       area_ha:
@@ -295,22 +289,6 @@ definitions:
       year:
         type: integer
     type: object
-  domain.MachineStatus:
-    enum:
-    - active
-    - maintenance
-    - inactive
-    - active
-    - maintenance
-    - inactive
-    type: string
-    x-enum-varnames:
-    - AssetStatusActive
-    - AssetStatusMaintenance
-    - AssetStatusInactive
-    - MachineStatusActive
-    - MachineStatusMaintenance
-    - MachineStatusInactive
   domain.MachineType:
     enum:
     - tractor
@@ -566,16 +544,6 @@ definitions:
       period:
         $ref: '#/definitions/domain.ReportPeriod'
     type: object
-  domain.ReportFrequency:
-    enum:
-    - daily
-    - weekly
-    - monthly
-    type: string
-    x-enum-varnames:
-    - ReportFrequencyDaily
-    - ReportFrequencyWeekly
-    - ReportFrequencyMonthly
   domain.ReportImplementRow:
     properties:
       code:
@@ -916,27 +884,6 @@ definitions:
           $ref: '#/definitions/domain.ReportNamedValue'
         type: array
     type: object
-  domain.ReportSubscription:
-    properties:
-      created_at:
-        type: string
-      frequency:
-        $ref: '#/definitions/domain.ReportFrequency'
-      id:
-        type: integer
-      is_active:
-        type: boolean
-      last_sent_at:
-        type: string
-      send_hour:
-        type: integer
-      updated_at:
-        type: string
-      user_id:
-        type: integer
-      weekday:
-        type: integer
-    type: object
   domain.ReportSummary:
     properties:
       current:
@@ -1260,7 +1207,7 @@ definitions:
       registration_number:
         type: string
       status:
-        $ref: '#/definitions/domain.MachineStatus'
+        $ref: '#/definitions/domain.AssetStatus'
       type:
         $ref: '#/definitions/domain.MachineType'
       working_hours:
@@ -1385,23 +1332,6 @@ definitions:
         $ref: '#/definitions/domain.FieldCrop'
       movement:
         $ref: '#/definitions/domain.StockMovement'
-    type: object
-  handlers.reportSubscriptionRequest:
-    properties:
-      frequency:
-        enum:
-        - daily
-        - weekly
-        - monthly
-        type: string
-      is_active:
-        type: boolean
-      send_hour:
-        type: integer
-      weekday:
-        type: integer
-    required:
-    - frequency
     type: object
   handlers.seasonRequest:
     properties:
@@ -3114,84 +3044,6 @@ paths:
       summary: Raport stocuri
       tags:
       - reports
-  /reports/subscription:
-    delete:
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Dezactivare abonament raport e-mail
-      tags:
-      - reports
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.ReportSubscription'
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Abonament raport e-mail
-      tags:
-      - reports
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Abonamentul
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.reportSubscriptionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.ReportSubscription'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Setare abonament raport e-mail
-      tags:
-      - reports
-  /reports/subscription/send-now:
-    post:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Trimitere imediată raport e-mail
-      tags:
-      - reports
   /reports/summary:
     get:
       parameters:
@@ -3244,6 +3096,46 @@ paths:
       security:
       - BearerAuth: []
       summary: Raport sumar
+      tags:
+      - reports
+  /reports/summary/email:
+    post:
+      parameters:
+      - description: Data de început (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Data de sfârșit (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Trimitere sumar pe e-mail
       tags:
       - reports
   /reports/weather:

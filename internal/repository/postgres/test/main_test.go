@@ -29,6 +29,11 @@ var dataTables = []string{
 
 var testDB *sql.DB
 
+// rbacAfterMigrations sunt permisiunile fiecărui rol imediat după migrații (cheia "" ține toate
+// permisiunile). Testele de migrare reaplică migrații vechi, care adaugă la loc permisiuni șterse,
+// deci testele de RBAC verifică această copie, nu baza de la momentul rulării lor.
+var rbacAfterMigrations map[string][]string
+
 func TestMain(m *testing.M) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -36,6 +41,9 @@ func TestMain(m *testing.M) {
 	}
 
 	db, err := setupDatabase(dsn)
+	if err == nil {
+		rbacAfterMigrations, err = readRBAC(db)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "baza de test nu a putut fi pregătită:", err)
 		os.Exit(1)
@@ -92,6 +100,31 @@ func setupDatabase(dsn string) (*sql.DB, error) {
 		}
 	}
 	return db, nil
+}
+
+// readRBAC întoarce numele permisiunilor fiecărui rol, ordonate; cheia "" ține toate permisiunile.
+func readRBAC(db *sql.DB) (map[string][]string, error) {
+	rows, err := db.Query(`
+		SELECT '', name FROM permissions
+		UNION ALL
+		SELECT r.code, p.name
+		FROM roles r
+		JOIN role_permissions rp ON rp.role_id = r.id
+		JOIN permissions p ON p.id = rp.permission_id
+		ORDER BY 1, 2`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := map[string][]string{}
+	for rows.Next() {
+		var role, permission string
+		if err := rows.Scan(&role, &permission); err != nil {
+			return nil, err
+		}
+		result[role] = append(result[role], permission)
+	}
+	return result, rows.Err()
 }
 
 // requireDB întoarce baza de test golită de date, sau sare testul dacă nu există.

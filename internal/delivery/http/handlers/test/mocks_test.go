@@ -90,8 +90,8 @@ func (m *machineRepoMock) Delete(id int64) error {
 	}
 	return nil
 }
-func (m *machineRepoMock) UpdateStatus(*sql.Tx, int64, domain.MachineStatus) error { return nil }
-func (m *machineRepoMock) DB() *sql.DB                                             { return nil }
+func (m *machineRepoMock) UpdateStatus(*sql.Tx, int64, domain.AssetStatus) error { return nil }
+func (m *machineRepoMock) DB() *sql.DB                                           { return nil }
 
 type dashboardRepoMock struct {
 	getCardStats  func() (*domain.DashboardCardStats, error)

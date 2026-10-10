@@ -18,12 +18,3 @@ func (assetStatus AssetStatus) IsValid() bool {
 	_, ok := validAssetStatuses[assetStatus]
 	return ok
 }
-
-// Backward-compatible alias for existing references outside domain.
-type MachineStatus = AssetStatus
-
-const (
-	MachineStatusActive      = AssetStatusActive
-	MachineStatusMaintenance = AssetStatusMaintenance
-	MachineStatusInactive    = AssetStatusInactive
-)

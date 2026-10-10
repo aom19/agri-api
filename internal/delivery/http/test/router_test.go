@@ -24,7 +24,7 @@ func TestSetupRoutes(t *testing.T) {
 		"GET /api/weather/current":                 false,
 		"GET /api/machines":                        false,
 		"PATCH /api/field-operations/:id/complete": false,
-		"PUT /api/reports/subscription":            false,
+		"POST /api/reports/summary/email":          false,
 		"GET /ws/notifications":                    false,
 		"GET /api/audit-log":                       false,
 		"POST /api/stock-movements":                false,
@@ -44,12 +44,14 @@ func TestSetupRoutes(t *testing.T) {
 	}
 	// rute șterse: assignments (alocările sunt operațiunile pe teren active), checklistul de start
 	// (T10), compatibilitățile mașină ↔ echipament (T11, regula stă doar pe template) și stocurile
-	// separate de resurse (T12, stocul e pe resursă și se schimbă prin /stock-movements)
+	// separate de resurse (T12, stocul e pe resursă și se schimbă prin /stock-movements) și
+	// abonamentele la rapoartele pe e-mail (T17, sumarul se trimite doar la cerere)
 	for _, route := range routes {
 		if strings.HasPrefix(route.Path, "/api/assignments") ||
 			route.Path == "/api/field-operations/:id/checklist" ||
 			strings.HasPrefix(route.Path, "/api/implement-compatibilities") ||
-			strings.HasPrefix(route.Path, "/api/stocks") {
+			strings.HasPrefix(route.Path, "/api/stocks") ||
+			strings.HasPrefix(route.Path, "/api/reports/subscription") {
 			t.Errorf("ruta ștearsă %s %s e încă înregistrată", route.Method, route.Path)
 		}
 	}

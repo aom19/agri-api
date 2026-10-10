@@ -55,26 +55,6 @@ func (r *RBACRepo) GetByCode(code string) (*domain.Role, error) {
 	return &role, err
 }
 
-func (r *RBACRepo) Create(role *domain.Role) error {
-	return r.db.QueryRow(
-		`INSERT INTO roles (code, name, description) VALUES ($1, $2, $3) RETURNING id, created_at`,
-		role.Code, role.Name, role.Description,
-	).Scan(&role.ID, &role.CreatedAt)
-}
-
-func (r *RBACRepo) Update(role *domain.Role) error {
-	_, err := r.db.Exec(
-		`UPDATE roles SET code = $1, name = $2, description = $3 WHERE id = $4`,
-		role.Code, role.Name, role.Description, role.ID,
-	)
-	return err
-}
-
-func (r *RBACRepo) Delete(id int64) error {
-	_, err := r.db.Exec(`DELETE FROM roles WHERE id = $1`, id)
-	return err
-}
-
 // GetPermissions returnează toate permisiunile asociate unui rol
 func (r *RBACRepo) GetPermissions(roleID int64) ([]domain.Permission, error) {
 	rows, err := r.db.Query(`
@@ -97,34 +77,6 @@ func (r *RBACRepo) GetPermissions(roleID int64) ([]domain.Permission, error) {
 		perms = append(perms, p)
 	}
 	return perms, nil
-}
-
-// SetPermissions înlocuiește complet setul de permisiuni al unui rol (în tranzacție)
-func (r *RBACRepo) SetPermissions(roleID int64, permissionIDs []int64) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		}
-	}()
-
-	if _, err = tx.Exec(`DELETE FROM role_permissions WHERE role_id = $1`, roleID); err != nil {
-		return err
-	}
-
-	for _, pid := range permissionIDs {
-		if _, err = tx.Exec(
-			`INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2)`,
-			roleID, pid,
-		); err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
 }
 
 // ─── Permission ──────────────────────────────────────────────────────────────

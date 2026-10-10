@@ -4,7 +4,7 @@ import (
 	"agri-api/internal/auth"
 	"agri-api/internal/domain"
 	"agri-api/internal/email"
-	"agri-api/internal/store"
+	"agri-api/internal/repository"
 	"context"
 	"errors"
 	"fmt"
@@ -20,7 +20,8 @@ const defaultRegisterRole = "viewer"
 
 // AuthService conține logica de business pentru autentificare
 type AuthService struct {
-	store        *store.Store
+	users        repository.UserRepository
+	roles        repository.RoleRepository
 	jwtService   *auth.JWTService
 	refreshRepo  *auth.Repo
 	blacklist    *auth.Blacklist
@@ -28,12 +29,13 @@ type AuthService struct {
 	clientOrigin string
 }
 
-func NewAuthService(s *store.Store, jwt *auth.JWTService, refreshRepo *auth.Repo, blacklist *auth.Blacklist, emailService *email.EmailService, clientOrigin string) *AuthService {
+func NewAuthService(users repository.UserRepository, roles repository.RoleRepository, jwt *auth.JWTService, refreshRepo *auth.Repo, blacklist *auth.Blacklist, emailService *email.EmailService, clientOrigin string) *AuthService {
 	if clientOrigin == "" {
 		clientOrigin = "http://localhost:3000"
 	}
 	return &AuthService{
-		store:        s,
+		users:        users,
+		roles:        roles,
 		jwtService:   jwt,
 		refreshRepo:  refreshRepo,
 		blacklist:    blacklist,
@@ -43,7 +45,7 @@ func NewAuthService(s *store.Store, jwt *auth.JWTService, refreshRepo *auth.Repo
 }
 
 func (service *AuthService) Login(email, password string) (string, string, error) {
-	user, err := service.store.UserRepo.GetByEmail(email)
+	user, err := service.users.GetByEmail(email)
 	if err != nil {
 		return "", "", err
 	}
@@ -82,7 +84,7 @@ func (service *AuthService) Refresh(refreshToken, oldAccessToken string) (string
 		return "", "", err
 	}
 
-	user, err := service.store.UserRepo.GetByID(userID)
+	user, err := service.users.GetByID(userID)
 	if err != nil {
 		return "", "", err
 	}
@@ -134,7 +136,7 @@ func (service *AuthService) Logout(refreshToken, accessToken string) error {
 
 // Register creează mereu un cont cu rolul viewer; rolurile se schimbă doar din administrarea utilizatorilor.
 func (service *AuthService) Register(email, password string) error {
-	existing, err := service.store.UserRepo.GetByEmail(email)
+	existing, err := service.users.GetByEmail(email)
 	if err != nil {
 		return err
 	}
@@ -149,7 +151,7 @@ func (service *AuthService) Register(email, password string) error {
 	if err != nil {
 		return err
 	}
-	roleEntity, err := service.store.RoleRepo.GetByCode(defaultRegisterRole)
+	roleEntity, err := service.roles.GetByCode(defaultRegisterRole)
 	if err != nil {
 		return err
 	}
@@ -158,7 +160,7 @@ func (service *AuthService) Register(email, password string) error {
 	}
 
 	user := &domain.User{Email: email, PasswordHash: hash, RoleID: roleEntity.ID, RoleCode: roleEntity.Code, RoleName: roleEntity.Name}
-	if err := service.store.UserRepo.Create(user); err != nil {
+	if err := service.users.Create(user); err != nil {
 		return err
 	}
 
@@ -166,7 +168,7 @@ func (service *AuthService) Register(email, password string) error {
 }
 
 func (service *AuthService) ForgotPassword(email string) error {
-	user, err := service.store.UserRepo.GetByEmail(email)
+	user, err := service.users.GetByEmail(email)
 	if err != nil {
 		return err
 	}
@@ -204,7 +206,7 @@ func (service *AuthService) ResetPassword(token, newPassword string) error {
 		return err
 	}
 
-	if err := service.store.UserRepo.UpdatePassword(userID, hash); err != nil {
+	if err := service.users.UpdatePassword(userID, hash); err != nil {
 		return err
 	}
 
@@ -216,14 +218,14 @@ func (service *AuthService) ConfirmEmail(token string) error {
 	if err != nil {
 		// Token deja folosit — verifică dacă userul e deja confirmat (idempotent)
 		if uid, lookupErr := service.refreshRepo.GetEmailConfirmationTokenUserID(token); lookupErr == nil {
-			if user, userErr := service.store.UserRepo.GetByID(uid); userErr == nil && user != nil && user.EmailConfirmed {
+			if user, userErr := service.users.GetByID(uid); userErr == nil && user != nil && user.EmailConfirmed {
 				return nil
 			}
 		}
 		return err
 	}
 
-	if err := service.store.UserRepo.MarkEmailConfirmed(userID); err != nil {
+	if err := service.users.MarkEmailConfirmed(userID); err != nil {
 		return err
 	}
 
@@ -231,7 +233,7 @@ func (service *AuthService) ConfirmEmail(token string) error {
 }
 
 func (service *AuthService) ResendConfirmation(emailAddr string) error {
-	user, err := service.store.UserRepo.GetByEmail(emailAddr)
+	user, err := service.users.GetByEmail(emailAddr)
 	if err != nil {
 		return err
 	}
@@ -262,7 +264,7 @@ func (service *AuthService) sendAccountConfirmation(userID int64, emailAddr stri
 
 // ChangePassword verifică parola veche și o înlocuiește cu una nouă
 func (service *AuthService) ChangePassword(userID int64, oldPassword, newPassword string) error {
-	user, err := service.store.UserRepo.GetByID(userID)
+	user, err := service.users.GetByID(userID)
 	if err != nil {
 		return err
 	}
@@ -276,7 +278,7 @@ func (service *AuthService) ChangePassword(userID int64, oldPassword, newPasswor
 	if err != nil {
 		return err
 	}
-	if err := service.store.UserRepo.UpdatePassword(userID, hash); err != nil {
+	if err := service.users.UpdatePassword(userID, hash); err != nil {
 		return err
 	}
 	// Trimite email de confirmare (non-blocant față de răspunsul HTTP)

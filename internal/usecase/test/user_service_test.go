@@ -5,11 +5,10 @@ import (
 	"testing"
 
 	"agri-api/internal/domain"
-	"agri-api/internal/store"
 	"agri-api/internal/usecase"
 )
 
-func newUserStore() (*store.Store, *userRepoMock, *roleRepoMock) {
+func newUserRepos() (*userRepoMock, *roleRepoMock) {
 	users := &userRepoMock{
 		getByID: func(id int64) (*domain.User, error) {
 			if id == 1 {
@@ -34,12 +33,12 @@ func newUserStore() (*store.Store, *userRepoMock, *roleRepoMock) {
 		}
 		return nil, nil
 	}}
-	return &store.Store{UserRepo: users, RoleRepo: roles}, users, roles
+	return users, roles
 }
 
 func TestUserService_Read(t *testing.T) {
-	st, users, _ := newUserStore()
-	svc := usecase.NewUserService(st)
+	users, roles := newUserRepos()
+	svc := usecase.NewUserService(users, roles)
 
 	if _, err := svc.GetUserByID(9); err == nil {
 		t.Error("utilizator inexistent trebuie să dea eroare")
@@ -77,8 +76,8 @@ func TestUserService_Read(t *testing.T) {
 }
 
 func TestUserService_CreateUpdate(t *testing.T) {
-	st, users, _ := newUserStore()
-	svc := usecase.NewUserService(st)
+	users, roles := newUserRepos()
+	svc := usecase.NewUserService(users, roles)
 
 	if _, err := svc.CreateUser("ana@x.ro", "x", 1, false); err == nil {
 		t.Error("emailul folosit trebuie să dea eroare")
@@ -128,8 +127,8 @@ func TestUserService_CreateUpdate(t *testing.T) {
 }
 
 func TestUserService_DeleteDisableEnable(t *testing.T) {
-	st, users, _ := newUserStore()
-	svc := usecase.NewUserService(st)
+	users, roles := newUserRepos()
+	svc := usecase.NewUserService(users, roles)
 
 	if err := svc.DeleteUser(9); err == nil {
 		t.Error("ștergerea unui utilizator inexistent trebuie să dea eroare")

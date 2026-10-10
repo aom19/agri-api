@@ -77,7 +77,7 @@ func TestMachineHandler_CreateAndRead(t *testing.T) {
 }
 
 func TestMachineHandler_UpdateAndDelete(t *testing.T) {
-	existing := domain.Machine{ID: 1, Name: "T1", Code: "TR-1", Type: domain.MachineTypeTractor, Status: domain.MachineStatusActive}
+	existing := domain.Machine{ID: 1, Name: "T1", Code: "TR-1", Type: domain.MachineTypeTractor, Status: domain.AssetStatusActive}
 	// ca în DB reală, fiecare citire întoarce o copie (handler-ul și serviciul nu partajează pointer-ul)
 	repo := &machineRepoMock{getByID: func(id int64) (*domain.Machine, error) {
 		if id == 1 {

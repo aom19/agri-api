@@ -27,7 +27,7 @@ type AppDeps struct {
 	ReportService                   *usecase.ReportService
 	StockMovementService            *usecase.StockMovementService
 	CropService                     *usecase.CropService
-	ReportDigestService             *usecase.ReportDigestService
+	ReportEmailService              *usecase.ReportEmailService
 	FieldOperationCompletionService *usecase.FieldOperationCompletionService
 	WeatherService                  *usecase.WeatherService
 	AuditService                    *usecase.AuditService
@@ -89,7 +89,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/dashboard/activity", perm("dashboard:read"), dashboardHandler.GetActivity)
 
 	// ─── Reports ─────────────────────────────────────────────────────────────
-	reportHandler := handlers.NewReportHandler(deps.ReportService, handlers.WithReportDigest(deps.ReportDigestService, deps.UserService))
+	reportHandler := handlers.NewReportHandler(deps.ReportService, handlers.WithReportEmail(deps.ReportEmailService, deps.UserService))
 	api.GET("/reports/summary", perm("reports:read"), reportHandler.GetSummary)
 	api.GET("/reports/operations", perm("reports:read"), reportHandler.GetOperations)
 	api.GET("/reports/fields", perm("reports:read"), reportHandler.GetFields)
@@ -98,10 +98,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/reports/stocks", perm("reports:read"), reportHandler.GetStocks)
 	api.GET("/reports/crops", perm("reports:read"), reportHandler.GetCrops)
 	api.GET("/reports/weather", perm("reports:read"), reportHandler.GetWeather)
-	api.GET("/reports/subscription", perm("reports:read"), reportHandler.GetSubscription)
-	api.PUT("/reports/subscription", perm("reports:read"), reportHandler.UpsertSubscription)
-	api.DELETE("/reports/subscription", perm("reports:read"), reportHandler.DeleteSubscription)
-	api.POST("/reports/subscription/send-now", perm("reports:read"), reportHandler.SendDigestNow)
+	api.POST("/reports/summary/email", perm("reports:read"), reportHandler.SendSummaryEmail)
 
 	// ─── Seasons, crops, field crops ─────────────────────────────────────────
 	cropHandler := handlers.NewCropHandler(deps.CropService, deps.AuditService)
@@ -129,7 +126,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/machines/:id", perm("machines:read"), machineHandler.GetByID)
 	api.POST("/machines", perm("machines:write"), machineHandler.Create)
 	api.PATCH("/machines/:id", perm("machines:write"), machineHandler.Update)
-	api.DELETE("/machines/:id", perm("machines:delete"), machineHandler.Delete)
+	api.DELETE("/machines/:id", perm("machines:write"), machineHandler.Delete)
 
 	// ─── Resources ───────────────────────────────────────────────────────────
 	resourceHandler := handlers.NewResourceHandler(
@@ -141,13 +138,13 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/resource-types/:id", perm("resources:read"), resourceHandler.GetResourceTypeByID)
 	api.POST("/resource-types", perm("resources:write"), resourceHandler.CreateResourceType)
 	api.PATCH("/resource-types/:id", perm("resources:write"), resourceHandler.UpdateResourceType)
-	api.DELETE("/resource-types/:id", perm("resources:delete"), resourceHandler.DeleteResourceType)
+	api.DELETE("/resource-types/:id", perm("resources:write"), resourceHandler.DeleteResourceType)
 
 	api.GET("/resources", perm("resources:read"), resourceHandler.GetAllResources)
 	api.GET("/resources/:id", perm("resources:read"), resourceHandler.GetResourceByID)
 	api.POST("/resources", perm("resources:write"), resourceHandler.CreateResource)
 	api.PATCH("/resources/:id", perm("resources:write"), resourceHandler.UpdateResource)
-	api.DELETE("/resources/:id", perm("resources:delete"), resourceHandler.DeleteResource)
+	api.DELETE("/resources/:id", perm("resources:write"), resourceHandler.DeleteResource)
 
 	// Stocul face parte din resursă și se modifică doar prin mișcări.
 	stockMovementHandler := handlers.NewStockMovementHandler(deps.StockMovementService, deps.AuditService, deps.NotificationService)
@@ -164,7 +161,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/implements/:id", perm("implements:read"), implementHandler.GetByID)
 	api.POST("/implements", perm("implements:write"), implementHandler.Create)
 	api.PATCH("/implements/:id", perm("implements:write"), implementHandler.Update)
-	api.DELETE("/implements/:id", perm("implements:delete"), implementHandler.Delete)
+	api.DELETE("/implements/:id", perm("implements:write"), implementHandler.Delete)
 	//activate
 	api.PATCH("/implements/:id/activate", perm("implements:write"), implementHandler.Activate)
 	api.PATCH("/implements/:id/deactivate", perm("implements:write"), implementHandler.Deactivate)
@@ -179,9 +176,9 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/operators/:id", perm("operators:read"), operatorHandler.GetByID)
 	api.POST("/operators", perm("operators:write"), operatorHandler.Create)
 	api.PATCH("/operators/:id", perm("operators:write"), operatorHandler.Update)
-	api.DELETE("/operators/:id", perm("operators:delete"), operatorHandler.Delete)
-	api.PATCH("/operators/:id/disable", perm("operators:disable"), operatorHandler.Disable)
-	api.PATCH("/operators/:id/enable", perm("operators:disable"), operatorHandler.Enable)
+	api.DELETE("/operators/:id", perm("operators:write"), operatorHandler.Delete)
+	api.PATCH("/operators/:id/disable", perm("operators:write"), operatorHandler.Disable)
+	api.PATCH("/operators/:id/enable", perm("operators:write"), operatorHandler.Enable)
 
 	// ─── Fields ───────────────────────────────────────────────────────────────
 	fieldHandler := handlers.NewFieldHandler(
@@ -193,17 +190,15 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/fields/:id", perm("fields:read"), fieldHandler.GetByID)
 	api.POST("/fields", perm("fields:write"), fieldHandler.Create)
 	api.PATCH("/fields/:id", perm("fields:write"), fieldHandler.Update)
-	api.DELETE("/fields/:id", perm("fields:delete"), fieldHandler.Delete)
+	api.DELETE("/fields/:id", perm("fields:write"), fieldHandler.Delete)
 
 	// ─── RBAC — Roles & Permissions ──────────────────────────────────────────
+	// Rolurile și permisiunile sunt fixe (migrația 000054_fixed_roles_and_permissions), deci doar
+	// se citesc. Fiecare modul are `:read` și `:write`; write include ștergerea și dezactivarea.
 	rbacHandler := handlers.NewRBACHandler(deps.RBACService)
 	api.GET("/roles", perm("roles:read"), rbacHandler.GetAllRoles)
 	api.GET("/roles/:id", perm("roles:read"), rbacHandler.GetRole)
-	api.POST("/roles", perm("roles:write"), rbacHandler.CreateRole)
-	api.PATCH("/roles/:id", perm("roles:write"), rbacHandler.UpdateRole)
-	api.DELETE("/roles/:id", perm("roles:delete"), rbacHandler.DeleteRole)
 	api.GET("/roles/:id/permissions", perm("roles:read"), rbacHandler.GetRolePermissions)
-	api.PUT("/roles/:id/permissions", perm("roles:write"), rbacHandler.SetRolePermissions)
 	api.GET("/permissions", perm("roles:read"), rbacHandler.GetAllPermissions)
 	api.GET("/permissions/:id", perm("roles:read"), rbacHandler.GetPermission)
 	api.GET("/auth/me/permissions", rbacHandler.GetMyPermissions)
@@ -218,7 +213,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/operation-templates/:id", perm("operations:read"), operationHandler.GetTemplateByID)
 	api.POST("/operation-templates", perm("operations:write"), operationHandler.CreateTemplate)
 	api.PATCH("/operation-templates/:id", perm("operations:write"), operationHandler.UpdateTemplate)
-	api.DELETE("/operation-templates/:id", perm("operations:delete"), operationHandler.DeleteTemplate)
+	api.DELETE("/operation-templates/:id", perm("operations:write"), operationHandler.DeleteTemplate)
 
 	// ─── Field Operations ────────────────────────────────────────────────────
 	fieldOperationHandler := handlers.NewFieldOperationHandler(
@@ -231,10 +226,10 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/field-operations/:id", perm("field_operations:read"), fieldOperationHandler.GetByID)
 	api.POST("/field-operations", perm("field_operations:write"), fieldOperationHandler.Create)
 	api.PATCH("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Update)
-	api.PATCH("/field-operations/:id/start", perm("field_operations:start"), fieldOperationHandler.Start)
-	api.GET("/field-operations/:id/consumption-estimate", perm("field_operations:complete"), fieldOperationHandler.ConsumptionEstimate)
-	api.PATCH("/field-operations/:id/complete", perm("field_operations:complete"), fieldOperationHandler.Complete)
-	api.DELETE("/field-operations/:id", perm("field_operations:delete"), fieldOperationHandler.Delete)
+	api.PATCH("/field-operations/:id/start", perm("field_operations:execute"), fieldOperationHandler.Start)
+	api.GET("/field-operations/:id/consumption-estimate", perm("field_operations:execute"), fieldOperationHandler.ConsumptionEstimate)
+	api.PATCH("/field-operations/:id/complete", perm("field_operations:execute"), fieldOperationHandler.Complete)
+	api.DELETE("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Delete)
 
 	// ─── Users — assign role ──────────────────────────────────────────────────
 	userHandler := handlers.NewUserHandler(
@@ -246,8 +241,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.GET("/users/:id", perm("users:read"), userHandler.GetByID)
 	api.POST("/users", perm("users:write"), userHandler.Create)
 	api.PATCH("/users/:id", perm("users:write"), userHandler.Update)
-	api.DELETE("/users/:id", perm("users:disable"), userHandler.Disable)
-	api.PATCH("/users/:id/enable", perm("users:enable"), userHandler.Enable)
+	api.DELETE("/users/:id", perm("users:write"), userHandler.Disable)
+	api.PATCH("/users/:id/enable", perm("users:write"), userHandler.Enable)
 	api.PATCH("/users/:id/role", perm("users:write"), rbacHandler.AssignRoleToUser)
 
 	// ─── Notifications ──────────────────────────────────────────────────────

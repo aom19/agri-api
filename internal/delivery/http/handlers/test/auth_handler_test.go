@@ -7,7 +7,6 @@ import (
 	"agri-api/internal/delivery/http/handlers"
 	"agri-api/internal/domain"
 	"agri-api/internal/repository"
-	"agri-api/internal/store"
 	"agri-api/internal/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -39,7 +38,7 @@ func (m *roleRepoStub) GetByCode(code string) (*domain.Role, error) {
 func TestAuthHandler_Register_IgnoresRole(t *testing.T) {
 	users, roles := &userRepoStub{}, &roleRepoStub{}
 	// fără serviciu de e-mail: contul se creează, apoi trimiterea confirmării eșuează
-	svc := usecase.NewAuthService(&store.Store{UserRepo: users, RoleRepo: roles}, nil, nil, nil, nil, "")
+	svc := usecase.NewAuthService(users, roles, nil, nil, nil, nil, "")
 	r := gin.New()
 	r.POST("/register", handlers.NewAuthHandler(svc).Register)
 

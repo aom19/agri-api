@@ -61,7 +61,6 @@ agri-api/
 │   │   └── logger.go
 │   ├── repository/              # Interfețe pentru accesul la date
 │   │   └── postgres/            # Implementări concrete PostgreSQL
-│   ├── store/                   # Agregator de repository-uri
 │   └── usecase/                 # Logica de business
 │       ├── auth_service.go
 │       ├── profile_service.go   # GetProfile, UpdateProfile, UploadPhoto
@@ -123,11 +122,14 @@ LOG_LEVEL=debug
 # 1. Pornește PostgreSQL + Redis
 docker compose up -d
 
-# 2. Aplică migrațiile
+# 2. Aplică migrațiile (inclusiv rolurile și permisiunile)
 make migrate-up
 
 # 3. Pornește serverul (cu live reload)
 make run
+
+# 4. Înregistrarea dă mereu rolul viewer; primul admin se numește din linia de comandă
+make admin email=adresa@exemplu.ro
 ```
 
 ---
@@ -141,6 +143,7 @@ make run
 | `make migrate-down` | Rollback ultima migrație |
 | `make migrate-status` | Afișează versiunea curentă a migrațiilor |
 | `make migrate-create name=nume` | Creează fișiere `.up.sql` și `.down.sql` noi |
+| `make admin email=adresa@exemplu.ro` | Dă rolul admin unui cont existent |
 | `make lint` | Rulează linter-ul |
 | `make test` | Rulează testele unitare |
 | `make test-cover` | Rulează testele și generează `coverage.out` + `test-report.json` (pentru SonarQube) |
@@ -281,13 +284,28 @@ Răspunsul include metrici utile pentru hartă și agricultură: temperatură, c
 |---|---|---|
 | GET | `/api/dashboard/cards` | Carduri KPI agregate din baza de date: total mașini, mașini active, total operatori și alocări active din operațiunile pe teren |
 
-Necesită permisiunea `dashboard:read`, acordată implicit rolurilor `admin`, `manager` și `viewer` prin migrația `000030_add_dashboard_read_permission`. Migrațiile `000032_add_operator_dashboard_permissions` și `000033_limit_operator_permissions` creează/asigură rolul `operator` și îi limitează accesul la `dashboard:read` și `field_operations:read`; operațiunile pe teren sunt filtrate în backend după operatorul asociat userului curent.
+Necesită permisiunea `dashboard:read`, pe care o au toate cele 4 roluri. Operatorul vede doar operațiunile pe teren asignate contului lui (filtrate în backend).
 
 Răspunsurile pentru `/api/field-operations` și `/api/field-operations/:id` includ `field_geometry` (GeoJSON Polygon), `machine_status` și `implement_status`, astfel încât operatorii pot vedea conturul terenului și disponibilitatea resurselor lucrării fără permisiuni separate pentru modulele de terenuri, mașini sau echipamente.
 
 Pornirea lucrării se face prin `/api/field-operations/:id/start`, care verifică că mașina și echipamentul asignate sunt `active` înainte să schimbe statusul în `in_progress`. Checklistul de plecare cu 4 bife salvate a fost scos (migrația `000049_drop_field_operation_checklist`); în pagină rămâne o singură confirmare, „Am verificat utilajul și terenul”, care nu se salvează.
 
 Regula de compatibilitate are un singur nivel: template-ul operațiunii poate limita tipurile de mașini și de echipamente (`template_machine_types`, `template_implement_types`). La crearea și editarea unei operațiuni pe teren, API-ul răspunde cu 400 dacă mașina sau echipamentul are alt tip decât cele din template; un template fără tipuri, sau o operațiune fără template, acceptă orice. Tabelul `implement_compatibilities` și tipurile de mașini permise operatorilor au fost șterse (migrația `000050_drop_compatibility_duplicates`).
+
+### Roluri și permisiuni
+
+Rolurile sunt fixe și definite într-un singur loc, migrația `000054_fixed_roles_and_permissions`. Din aplicație nu se creează, nu se editează și nu se șterg; API-ul le expune doar la citire (`/api/roles`, `/api/roles/:id/permissions`, `/api/permissions`, cu `roles:read`). Rolul unui cont se schimbă din Utilizatori (`PATCH /api/users/:id/role`, cu `users:write`).
+
+Fiecare modul are `modul:read` și `modul:write`; `write` include crearea, editarea, ștergerea, dezactivarea și reactivarea. Singura excepție e `field_operations:execute` (pornire și finalizare), ca operatorul să-și execute lucrările fără să le poată planifica.
+
+| Rol | Permisiuni |
+|---|---|
+| `admin` | toate (24) |
+| `manager` | toate, mai puțin `users:*`, `roles:read` și `audit:read` |
+| `operator` | `dashboard:read`, `notifications:read`, `crops:read`, `field_operations:read`, `field_operations:execute` |
+| `viewer` | toate `:read`, mai puțin `users:read`, `roles:read` și `audit:read` |
+
+O permisiune nouă cere o migrație nouă, care o adaugă și o dă rolurilor. `TestRBAC_EveryPermissionIsCheckedByARoute` (`make test-db`) verifică după migrații că fiecare permisiune din baza de date e cerută de cel puțin o rută și invers.
 
 ### Audit și notificări (protejate)
 

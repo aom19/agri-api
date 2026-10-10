@@ -2717,136 +2717,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/reports/subscription": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "reports"
-                ],
-                "summary": "Abonament raport e-mail",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/domain.ReportSubscription"
-                        }
-                    },
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "reports"
-                ],
-                "summary": "Setare abonament raport e-mail",
-                "parameters": [
-                    {
-                        "description": "Abonamentul",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.reportSubscriptionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/domain.ReportSubscription"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "reports"
-                ],
-                "summary": "Dezactivare abonament raport e-mail",
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
-            }
-        },
-        "/reports/subscription/send-now": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "reports"
-                ],
-                "summary": "Trimitere imediată raport e-mail",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/reports/summary": {
             "get": {
                 "security": [
@@ -2904,6 +2774,71 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/domain.ReportSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/summary/email": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Trimitere sumar pe e-mail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data de început (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data de sfârșit (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     },
                     "400": {
@@ -3408,18 +3343,12 @@ const docTemplate = `{
             "enum": [
                 "active",
                 "maintenance",
-                "inactive",
-                "active",
-                "maintenance",
                 "inactive"
             ],
             "x-enum-varnames": [
                 "AssetStatusActive",
                 "AssetStatusMaintenance",
-                "AssetStatusInactive",
-                "MachineStatusActive",
-                "MachineStatusMaintenance",
-                "MachineStatusInactive"
+                "AssetStatusInactive"
             ]
         },
         "domain.ConsumptionEstimate": {
@@ -3832,25 +3761,6 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.MachineStatus": {
-            "type": "string",
-            "enum": [
-                "active",
-                "maintenance",
-                "inactive",
-                "active",
-                "maintenance",
-                "inactive"
-            ],
-            "x-enum-varnames": [
-                "AssetStatusActive",
-                "AssetStatusMaintenance",
-                "AssetStatusInactive",
-                "MachineStatusActive",
-                "MachineStatusMaintenance",
-                "MachineStatusInactive"
-            ]
-        },
         "domain.MachineType": {
             "type": "string",
             "enum": [
@@ -4224,19 +4134,6 @@ const docTemplate = `{
                     "$ref": "#/definitions/domain.ReportPeriod"
                 }
             }
-        },
-        "domain.ReportFrequency": {
-            "type": "string",
-            "enum": [
-                "daily",
-                "weekly",
-                "monthly"
-            ],
-            "x-enum-varnames": [
-                "ReportFrequencyDaily",
-                "ReportFrequencyWeekly",
-                "ReportFrequencyMonthly"
-            ]
         },
         "domain.ReportImplementRow": {
             "type": "object",
@@ -4754,38 +4651,6 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.ReportSubscription": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "frequency": {
-                    "$ref": "#/definitions/domain.ReportFrequency"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "last_sent_at": {
-                    "type": "string"
-                },
-                "send_hour": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                },
-                "weekday": {
-                    "type": "integer"
-                }
-            }
-        },
         "domain.ReportSummary": {
             "type": "object",
             "properties": {
@@ -5279,7 +5144,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/domain.MachineStatus"
+                    "$ref": "#/definitions/domain.AssetStatus"
                 },
                 "type": {
                     "$ref": "#/definitions/domain.MachineType"
@@ -5459,31 +5324,6 @@ const docTemplate = `{
                 },
                 "movement": {
                     "$ref": "#/definitions/domain.StockMovement"
-                }
-            }
-        },
-        "handlers.reportSubscriptionRequest": {
-            "type": "object",
-            "required": [
-                "frequency"
-            ],
-            "properties": {
-                "frequency": {
-                    "type": "string",
-                    "enum": [
-                        "daily",
-                        "weekly",
-                        "monthly"
-                    ]
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "send_hour": {
-                    "type": "integer"
-                },
-                "weekday": {
-                    "type": "integer"
                 }
             }
         },

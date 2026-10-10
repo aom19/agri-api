@@ -11,6 +11,6 @@ type MachineRepository interface {
 	GetByID(id int64) (*domain.Machine, error)
 	Update(id int64, machine *domain.Machine) error
 	Delete(id int64) error
-	UpdateStatus(tx *sql.Tx, id int64, status domain.MachineStatus) error
+	UpdateStatus(tx *sql.Tx, id int64, status domain.AssetStatus) error
 	DB() *sql.DB
 }

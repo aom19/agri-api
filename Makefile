@@ -11,7 +11,7 @@ TEST_DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME
 MIGRATE=migrate -path ./migrations -database "$(DB_URL)"
 
 .PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger test test-cover test-db \
-        docker-infra docker-dev docker-prod docker-build seed \
+        docker-infra docker-dev docker-prod docker-build seed admin \
         sonar-up sonar-down sonar-token sonar sonar-api sonar-front sonar-check
 
 ## Pornește serverul cu live-reload
@@ -74,9 +74,12 @@ docker-build:
 seed:
 	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) < seeds/seed.sql
 
-## Populează roluri, permisiuni și relațiile RBAC (rulează după migrate-up)
-seed-rbac:
-	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) < seeds/rbac_seed.sql
+## Dă rolul admin unui cont existent: make admin email=ana@exemplu.ro
+## Rolurile și permisiunile vin din migrații (000054), iar înregistrarea dă mereu viewer.
+admin:
+	@test -n "$(email)" || { echo "Folosește: make admin email=adresa@exemplu.ro"; exit 1; }
+	echo "UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'admin') WHERE LOWER(email) = LOWER(:'email');" \
+		| docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 -v email="$(email)"
 
 ## ─── Teste ───────────────────────────────────────────────────────────────────
 

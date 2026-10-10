@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"time"
 
 	"agri-api/internal/domain"
 )
@@ -39,12 +38,4 @@ type WeatherSnapshotRepository interface {
 	GetDailyAggregates(filter domain.ReportFilter) ([]domain.WeatherDailyAggregate, error)
 	GetLatestPerField() ([]domain.WeatherSnapshot, error)
 	CountInPeriod(filter domain.ReportFilter) (int, int, error)
-}
-
-type ReportSubscriptionRepository interface {
-	GetByUser(userID int64) (*domain.ReportSubscription, error)
-	Upsert(subscription *domain.ReportSubscription) error
-	Deactivate(userID int64) error
-	ListActiveRecipients() ([]domain.ReportSubscriptionRecipient, error)
-	MarkSent(id int64, at time.Time) error
 }
