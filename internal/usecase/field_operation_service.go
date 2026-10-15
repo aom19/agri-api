@@ -25,6 +25,8 @@ var (
 	ErrFieldOperationMachineIncompatible   = errors.New("tipul mașinii nu este acceptat de template-ul operațiunii")
 	ErrFieldOperationImplementIncompatible = errors.New("tipul echipamentului nu este acceptat de template-ul operațiunii")
 	ErrFieldOperationArchivedReference     = errors.New("nu poți alege elemente șterse")
+	// ErrFieldOperationResourceBusy: operatorul, mașina sau echipamentul sunt deja pe o lucrare în lucru.
+	ErrFieldOperationResourceBusy = errors.New("resursele lucrării sunt deja pe o lucrare în lucru")
 )
 
 type FieldOperationService struct {
@@ -71,6 +73,11 @@ func (s *FieldOperationService) Create(input *domain.FieldOperation) (*dto.Field
 	if input.Status == "" {
 		input.Status = domain.FieldOperationStatusPlanned
 	}
+	if input.Status == domain.FieldOperationStatusInProgress {
+		if err := s.ensureResourcesFree(0, input, nil); err != nil {
+			return nil, err
+		}
+	}
 	input.Notes = strings.TrimSpace(input.Notes)
 
 	if err := s.repo.Create(input); err != nil {
@@ -96,6 +103,12 @@ func (s *FieldOperationService) Update(id int64, input *domain.FieldOperation) (
 	if input.Status == "" {
 		input.Status = domain.FieldOperationStatus(existing.Status)
 	}
+	// trecerea în lucru din formular are aceeași regulă ca pornirea
+	if input.Status == domain.FieldOperationStatusInProgress && existing.Status != string(domain.FieldOperationStatusInProgress) {
+		if err := s.ensureResourcesFree(id, input, nil); err != nil {
+			return nil, err
+		}
+	}
 	input.Notes = strings.TrimSpace(input.Notes)
 
 	if err := s.repo.Update(id, input); err != nil {
@@ -118,6 +131,9 @@ func (s *FieldOperationService) Start(id int64) (*dto.FieldOperationResponse, er
 	if existing.Status == string(domain.FieldOperationStatusInProgress) {
 		return existing, nil
 	}
+	if err := s.ensureResourcesFree(id, operationResources(existing), existing); err != nil {
+		return nil, err
+	}
 	if err := s.repo.MarkStarted(id, time.Now()); err != nil {
 		return nil, err
 	}
@@ -138,10 +154,107 @@ func (s *FieldOperationService) StartForAssignedUser(id int64, userID int64) (*d
 	if existing.Status == string(domain.FieldOperationStatusInProgress) {
 		return existing, nil
 	}
+	if err := s.ensureResourcesFree(id, operationResources(existing), existing); err != nil {
+		return nil, err
+	}
 	if err := s.repo.MarkStarted(id, time.Now()); err != nil {
 		return nil, err
 	}
 	return s.repo.GetByIDForAssignedUser(id, userID)
+}
+
+// FindConflicts întoarce lucrările planificate sau în lucru care folosesc operatorul, mașina sau
+// echipamentul dat într-un interval suprapus. E doar un avertisment pentru formular: salvarea nu
+// e blocată. Fără dată de început sau fără nicio resursă, nu există conflicte.
+func (s *FieldOperationService) FindConflicts(query repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error) {
+	if query.StartAt.IsZero() || (query.OperatorID == nil && query.MachineID == nil && query.ImplementID == nil) {
+		return []dto.FieldOperationConflict{}, nil
+	}
+	if query.EndAt != nil && query.EndAt.Before(query.StartAt) {
+		return nil, ErrFieldOperationBadDates
+	}
+	return s.repo.FindConflicts(query)
+}
+
+// ensureResourcesFree refuză trecerea în lucru cât timp operatorul, mașina sau echipamentul sunt
+// pe altă lucrare în lucru: nimeni nu poate fi în două locuri deodată. names dă numele resurselor
+// în mesaj (nil = fără nume).
+func (s *FieldOperationService) ensureResourcesFree(id int64, op *domain.FieldOperation, names *dto.FieldOperationResponse) error {
+	if op.OperatorID == nil && op.MachineID == nil && op.ImplementID == nil {
+		return nil
+	}
+	busy, err := s.repo.InProgressConflicts(repository.FieldOperationConflictQuery{
+		ExcludeID:   id,
+		OperatorID:  op.OperatorID,
+		MachineID:   op.MachineID,
+		ImplementID: op.ImplementID,
+	})
+	if err != nil {
+		return err
+	}
+	if len(busy) == 0 {
+		return nil
+	}
+	return &resourceBusyError{message: busyMessage(busy[0], names)}
+}
+
+// operationResources sunt resursele unei lucrări salvate.
+func operationResources(op *dto.FieldOperationResponse) *domain.FieldOperation {
+	return &domain.FieldOperation{OperatorID: op.OperatorID, MachineID: op.MachineID, ImplementID: op.ImplementID}
+}
+
+type resourceBusyError struct{ message string }
+
+func (e *resourceBusyError) Error() string        { return e.message }
+func (e *resourceBusyError) Is(target error) bool { return target == ErrFieldOperationResourceBusy }
+
+// busyMessage: „Operatorul Ion Pop și mașina JD 6R sunt deja pe lucrarea #12 (Arat - Tarla Mare),
+// aflată în lucru. Finalizeaz-o întâi.”
+func busyMessage(conflict dto.FieldOperationConflict, names *dto.FieldOperationResponse) string {
+	labels := make([]string, 0, len(conflict.Resources))
+	for _, resource := range conflict.Resources {
+		labels = append(labels, resourceLabel(resource, names))
+	}
+	who := strings.Join(labels, " și ")
+	verb := "este"
+	if len(labels) > 1 {
+		verb = "sunt"
+	}
+	if who == "" {
+		who, verb = "Resursele lucrării", "sunt"
+	} else {
+		who = strings.ToUpper(who[:1]) + who[1:]
+	}
+	return fmt.Sprintf("%s %s deja pe lucrarea #%d (%s - %s), aflată în lucru. Finalizeaz-o întâi.",
+		who, verb, conflict.OperationID, conflict.OperationTypeName, conflict.FieldName)
+}
+
+func resourceLabel(resource string, names *dto.FieldOperationResponse) string {
+	var label string
+	var name *string
+	switch resource {
+	case dto.ConflictResourceOperator:
+		label = "operatorul"
+		if names != nil {
+			name = names.OperatorName
+		}
+	case dto.ConflictResourceMachine:
+		label = "mașina"
+		if names != nil {
+			name = names.MachineName
+		}
+	case dto.ConflictResourceImplement:
+		label = "echipamentul"
+		if names != nil {
+			name = names.ImplementName
+		}
+	default:
+		return resource
+	}
+	if name != nil && strings.TrimSpace(*name) != "" {
+		return label + " " + strings.TrimSpace(*name)
+	}
+	return label
 }
 
 func (s *FieldOperationService) Delete(id int64) error {

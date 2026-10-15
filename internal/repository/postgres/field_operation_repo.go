@@ -79,6 +79,7 @@ var fieldOperationBaseSelect = `
 		` + fuelUsedExpr + `,
 		fo.machine_hours,
 		fo.completion_notes,
+		` + savedOperationConflictsExpr + `,
 		fo.created_at,
 		fo.updated_at
 	FROM field_operations fo
@@ -97,7 +98,7 @@ func scanFieldOperationRow(row interface {
 	Scan(dest ...interface{}) error
 }) (*dto.FieldOperationResponse, error) {
 	var r dto.FieldOperationResponse
-	var fieldGeometry []byte
+	var fieldGeometry, conflicts []byte
 	if err := row.Scan(
 		&r.ID,
 		&r.FieldID, &r.FieldName, &fieldGeometry,
@@ -118,12 +119,18 @@ func scanFieldOperationRow(row interface {
 		&r.FuelUsedL,
 		&r.MachineHours,
 		&r.CompletionNotes,
+		&conflicts,
 		&r.CreatedAt,
 		&r.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
 	r.FieldGeometry = fieldGeometry
+	decoded, err := decodeConflicts(conflicts)
+	if err != nil {
+		return nil, err
+	}
+	r.Conflicts = decoded
 	if r.ActualStartAt != nil && r.ActualEndAt != nil && r.ActualEndAt.After(*r.ActualStartAt) {
 		minutes := int64(r.ActualEndAt.Sub(*r.ActualStartAt).Minutes())
 		r.ActualDurationMin = &minutes

@@ -16,6 +16,17 @@ type FieldOperationFilter struct {
 	AssignedUserID int64
 }
 
+// FieldOperationConflictQuery descrie o lucrare (salvată sau doar în formular) pentru care se
+// caută suprapuneri: resursele ei și intervalul planificat. ExcludeID e lucrarea însăși, la editare.
+type FieldOperationConflictQuery struct {
+	ExcludeID   int64
+	OperatorID  *int64
+	MachineID   *int64
+	ImplementID *int64
+	StartAt     time.Time
+	EndAt       *time.Time
+}
+
 type FieldOperationRepository interface {
 	GetAll(filter FieldOperationFilter) ([]dto.FieldOperationResponse, error)
 	GetByID(id int64) (*dto.FieldOperationResponse, error)
@@ -40,6 +51,13 @@ type FieldOperationRepository interface {
 	// AddMachineHours adaugă ore de funcționare la mașină, în tranzacția dată.
 	AddMachineHours(tx *sql.Tx, machineID int64, hours float64) error
 	Delete(id int64) error
+	// FindConflicts întoarce lucrările planificate sau în lucru care folosesc operatorul, mașina
+	// sau echipamentul dat într-un interval suprapus.
+	FindConflicts(query FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error)
+	// InProgressConflicts întoarce celelalte lucrări în lucru care folosesc operatorul, mașina
+	// sau echipamentul dat, indiferent de interval (intervalul din query e ignorat): acestea
+	// blochează pornirea.
+	InProgressConflicts(query FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error)
 	// GetOverdueInProgress returnează operațiunile în lucru al căror sfârșit planificat
 	// este înainte de `now` și pentru care nu s-a trimis încă notificarea de depășire.
 	GetOverdueInProgress(now time.Time) ([]dto.OverdueFieldOperation, error)

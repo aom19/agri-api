@@ -226,6 +226,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 		handlers.WithFieldOpCompletion(deps.FieldOperationCompletionService),
 	)
 	api.GET("/field-operations", perm("field_operations:read"), fieldOperationHandler.GetAll)
+	api.GET("/field-operations/conflicts", perm("field_operations:read"), fieldOperationHandler.Conflicts)
 	api.GET("/field-operations/:id", perm("field_operations:read"), fieldOperationHandler.GetByID)
 	api.POST("/field-operations", perm("field_operations:write"), fieldOperationHandler.Create)
 	api.PATCH("/field-operations/:id", perm("field_operations:write"), fieldOperationHandler.Update)

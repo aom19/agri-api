@@ -417,6 +417,8 @@ type fieldOperationRepoMock struct {
 	delete                 func(int64) error
 	getOverdueInProgress   func(time.Time) ([]dto.OverdueFieldOperation, error)
 	markOverdueNotified    func(int64, time.Time) error
+	findConflicts          func(repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error)
+	inProgressConflicts    func(repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error)
 }
 
 func (m *fieldOperationRepoMock) GetAll(f repository.FieldOperationFilter) ([]dto.FieldOperationResponse, error) {
@@ -505,6 +507,18 @@ func (m *fieldOperationRepoMock) Delete(id int64) error {
 		return m.delete(id)
 	}
 	return nil
+}
+func (m *fieldOperationRepoMock) FindConflicts(q repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error) {
+	if m.findConflicts != nil {
+		return m.findConflicts(q)
+	}
+	return []dto.FieldOperationConflict{}, nil
+}
+func (m *fieldOperationRepoMock) InProgressConflicts(q repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error) {
+	if m.inProgressConflicts != nil {
+		return m.inProgressConflicts(q)
+	}
+	return []dto.FieldOperationConflict{}, nil
 }
 func (m *fieldOperationRepoMock) GetOverdueInProgress(now time.Time) ([]dto.OverdueFieldOperation, error) {
 	if m.getOverdueInProgress != nil {

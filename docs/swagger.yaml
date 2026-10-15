@@ -1184,6 +1184,25 @@ definitions:
       wind_speed_kmh:
         type: number
     type: object
+  dto.FieldOperationConflict:
+    properties:
+      end_at:
+        type: string
+      field_name:
+        type: string
+      operation_id:
+        type: integer
+      operation_type_name:
+        type: string
+      resources:
+        items:
+          type: string
+        type: array
+      start_at:
+        type: string
+      status:
+        type: string
+    type: object
   handlers.CreateImplementRequest:
     properties:
       brand:
@@ -2324,6 +2343,65 @@ paths:
       security:
       - BearerAuth: []
       summary: Estimare consum la finalizare
+      tags:
+      - field-operations
+  /field-operations/conflicts:
+    get:
+      description: Lucrările planificate sau în lucru care folosesc același operator,
+        aceeași mașină sau același echipament într-un interval suprapus. Avertisment
+        pentru formular; salvarea nu e blocată.
+      parameters:
+      - description: Lucrarea editată (nu intră în rezultat)
+        in: query
+        name: exclude_id
+        type: integer
+      - description: Operator
+        in: query
+        name: operator_id
+        type: integer
+      - description: Mașină
+        in: query
+        name: machine_id
+        type: integer
+      - description: Echipament
+        in: query
+        name: implement_id
+        type: integer
+      - description: Începutul planificat (RFC3339)
+        in: query
+        name: planned_start_at
+        required: true
+        type: string
+      - description: Sfârșitul planificat (RFC3339; lipsă = o oră)
+        in: query
+        name: planned_end_at
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.FieldOperationConflict'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Suprapuneri de resurse pentru o lucrare
       tags:
       - field-operations
   /health:

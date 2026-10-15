@@ -227,6 +227,85 @@ func TestFieldOperationService_Start(t *testing.T) {
 	}
 }
 
+// Pornirea e refuzată cât timp operatorul, mașina sau echipamentul sunt pe altă lucrare în lucru;
+// mesajul numește resursa și lucrarea care o ține ocupată.
+func TestFieldOperationService_StartBlockedByBusyResources(t *testing.T) {
+	current := readyOperation()
+	current.OperatorID, current.OperatorName = ptr(int64(7)), ptr("Ion Pop")
+	current.MachineName = ptr("JD 6R")
+	var asked repository.FieldOperationConflictQuery
+	busy := []dto.FieldOperationConflict{{
+		OperationID: 12, FieldName: "Tarla Mare", OperationTypeName: "Pregătire sol",
+		Status: "in_progress", Resources: []string{dto.ConflictResourceOperator, dto.ConflictResourceMachine},
+	}}
+	started := false
+	repo := &fieldOperationRepoMock{
+		getByID: func(int64) (*dto.FieldOperationResponse, error) { return current, nil },
+		inProgressConflicts: func(q repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error) {
+			asked = q
+			return busy, nil
+		},
+		markStarted: func(int64, time.Time) error { started = true; return nil },
+	}
+	svc := usecase.NewFieldOperationService(repo)
+
+	_, err := svc.Start(1)
+	if !errors.Is(err, usecase.ErrFieldOperationResourceBusy) || started {
+		t.Fatalf("pornirea cu resurse ocupate trebuie refuzată: %v (started=%v)", err, started)
+	}
+	want := "Operatorul Ion Pop și mașina JD 6R sunt deja pe lucrarea #12 (Pregătire sol - Tarla Mare), aflată în lucru. Finalizeaz-o întâi."
+	if err.Error() != want {
+		t.Errorf("mesaj:\n got %q\nwant %q", err.Error(), want)
+	}
+	if asked.ExcludeID != 1 || asked.OperatorID == nil || *asked.OperatorID != 7 || asked.MachineID == nil {
+		t.Errorf("căutarea trebuie să excludă lucrarea și să trimită resursele ei: %+v", asked)
+	}
+
+	// trecerea în lucru din formular are aceeași regulă
+	input := &domain.FieldOperation{FieldID: "f", OperationType: domain.OperationTypeSoilPreparation, OperatorID: ptr(int64(7)), Status: domain.FieldOperationStatusInProgress}
+	if _, err := svc.Update(1, input); !errors.Is(err, usecase.ErrFieldOperationResourceBusy) {
+		t.Errorf("update în lucru cu resurse ocupate: %v", err)
+	}
+	if _, err := svc.Create(input); !errors.Is(err, usecase.ErrFieldOperationResourceBusy) {
+		t.Errorf("creare direct în lucru cu resurse ocupate: %v", err)
+	}
+	// o lucrare doar planificată se salvează oricum (suprapunerea e doar avertisment)
+	input.Status = domain.FieldOperationStatusPlanned
+	if _, err := svc.Update(1, input); err != nil {
+		t.Errorf("planificarea nu e blocată: %v", err)
+	}
+
+	// după ce lucrarea suprapusă se termină, pornirea merge
+	busy = nil
+	if _, err := svc.Start(1); err != nil || !started {
+		t.Errorf("pornire cu resurse libere: %v", err)
+	}
+}
+
+func TestFieldOperationService_FindConflicts(t *testing.T) {
+	called := false
+	repo := &fieldOperationRepoMock{findConflicts: func(repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error) {
+		called = true
+		return []dto.FieldOperationConflict{{OperationID: 3}}, nil
+	}}
+	svc := usecase.NewFieldOperationService(repo)
+	start := time.Date(2026, 10, 20, 7, 0, 0, 0, time.UTC)
+
+	if got, err := svc.FindConflicts(repository.FieldOperationConflictQuery{OperatorID: ptr(int64(1))}); err != nil || len(got) != 0 || called {
+		t.Errorf("fără dată de început nu se caută: %v, %v", err, got)
+	}
+	if got, err := svc.FindConflicts(repository.FieldOperationConflictQuery{StartAt: start}); err != nil || len(got) != 0 || called {
+		t.Errorf("fără resurse nu se caută: %v, %v", err, got)
+	}
+	before := start.Add(-time.Hour)
+	if _, err := svc.FindConflicts(repository.FieldOperationConflictQuery{StartAt: start, EndAt: &before, MachineID: ptr(int64(1))}); !errors.Is(err, usecase.ErrFieldOperationBadDates) {
+		t.Errorf("sfârșit înainte de început: %v", err)
+	}
+	if got, err := svc.FindConflicts(repository.FieldOperationConflictQuery{StartAt: start, MachineID: ptr(int64(1))}); err != nil || len(got) != 1 {
+		t.Errorf("FindConflicts: %v, %v", err, got)
+	}
+}
+
 func TestFieldOperationService_AssignedUser(t *testing.T) {
 	current := readyOperation()
 	repo := &fieldOperationRepoMock{

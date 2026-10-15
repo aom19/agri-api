@@ -139,6 +139,89 @@ func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 	c.JSON(http.StatusOK, items)
 }
 
+// fieldOperationErrorStatus: 404 pentru lucrarea inexistentă, 409 când resursele sunt pe altă
+// lucrare în lucru, altfel 400 (validare).
+func fieldOperationErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, usecase.ErrFieldOperationNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, usecase.ErrFieldOperationResourceBusy):
+		return http.StatusConflict
+	default:
+		return http.StatusBadRequest
+	}
+}
+
+// optionalIDQuery citește un id opțional din query (gol = nil).
+func optionalIDQuery(c *gin.Context, name string) (*int64, error) {
+	raw := strings.TrimSpace(c.Query(name))
+	if raw == "" {
+		return nil, nil
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || id <= 0 {
+		return nil, fmt.Errorf("%s invalid", name)
+	}
+	return &id, nil
+}
+
+// Conflicts godoc
+// @Summary      Suprapuneri de resurse pentru o lucrare
+// @Description  Lucrările planificate sau în lucru care folosesc același operator, aceeași mașină sau același echipament într-un interval suprapus. Avertisment pentru formular; salvarea nu e blocată.
+// @Tags         field-operations
+// @Produce      json
+// @Security     BearerAuth
+// @Param        exclude_id query int false "Lucrarea editată (nu intră în rezultat)"
+// @Param        operator_id query int false "Operator"
+// @Param        machine_id query int false "Mașină"
+// @Param        implement_id query int false "Echipament"
+// @Param        planned_start_at query string true "Începutul planificat (RFC3339)"
+// @Param        planned_end_at query string false "Sfârșitul planificat (RFC3339; lipsă = o oră)"
+// @Success      200 {array} dto.FieldOperationConflict
+// @Failure      400 {object} object{error=string}
+// @Failure      500 {object} object{error=string}
+// @Router       /field-operations/conflicts [get]
+func (h *FieldOperationHandler) Conflicts(c *gin.Context) {
+	var query repository.FieldOperationConflictQuery
+	var err error
+	if excluded, err := optionalIDQuery(c, "exclude_id"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	} else if excluded != nil {
+		query.ExcludeID = *excluded
+	}
+	for name, target := range map[string]**int64{"operator_id": &query.OperatorID, "machine_id": &query.MachineID, "implement_id": &query.ImplementID} {
+		if *target, err = optionalIDQuery(c, name); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	if raw := strings.TrimSpace(c.Query("planned_start_at")); raw != "" {
+		if query.StartAt, err = time.Parse(time.RFC3339, raw); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "planned_start_at invalid"})
+			return
+		}
+	}
+	if raw := strings.TrimSpace(c.Query("planned_end_at")); raw != "" {
+		end, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "planned_end_at invalid"})
+			return
+		}
+		query.EndAt = &end
+	}
+	conflicts, err := h.service.FindConflicts(query)
+	if err != nil {
+		if errors.Is(err, usecase.ErrFieldOperationBadDates) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, conflicts)
+}
+
 func (h *FieldOperationHandler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -175,7 +258,7 @@ func (h *FieldOperationHandler) Create(c *gin.Context) {
 	}
 	item, err := h.service.Create(toDomainFieldOperation(req))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(fieldOperationErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, item)
@@ -201,11 +284,7 @@ func (h *FieldOperationHandler) Update(c *gin.Context) {
 	oldItem, oldErr := h.service.GetByID(id)
 	item, err := h.service.Update(id, toDomainFieldOperation(req))
 	if err != nil {
-		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(fieldOperationErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, item)
@@ -238,11 +317,7 @@ func (h *FieldOperationHandler) Start(c *gin.Context) {
 		item, err = h.service.Start(id)
 	}
 	if err != nil {
-		if errors.Is(err, usecase.ErrFieldOperationNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(fieldOperationErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, item)

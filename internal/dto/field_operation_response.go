@@ -38,8 +38,31 @@ type FieldOperationResponse struct {
 	FuelUsedL           *float64   `json:"fuel_used_l,omitempty"`
 	MachineHours        *float64   `json:"machine_hours,omitempty"`
 	CompletionNotes     string     `json:"completion_notes"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	// Conflicts sunt celelalte lucrări planificate sau în lucru care folosesc același operator,
+	// aceeași mașină sau același echipament într-un interval suprapus. Doar avertisment: nu
+	// blochează salvarea, ci doar pornirea cât timp o lucrare suprapusă e în lucru.
+	Conflicts []FieldOperationConflict `json:"conflicts"`
+	CreatedAt time.Time                `json:"created_at"`
+	UpdatedAt time.Time                `json:"updated_at"`
+}
+
+// Resursele care pot fi ocupate de două lucrări în același timp.
+const (
+	ConflictResourceOperator  = "operator"
+	ConflictResourceMachine   = "machine"
+	ConflictResourceImplement = "implement"
+)
+
+// FieldOperationConflict este o altă lucrare care ține ocupată, în același interval, una din
+// resursele lucrării: operatorul, mașina sau echipamentul (Resources spune care).
+type FieldOperationConflict struct {
+	OperationID       int64     `json:"operation_id"`
+	FieldName         string    `json:"field_name"`
+	OperationTypeName string    `json:"operation_type_name"`
+	Status            string    `json:"status"`
+	StartAt           time.Time `json:"start_at"`
+	EndAt             time.Time `json:"end_at"`
+	Resources         []string  `json:"resources"`
 }
 
 // OverdueFieldOperation descrie o operațiune pe teren aflată în lucru care a depășit

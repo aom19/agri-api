@@ -1346,6 +1346,20 @@ BEGIN
       NULL, '2026-10-07 07:00:00+00', '2026-10-14 07:00:00+00')
   RETURNING id INTO v_op;
   END IF;
+  SELECT id INTO v_field FROM fields WHERE name = 'Plopi - Tarla Nord' AND deleted_at IS NULL;
+  IF v_field IS NOT NULL THEN
+  INSERT INTO field_operations (field_id, operation_type, operation_template_id, machine_id, implement_id, operator_id,
+      planned_start_at, planned_end_at, area_planned_ha, notes, status, field_crop_id,
+      actual_start_at, actual_end_at, area_completed_ha, machine_hours, completion_notes,
+      overdue_notified_at, created_at, updated_at)
+  VALUES (v_field, NULL, (SELECT id FROM operation_templates WHERE name = 'Arat adanc standard' AND deleted_at IS NULL),
+      (SELECT id FROM machines WHERE name = 'TR-FENDT-724VARIO-02'), (SELECT id FROM implements WHERE name = 'PL-LEMKEN-JUWEL8-01'),
+      (SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.code = 'operator' AND u.deleted_at IS NULL ORDER BY u.id OFFSET 3 LIMIT 1),
+      '2026-10-16 08:00:00+00', '2026-10-17 16:45:22+00', 52.41, '[Sezon 2025/2026] Arat de toamnă; același echipaj ca pe Gotesti - Tarla Est (suprapunere)', 'planned', NULL,
+      NULL, NULL, NULL, NULL, '',
+      NULL, '2026-10-09 08:00:00+00', '2026-10-16 08:00:00+00')
+  RETURNING id INTO v_op;
+  END IF;
   SELECT id INTO v_field FROM fields WHERE name = 'Tartaul - Tarla Mare' AND deleted_at IS NULL;
   IF v_field IS NOT NULL THEN
   INSERT INTO field_operations (field_id, operation_type, operation_template_id, machine_id, implement_id, operator_id,
@@ -1353,8 +1367,8 @@ BEGIN
       actual_start_at, actual_end_at, area_completed_ha, machine_hours, completion_notes,
       overdue_notified_at, created_at, updated_at)
   VALUES (v_field, NULL, (SELECT id FROM operation_templates WHERE name = 'Pregatire pat germinativ' AND deleted_at IS NULL),
-      (SELECT id FROM machines WHERE name = 'TR-CASEIH-PUMA240-04'), (SELECT id FROM implements WHERE name = 'DH-KVERNELAND-QUALIDISC-01'),
-      (SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.code = 'operator' AND u.deleted_at IS NULL ORDER BY u.id OFFSET 4 LIMIT 1),
+      (SELECT id FROM machines WHERE name = 'TR-VALTRA-T254-06'), (SELECT id FROM implements WHERE name = 'DH-KVERNELAND-QUALIDISC-01'),
+      (SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.code = 'operator' AND u.deleted_at IS NULL ORDER BY u.id OFFSET 5 LIMIT 1),
       '2026-10-08 07:00:00+00', '2026-10-10 11:30:45+00', 84.02, '[Sezon 2025/2026] Pregătire pentru rapiță; a depășit termenul', 'in_progress', NULL,
       '2026-10-08 07:32:00+00', NULL, NULL, NULL, '',
       '2026-10-10 11:31:45+00', '2026-10-01 07:00:00+00', '2026-10-08 07:00:00+00')
@@ -1367,8 +1381,8 @@ BEGIN
       actual_start_at, actual_end_at, area_completed_ha, machine_hours, completion_notes,
       overdue_notified_at, created_at, updated_at)
   VALUES (v_field, NULL, (SELECT id FROM operation_templates WHERE name = 'Arat adanc standard' AND deleted_at IS NULL),
-      (SELECT id FROM machines WHERE name = 'TR-VALTRA-T254-06'), (SELECT id FROM implements WHERE name = 'PL-LEMKEN-JUWEL8-01'),
-      (SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.code = 'operator' AND u.deleted_at IS NULL ORDER BY u.id OFFSET 5 LIMIT 1),
+      (SELECT id FROM machines WHERE name = 'TR-SAME-EXPLORER120-07'), (SELECT id FROM implements WHERE name = 'PL-LEMKEN-JUWEL8-01'),
+      (SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.code = 'operator' AND u.deleted_at IS NULL ORDER BY u.id OFFSET 6 LIMIT 1),
       '2026-10-21 07:00:00+00', '2026-10-22 13:10:30+00', 48.28, '[Sezon 2025/2026] Arat de toamnă', 'planned', NULL,
       NULL, NULL, NULL, NULL, '',
       NULL, '2026-10-14 07:00:00+00', '2026-10-21 07:00:00+00')
@@ -1381,8 +1395,8 @@ BEGIN
       actual_start_at, actual_end_at, area_completed_ha, machine_hours, completion_notes,
       overdue_notified_at, created_at, updated_at)
   VALUES (v_field, NULL, (SELECT id FROM operation_templates WHERE name = 'Arat adanc standard' AND deleted_at IS NULL),
-      (SELECT id FROM machines WHERE name = 'TR-SAME-EXPLORER120-07'), (SELECT id FROM implements WHERE name = 'PL-LEMKEN-JUWEL8-01'),
-      (SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.code = 'operator' AND u.deleted_at IS NULL ORDER BY u.id OFFSET 6 LIMIT 1),
+      (SELECT id FROM machines WHERE name = 'TR-JOHNDEERE-6R185-01'), (SELECT id FROM implements WHERE name = 'PL-LEMKEN-JUWEL8-01'),
+      (SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.code = 'operator' AND u.deleted_at IS NULL ORDER BY u.id OFFSET 7 LIMIT 1),
       '2026-10-27 07:00:00+00', '2026-10-27 08:30:00+00', 1.56, '[Sezon 2025/2026] Arat de toamnă pe lotul liber', 'planned', NULL,
       NULL, NULL, NULL, NULL, '',
       NULL, '2026-10-20 07:00:00+00', '2026-10-27 07:00:00+00')

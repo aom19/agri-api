@@ -197,12 +197,15 @@ class Season:
 
     # ── o lucrare completă, cu consum ──
     def op(self, field, crop_var, template, start: datetime, area, status="completed", note="", crew_offset=0,
-           late=None, irrigate_hours=20, cancel_reason=None, in_progress=False, overdue=False, no_crop=False):
+           late=None, irrigate_hours=20, cancel_reason=None, in_progress=False, overdue=False, no_crop=False, crew=None):
         tcode, norms, _ = TEMPLATES[template]
         mtype, itype = CREW_OVERRIDE.get(template, CREW[tcode])
         machine = MACHINES[mtype][(crew_offset + self.op_counter) % len(MACHINES[mtype])] if mtype else None
         implement = IMPLEMENTS[itype] if itype else None
         operator_offset = (crew_offset + self.op_counter) % OPERATORS
+        if crew is not None:  # același echipaj ca altă lucrare (suprapunere voită)
+            machine, implement, operator_offset = crew
+        self.last_crew = (machine, implement, operator_offset)
         self.op_counter += 1
         hours = irrigate_hours if tcode == "irrigation" else max(1.5, area / RATES[tcode])
         planned_end = start + timedelta(hours=hours)
@@ -384,13 +387,18 @@ def autumn_without_crop(season: Season):
     season.emit("BEGIN")
     for field, template, start, status, overdue, note in [
         ("Gotesti - Tarla Est", "Arat adanc standard", datetime(2026, 10, 14, 7), "in_progress", False, "Arat de toamnă pentru grâu 2026/2027"),
+        # planificată cu același tractor, plug și operator cât aratul de mai sus e încă în lucru:
+        # apare cu chip-ul „Suprapunere” și nu poate porni până nu se termină aratul
+        ("Plopi - Tarla Nord", "Arat adanc standard", datetime(2026, 10, 16, 8), "planned", "same_crew", "Arat de toamnă; același echipaj ca pe Gotesti - Tarla Est (suprapunere)"),
         ("Tartaul - Tarla Mare", "Pregatire pat germinativ", datetime(2026, 10, 8, 7), "in_progress", True, "Pregătire pentru rapiță; a depășit termenul"),
         ("Plopi - Tarla Sud", "Arat adanc standard", datetime(2026, 10, 21, 7), "planned", False, "Arat de toamnă"),
         ("Cirpesti - Lot Sud", "Arat adanc standard", datetime(2026, 10, 27, 7), "planned", False, "Arat de toamnă pe lotul liber"),
     ]:
         season.emit(f"  SELECT id INTO v_field FROM fields WHERE name = {q(field)} AND deleted_at IS NULL;")
         season.emit(f"  IF v_field IS NOT NULL THEN")
-        season.op(field, None, template, start, AREAS[field], status=status, note=note, overdue=overdue, no_crop=True, crew_offset=3)
+        same_crew = overdue == "same_crew"
+        season.op(field, None, template, start, AREAS[field], status=status, note=note, overdue=overdue is True, no_crop=True, crew_offset=3,
+                  crew=season.last_crew if same_crew else None)
         season.emit(f"  END IF;")
     season.emit("END $seed$;")
     season.emit("")

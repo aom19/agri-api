@@ -1211,6 +1211,95 @@
                 }
             }
         },
+        "/field-operations/conflicts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lucrările planificate sau în lucru care folosesc același operator, aceeași mașină sau același echipament într-un interval suprapus. Avertisment pentru formular; salvarea nu e blocată.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "field-operations"
+                ],
+                "summary": "Suprapuneri de resurse pentru o lucrare",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Lucrarea editată (nu intră în rezultat)",
+                        "name": "exclude_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Echipament",
+                        "name": "implement_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Începutul planificat (RFC3339)",
+                        "name": "planned_start_at",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sfârșitul planificat (RFC3339; lipsă = o oră)",
+                        "name": "planned_end_at",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.FieldOperationConflict"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/field-operations/{id}/complete": {
             "patch": {
                 "security": [
@@ -5285,6 +5374,35 @@
                 },
                 "wind_speed_kmh": {
                     "type": "number"
+                }
+            }
+        },
+        "dto.FieldOperationConflict": {
+            "type": "object",
+            "properties": {
+                "end_at": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "integer"
+                },
+                "operation_type_name": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "start_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
