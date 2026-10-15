@@ -67,7 +67,11 @@ func (service *StockMovementService) Create(input domain.StockMovementInput) (*S
 	if err != nil {
 		return nil, err
 	}
+	movement.FieldCropID = input.FieldCropID
 	if err := service.repo.ApplyMovement(tx, movement); err != nil {
+		if errors.Is(err, repository.ErrForeignKeyViolation) {
+			return nil, fmt.Errorf("%w: cultura pe teren sau lucrarea indicată nu există", ErrInvalidStockMovement)
+		}
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

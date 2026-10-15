@@ -133,6 +133,18 @@ func main() {
 	userRepo := postgres.NewUserRepo(sqlDB)
 	rbacRepo := postgres.NewRBACRepo(sqlDB)
 
+	// 3.1 Garantează că instalarea are un administrator (ADMIN_EMAIL / ADMIN_PASSWORD)
+	switch bootstrap, err := usecase.BootstrapAdmin(userRepo, rbacRepo, cfg.AdminEmail, cfg.AdminPassword); {
+	case err != nil:
+		log.Fatalf("Admin bootstrap failed: %v", err)
+	case bootstrap != nil && bootstrap.Created:
+		log.Infof("Admin account created: %s (password change required at first login)", bootstrap.Email)
+	case bootstrap != nil && bootstrap.Promoted:
+		log.Infof("Existing account promoted to admin: %s", bootstrap.Email)
+	case cfg.AdminEmail == "":
+		log.Warn("ADMIN_EMAIL is not set: no admin account will be created on a fresh database")
+	}
+
 	// 4. Inițializează serviciile de autentificare
 	accessTTL, err := time.ParseDuration(cfg.AccessTokenTTL)
 	if err != nil {

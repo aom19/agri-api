@@ -27,6 +27,15 @@ func (service *JWTService) AccessTokenTTL() time.Duration {
 }
 
 func (service *JWTService) GenerateAccess(userID string, roleID int64, roleCode, roleName string) (string, error) {
+	return service.GenerateAccessWithClaims(userID, roleID, roleCode, roleName, nil)
+}
+
+// ClaimMustChangePassword marchează un token emis pentru un cont cu parolă provizorie: până la
+// schimbarea parolei, middleware-ul acceptă doar rutele necesare schimbării ei.
+const ClaimMustChangePassword = "must_change_password"
+
+// GenerateAccessWithClaims emite un access token cu revendicări suplimentare (ex. ClaimMustChangePassword).
+func (service *JWTService) GenerateAccessWithClaims(userID string, roleID int64, roleCode, roleName string, extra map[string]interface{}) (string, error) {
 	claims := jwt.MapClaims{
 		"jti":       uuid.NewString(),
 		"user_id":   userID,
@@ -34,6 +43,9 @@ func (service *JWTService) GenerateAccess(userID string, roleID int64, roleCode,
 		"role_code": roleCode,
 		"role_name": roleName,
 		"exp":       time.Now().Add(service.accessTokenTTL).Unix(),
+	}
+	for key, value := range extra {
+		claims[key] = value
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -341,9 +341,12 @@ INSERT INTO seed_field_crops VALUES
     ('Gotesti - Tarla Mare',     1, 'Grâu',             -1, 10,  6,    7, 15, 4.9, 5.0, TRUE,  ''),
     ('Gotesti - Tarla Est',      1, 'Floarea-soarelui',  0,  4, 18,    9, 22, 2.4, 2.6, TRUE,  '');
 
+-- Pe un teren e cel mult o cultură deschisă (T24): culturile sezonului trecut sunt închise la
+-- recoltare, cele din sezonul curent rămân deschise (chiar recoltate, până le închide utilizatorul).
 INSERT INTO field_crops (
     field_id, season_id, crop_id, planted_area_ha, planted_at, harvested_at,
-    production_total, expected_yield_per_ha, notes, harvest_recorded_quantity, harvest_recorded_at
+    production_total, expected_yield_per_ha, notes, harvest_recorded_quantity, harvest_recorded_at,
+    status, closed_at
 )
 SELECT
     f.id, s.id, c.id, f.area_ha,
@@ -353,7 +356,9 @@ SELECT
     sfc.expected_yield_per_ha,
     sfc.notes,
     CASE WHEN sfc.recorded THEN ROUND(f.area_ha::numeric * sfc.yield_per_ha, 3) END,
-    CASE WHEN sfc.recorded THEN harvest.harvested_at + INTERVAL '1 day 9 hours' END
+    CASE WHEN sfc.recorded THEN harvest.harvested_at + INTERVAL '1 day 9 hours' END,
+    CASE WHEN sfc.k = 1 THEN 'closed' ELSE 'open' END,
+    CASE WHEN sfc.k = 1 THEN harvest.harvested_at END
 FROM seed_field_crops sfc
 CROSS JOIN seed_season ss
 -- o recoltă din sezonul curent nu poate fi în viitor (de exemplu dacă seed-ul rulează în august)

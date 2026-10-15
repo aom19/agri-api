@@ -63,7 +63,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	authGroup.POST("/reset-password/:token", authHandler.ResetPassword)
 
 	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist))
+	api.Use(middleware.AuthMiddleware(deps.JWTService, deps.Blacklist), middleware.RequirePasswordChanged())
 
 	// autentificat, ca să nu poată fi folosit de oricine drept proxy către cheia OpenWeather
 	weatherHandler := handlers.NewWeatherHandler(deps.WeatherService)
@@ -115,6 +115,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.PATCH("/field-crops/:id", perm("crops:write"), cropHandler.UpdateFieldCrop)
 	api.DELETE("/field-crops/:id", perm("crops:write"), cropHandler.DeleteFieldCrop)
 	api.POST("/field-crops/:id/harvest", perm("crops:write"), cropHandler.RecordHarvest)
+	api.POST("/field-crops/:id/close", perm("crops:write"), cropHandler.CloseFieldCrop)
+	api.POST("/field-crops/:id/reopen", perm("crops:write"), cropHandler.ReopenFieldCrop)
 
 	// ─── Machines ────────────────────────────────────────────────────────────
 	machineHandler := handlers.NewMachineHandler(
@@ -141,6 +143,7 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	api.DELETE("/resource-types/:id", perm("resources:write"), resourceHandler.DeleteResourceType)
 
 	api.GET("/resources", perm("resources:read"), resourceHandler.GetAllResources)
+	api.GET("/resources/category-counts", perm("resources:read"), resourceHandler.GetResourceCategoryCounts)
 	api.GET("/resources/:id", perm("resources:read"), resourceHandler.GetResourceByID)
 	api.POST("/resources", perm("resources:write"), resourceHandler.CreateResource)
 	api.PATCH("/resources/:id", perm("resources:write"), resourceHandler.UpdateResource)

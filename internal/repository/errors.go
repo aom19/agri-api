@@ -12,3 +12,6 @@ type InUseError struct {
 }
 
 func (e *InUseError) Error() string { return e.Reason }
+
+// ErrForeignKeyViolation semnalează o referință către o înregistrare inexistentă.
+var ErrForeignKeyViolation = errors.New("referință inexistentă")

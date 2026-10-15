@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"github.com/lib/pq"
 	"strings"
 
 	"agri-api/internal/domain"
@@ -43,7 +45,7 @@ func (repo *StockMovementRepo) ApplyMovement(tx *sql.Tx, movement *domain.StockM
 		return err
 	}
 
-	return tx.QueryRow(`
+	err := tx.QueryRow(`
 		INSERT INTO stock_movements (
 			resource_id, field_operation_id, movement_type,
 			quantity_delta, resulting_quantity, unit_cost, total_cost, notes, actor_id, field_crop_id
@@ -60,6 +62,11 @@ func (repo *StockMovementRepo) ApplyMovement(tx *sql.Tx, movement *domain.StockM
 		movement.ActorID,
 		movement.FieldCropID,
 	).Scan(&movement.ID, &movement.CreatedAt)
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "23503" {
+		return repository.ErrForeignKeyViolation
+	}
+	return err
 }
 
 func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain.StockMovement, error) {
@@ -94,7 +101,9 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 			sm.field_operation_id,
 			CASE
 				WHEN fo.id IS NOT NULL THEN CONCAT_WS(' - ', `+fieldOperationTypeNameExpr+`, f.name)
-				WHEN hc.id IS NOT NULL THEN CONCAT_WS(' - ', 'Recoltă ' || hcr.name, hf.name)
+				-- recolta pe resursa culturii; orice altă intrare legată de cultură e un produs secundar
+				WHEN hc.id IS NOT NULL AND hcr.harvest_resource_id = sm.resource_id THEN CONCAT_WS(' - ', 'Recoltă ' || hcr.name, hf.name)
+				WHEN hc.id IS NOT NULL THEN CONCAT_WS(' - ', hcr.name, hf.name)
 				ELSE NULL
 			END,
 			sm.field_crop_id,

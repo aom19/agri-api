@@ -51,7 +51,7 @@ type createFieldOperationRequest struct {
 	AreaPlannedHa       *float64                    `json:"area_planned_ha"`
 	Notes               string                      `json:"notes"`
 	Status              domain.FieldOperationStatus `json:"status"`
-	// Cultura pe teren; dacă lipsește, se determină automat din teren și data planificată.
+	// Cultura pe teren. Lipsă: cultura deschisă a terenului. 0: explicit fără cultură.
 	FieldCropID *int64 `json:"field_crop_id"`
 }
 
@@ -71,6 +71,7 @@ func toDomainFieldOperation(req createFieldOperationRequest) *domain.FieldOperat
 		Notes:               req.Notes,
 		Status:              req.Status,
 		FieldCropID:         req.FieldCropID,
+		FieldCropNone:       req.FieldCropID != nil && *req.FieldCropID == 0,
 	}
 }
 

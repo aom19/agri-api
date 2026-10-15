@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/lib/pq"
+	"strings"
 )
 
 type ResourceRepo struct {
@@ -42,7 +43,28 @@ func scanResource(scanner interface {
 }
 
 func (r *ResourceRepo) GetAll() ([]domain.Resource, error) {
-	rows, err := r.db.Query(resourceSelectWithType + ` ORDER BY r.name`)
+	return r.List(domain.ResourceFilter{})
+}
+
+// resourceFilterClause construiește WHERE-ul comun pentru resurse și stocuri (aliasuri `r`/`rt`).
+func resourceFilterClause(filter domain.ResourceFilter, args *[]interface{}) string {
+	clauses := []string{"TRUE"}
+	if category := strings.TrimSpace(filter.Category); category != "" {
+		*args = append(*args, category)
+		clauses = append(clauses, fmt.Sprintf("rt.category = $%d", len(*args)))
+	}
+	if query := strings.TrimSpace(filter.Query); query != "" {
+		*args = append(*args, "%"+query+"%")
+		n := len(*args)
+		clauses = append(clauses, fmt.Sprintf("(r.name ILIKE $%d OR rt.name ILIKE $%d OR rt.default_unit ILIKE $%d OR rt.category ILIKE $%d)", n, n, n, n))
+	}
+	return strings.Join(clauses, " AND ")
+}
+
+func (r *ResourceRepo) List(filter domain.ResourceFilter) ([]domain.Resource, error) {
+	args := []interface{}{}
+	where := resourceFilterClause(filter, &args)
+	rows, err := r.db.Query(resourceSelectWithType+` WHERE `+where+` ORDER BY r.name`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +79,32 @@ func (r *ResourceRepo) GetAll() ([]domain.Resource, error) {
 		result = append(result, res)
 	}
 	return result, nil
+}
+
+func (r *ResourceRepo) CountByCategory() (*domain.CategoryCounts, error) {
+	return countByCategory(r.db, `
+		SELECT rt.category, COUNT(*)
+		FROM resources r JOIN resource_types rt ON rt.id = r.resource_type_id
+		GROUP BY rt.category ORDER BY rt.category`)
+}
+
+// countByCategory rulează o interogare (categorie, număr) și întoarce totalul și repartiția.
+func countByCategory(db *sql.DB, query string) (*domain.CategoryCounts, error) {
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	result := &domain.CategoryCounts{ByCategory: []domain.CategoryCount{}}
+	for rows.Next() {
+		var item domain.CategoryCount
+		if err := rows.Scan(&item.Category, &item.Count); err != nil {
+			return nil, err
+		}
+		result.ByCategory = append(result.ByCategory, item)
+		result.Total += item.Count
+	}
+	return result, rows.Err()
 }
 
 func (r *ResourceRepo) GetByID(id int64) (*domain.Resource, error) {

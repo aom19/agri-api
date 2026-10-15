@@ -15,6 +15,9 @@ type ResourceTypeRepository interface {
 
 type ResourceRepository interface {
 	GetAll() ([]domain.Resource, error)
+	// List aplică filtrul în SQL; CountByCategory numără toate resursele pe categorie.
+	List(filter domain.ResourceFilter) ([]domain.Resource, error)
+	CountByCategory() (*domain.CategoryCounts, error)
 	GetByID(id int64) (*domain.Resource, error)
 	// Create inserează resursa cu stocul 0; cantitatea inițială se adaugă printr-o mișcare.
 	Create(tx *sql.Tx, r *domain.Resource) error

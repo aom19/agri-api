@@ -1,11 +1,10 @@
 package usecase
 
-import(
-	"errors"
+import (
 	"agri-api/internal/domain"
 	"agri-api/internal/repository"
+	"errors"
 )
-
 
 // ImplementService conține logica de business pentru gestionarea utilajelor agricole
 type ImplementService struct {
@@ -17,12 +16,12 @@ func NewImplementService(implementRepo repository.ImplementRepository) *Implemen
 	return &ImplementService{implementRepo: implementRepo}
 }
 
-//toate utilajele agricole
+// toate utilajele agricole
 func (implementService *ImplementService) GetImplements() ([]domain.Implement, error) {
 	return implementService.implementRepo.GetAll()
 }
 
-//utilajul agricol by ID
+// utilajul agricol by ID
 func (implementService *ImplementService) GetImplementByID(id int64) (*domain.Implement, error) {
 	implement, err := implementService.implementRepo.GetByID(id)
 	if err != nil {
@@ -31,7 +30,7 @@ func (implementService *ImplementService) GetImplementByID(id int64) (*domain.Im
 	return implement, nil
 }
 
-//creează un utilaj agricol nou 
+// creează un utilaj agricol nou
 func (implementService *ImplementService) CreateImplement(implement *domain.Implement) (*domain.Implement, error) {
 	if implement.Name == "" || implement.Code == "" || implement.Type == "" || implement.Status == "" {
 		return nil, errors.New("name, code, type si status sunt  obligatorii")
@@ -44,13 +43,12 @@ func (implementService *ImplementService) CreateImplement(implement *domain.Impl
 	return implement, nil
 }
 
-
-//actualizează un utilaj agricol existent
+// actualizează un utilaj agricol existent
 func (implementService *ImplementService) UpdateImplement(id int64, implement *domain.Implement) (*domain.Implement, error) {
 	if implement.Name == "" || implement.Code == "" || implement.Type == "" || implement.Status == "" {
 		return nil, errors.New("name, code, type si status sunt  obligatorii")
 	}
-	
+
 	err := implementService.implementRepo.Update(id, implement)
 	if err != nil {
 		return nil, err
@@ -58,18 +56,17 @@ func (implementService *ImplementService) UpdateImplement(id int64, implement *d
 	return implement, nil
 }
 
-//sterge un utilaj agricol existent
+// sterge un utilaj agricol existent
 func (implementService *ImplementService) DeleteImplement(id int64) error {
 	return implementService.implementRepo.Delete(id)
-}	
+}
 
-
-//activeaza
+// activeaza
 func (implementService *ImplementService) ActivateImplement(id int64) error {
 	return implementService.implementRepo.Activate(id)
 }
 
-//dezactiveaza
+// dezactiveaza
 func (implementService *ImplementService) DeactivateImplement(id int64) error {
 	return implementService.implementRepo.Deactivate(id)
 }

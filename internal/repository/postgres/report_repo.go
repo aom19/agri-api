@@ -777,7 +777,7 @@ func (repo *ReportRepo) GetFieldCropRows(seasonID int64, fieldID string) ([]doma
 	query := fmt.Sprintf(`
 		SELECT
 			fc.id, fc.field_id, f.name, f.area_ha,
-			fc.season_id, s.name, to_char(s.start_date, 'YYYY-MM-DD'), to_char(s.end_date, 'YYYY-MM-DD'),
+			fc.season_id, s.name, to_char(s.start_date, 'YYYY-MM-DD'), COALESCE(to_char(s.end_date, 'YYYY-MM-DD'), ''),
 			fc.crop_id, c.name, c.yield_unit,
 			fc.planted_area_ha,
 			to_char(fc.planted_at, 'YYYY-MM-DD'),
@@ -787,7 +787,23 @@ func (repo *ReportRepo) GetFieldCropRows(seasonID int64, fieldID string) ([]doma
 			fc.created_at, fc.updated_at,
 			(SELECT COUNT(*) %[1]s),
 			(SELECT COALESCE(SUM(%[2]s), 0) %[1]s),
-			(SELECT COALESCE(SUM(%[3]s), 0) %[1]s)
+			(SELECT COALESCE(SUM(%[3]s), 0) %[1]s),
+			fc.status, to_char(fc.closed_at, 'YYYY-MM-DD'),
+			-- produse secundare: intrări manuale legate de cultură, pe altă resursă decât cea de recoltă
+			(SELECT COALESCE(json_agg(json_build_object(
+				'resource_id', sp.resource_id, 'resource_name', sp.name, 'unit', sp.unit,
+				'quantity', sp.quantity, 'total_value', sp.total_value
+			) ORDER BY sp.name), '[]'::json)
+			 FROM (
+				SELECT sm.resource_id, r.name, rt.default_unit AS unit,
+				       SUM(sm.quantity_delta) AS quantity, COALESCE(SUM(sm.total_cost), 0) AS total_value
+				FROM stock_movements sm
+				JOIN resources r ON r.id = sm.resource_id
+				JOIN resource_types rt ON rt.id = r.resource_type_id
+				WHERE sm.field_crop_id = fc.id AND sm.movement_type = 'in'
+				  AND sm.resource_id IS DISTINCT FROM c.harvest_resource_id
+				GROUP BY sm.resource_id, r.name, rt.default_unit
+			 ) sp)
 		FROM field_crops fc
 		JOIN fields f ON f.id = fc.field_id
 		JOIN seasons s ON s.id = fc.season_id
@@ -813,6 +829,8 @@ func (repo *ReportRepo) GetFieldCropRows(seasonID int64, fieldID string) ([]doma
 			expected    sql.NullFloat64
 			recordedQty sql.NullFloat64
 			recordedAt  sql.NullTime
+			closedAt    sql.NullString
+			secondary   []byte
 		)
 		if err := rows.Scan(
 			&row.ID, &row.FieldID, &row.FieldName, &fieldArea,
@@ -821,8 +839,16 @@ func (repo *ReportRepo) GetFieldCropRows(seasonID int64, fieldID string) ([]doma
 			&plantedArea, &plantedAt, &harvestedAt, &production, &expected, &row.Notes,
 			&recordedQty, &recordedAt, &row.CreatedAt, &row.UpdatedAt,
 			&row.OperationsCount, &row.EstimatedCost, &row.RealCost,
+			&row.Status, &closedAt, &secondary,
 		); err != nil {
 			return nil, err
+		}
+		row.ClosedAt = nullStringPtr(closedAt)
+		row.SecondaryProducts = []domain.ReportSecondaryProduct{}
+		if len(secondary) > 0 {
+			if err := json.Unmarshal(secondary, &row.SecondaryProducts); err != nil {
+				return nil, err
+			}
 		}
 		row.HarvestRecordedQty = nullFloatPtr(recordedQty)
 		if recordedAt.Valid {

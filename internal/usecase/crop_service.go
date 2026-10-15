@@ -15,6 +15,8 @@ var (
 	ErrCropNotFound  = errors.New("înregistrarea nu există")
 	ErrCropInvalid   = errors.New("date invalide")
 	ErrCropDuplicate = errors.New("există deja o înregistrare cu aceleași date")
+	// ErrFieldHasOpenCrop: terenul are deja o cultură deschisă; închide-o înainte să deschizi alta.
+	ErrFieldHasOpenCrop = fmt.Errorf("%w: terenul are deja o cultură deschisă", ErrCropDuplicate)
 )
 
 type CropService struct {
@@ -65,15 +67,21 @@ func (service *CropService) validateSeason(season *domain.Season) error {
 	if err != nil {
 		return fmt.Errorf("%w: data de început trebuie să fie YYYY-MM-DD", ErrCropInvalid)
 	}
-	end, err := parseISODate(season.EndDate)
+	season.StartDate = start.Format("2006-01-02")
+	// sfârșitul e opțional: un sezon în curs nu are încă dată de încheiere
+	if season.EndDate == nil || strings.TrimSpace(*season.EndDate) == "" {
+		season.EndDate = nil
+		return nil
+	}
+	end, err := parseISODate(*season.EndDate)
 	if err != nil {
 		return fmt.Errorf("%w: data de sfârșit trebuie să fie YYYY-MM-DD", ErrCropInvalid)
 	}
 	if end.Before(start) {
 		return fmt.Errorf("%w: sfârșitul sezonului este înaintea începutului", ErrCropInvalid)
 	}
-	season.StartDate = start.Format("2006-01-02")
-	season.EndDate = end.Format("2006-01-02")
+	formatted := end.Format("2006-01-02")
+	season.EndDate = &formatted
 	return nil
 }
 
@@ -94,9 +102,7 @@ func (service *CropService) UpdateSeason(id int64, season *domain.Season) (*doma
 	if err := service.repo.UpdateSeason(id, season); err != nil {
 		return nil, mapCropRepoError(err)
 	}
-	if err := service.repo.RelinkOperations(id); err != nil {
-		return nil, err
-	}
+	// Sezonul e doar o etichetă de raportare: modificarea lui nu atinge nicio lucrare.
 	return service.repo.GetSeasonByID(id)
 }
 
@@ -189,13 +195,25 @@ func (service *CropService) validateFieldCrop(item *domain.FieldCrop) error {
 		area := *field.AreaHa
 		item.PlantedAreaHa = &area
 	}
+	if item.Status == "" {
+		item.Status = domain.FieldCropStatusOpen
+	}
+	if !isValidFieldCropStatus(item.Status) {
+		return fmt.Errorf("%w: starea trebuie să fie open, closed sau compromised", ErrCropInvalid)
+	}
+	if item.Status != domain.FieldCropStatusOpen && (item.ClosedAt == nil || strings.TrimSpace(*item.ClosedAt) == "") {
+		return fmt.Errorf("%w: o cultură închisă are nevoie de data închiderii", ErrCropInvalid)
+	}
+	if item.Status == domain.FieldCropStatusOpen {
+		item.ClosedAt = nil
+	}
 	if item.ProductionTotal != nil && *item.ProductionTotal < 0 {
 		return fmt.Errorf("%w: producția nu poate fi negativă", ErrCropInvalid)
 	}
 	if item.ExpectedYieldPerHa != nil && *item.ExpectedYieldPerHa < 0 {
 		return fmt.Errorf("%w: randamentul estimat nu poate fi negativ", ErrCropInvalid)
 	}
-	for _, value := range []*string{item.PlantedAt, item.HarvestedAt} {
+	for _, value := range []*string{item.PlantedAt, item.HarvestedAt, item.ClosedAt} {
 		if value == nil || strings.TrimSpace(*value) == "" {
 			continue
 		}
@@ -206,28 +224,121 @@ func (service *CropService) validateFieldCrop(item *domain.FieldCrop) error {
 	return nil
 }
 
+func isValidFieldCropStatus(status string) bool {
+	switch status {
+	case domain.FieldCropStatusOpen, domain.FieldCropStatusClosed, domain.FieldCropStatusCompromised:
+		return true
+	}
+	return false
+}
+
+// ensureNoOtherOpenCrop aplică regula „pe un teren e cel mult o cultură deschisă”, cu un mesaj
+// care spune ce cultură trebuie închisă. Indexul unic parțial rămâne plasa de siguranță.
+func (service *CropService) ensureNoOtherOpenCrop(fieldID string, exceptID int64) error {
+	open, err := service.repo.GetOpenFieldCrop(fieldID)
+	if err != nil {
+		return err
+	}
+	if open == nil || open.ID == exceptID {
+		return nil
+	}
+	return fmt.Errorf("%w: %s (%s). Închide-o întâi, apoi deschide cultura nouă",
+		ErrFieldHasOpenCrop, open.CropName, open.SeasonName)
+}
+
 func (service *CropService) CreateFieldCrop(item *domain.FieldCrop) (*domain.FieldCrop, error) {
 	if err := service.validateFieldCrop(item); err != nil {
 		return nil, err
 	}
+	if item.Status == domain.FieldCropStatusOpen {
+		if err := service.ensureNoOtherOpenCrop(item.FieldID, 0); err != nil {
+			return nil, err
+		}
+	}
 	if err := service.repo.CreateFieldCrop(item); err != nil {
 		return nil, mapCropRepoError(err)
-	}
-	if err := service.repo.RelinkOperations(item.SeasonID); err != nil {
-		return nil, err
 	}
 	return service.repo.GetFieldCropByID(item.ID)
 }
 
+// UpdateFieldCrop modifică datele culturii; starea se schimbă doar prin CloseFieldCrop / ReopenFieldCrop.
 func (service *CropService) UpdateFieldCrop(id int64, item *domain.FieldCrop) (*domain.FieldCrop, error) {
+	existing, err := service.repo.GetFieldCropByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, ErrCropNotFound
+	}
+	item.Status, item.ClosedAt = existing.Status, existing.ClosedAt
 	if err := service.validateFieldCrop(item); err != nil {
 		return nil, err
+	}
+	if item.Status == domain.FieldCropStatusOpen && item.FieldID != existing.FieldID {
+		if err := service.ensureNoOtherOpenCrop(item.FieldID, id); err != nil {
+			return nil, err
+		}
 	}
 	if err := service.repo.UpdateFieldCrop(id, item); err != nil {
 		return nil, mapCropRepoError(err)
 	}
-	if err := service.repo.RelinkOperations(item.SeasonID); err != nil {
+	return service.repo.GetFieldCropByID(id)
+}
+
+// CloseFieldCrop închide cultura (recoltată sau compromisă). Lucrările deja salvate rămân legate
+// de ea; doar lucrările noi de pe teren nu mai merg la această cultură.
+func (service *CropService) CloseFieldCrop(id int64, input domain.FieldCropClose) (*domain.FieldCrop, error) {
+	existing, err := service.repo.GetFieldCropByID(id)
+	if err != nil {
 		return nil, err
+	}
+	if existing == nil {
+		return nil, ErrCropNotFound
+	}
+	if input.Status != domain.FieldCropStatusClosed && input.Status != domain.FieldCropStatusCompromised {
+		return nil, fmt.Errorf("%w: starea finală trebuie să fie closed sau compromised", ErrCropInvalid)
+	}
+	closedAt, err := parseISODate(input.ClosedAt)
+	if err != nil {
+		return nil, fmt.Errorf("%w: data închiderii trebuie să fie YYYY-MM-DD", ErrCropInvalid)
+	}
+	input.ClosedAt = closedAt.Format("2006-01-02")
+	if input.ProductionTotal != nil && *input.ProductionTotal < 0 {
+		return nil, fmt.Errorf("%w: producția nu poate fi negativă", ErrCropInvalid)
+	}
+	if input.Status == domain.FieldCropStatusCompromised {
+		zero := 0.0
+		input.ProductionTotal = &zero
+		if input.Notes == nil || strings.TrimSpace(*input.Notes) == "" {
+			return nil, fmt.Errorf("%w: la o cultură compromisă, observațiile sunt obligatorii (ce s-a întâmplat)", ErrCropInvalid)
+		}
+	}
+	if err := service.repo.CloseFieldCrop(id, input); err != nil {
+		return nil, mapCropRepoError(err)
+	}
+	return service.repo.GetFieldCropByID(id)
+}
+
+// ReopenFieldCrop redeschide o cultură închisă, dacă terenul nu are deja alta deschisă.
+func (service *CropService) ReopenFieldCrop(id int64) (*domain.FieldCrop, error) {
+	existing, err := service.repo.GetFieldCropByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, ErrCropNotFound
+	}
+	if existing.Status == domain.FieldCropStatusOpen {
+		return existing, nil
+	}
+	if err := service.ensureNoOtherOpenCrop(existing.FieldID, id); err != nil {
+		return nil, err
+	}
+	if err := service.repo.ReopenFieldCrop(id); err != nil {
+		if errors.Is(err, repository.ErrDuplicateEntry) {
+			return nil, ErrFieldHasOpenCrop
+		}
+		return nil, mapCropRepoError(err)
 	}
 	return service.repo.GetFieldCropByID(id)
 }
@@ -319,8 +430,9 @@ func (service *CropService) RecordHarvest(fieldCropID int64, actorID *int64) (*H
 		movementType = domain.StockMovementOut
 		quantity = -delta
 	}
+	// O recoltă repetată (lucernă: mai multe coase) e tot „Recoltă”; „Corecție” doar când scade.
 	notes := fmt.Sprintf("Recoltă %s - %s (%s)", crop.Name, item.FieldName, item.SeasonName)
-	if recorded > 0 {
+	if delta < 0 {
 		notes = fmt.Sprintf("Corecție recoltă %s - %s (%s)", crop.Name, item.FieldName, item.SeasonName)
 	}
 	movement, err := buildMovement(lock, movementType, quantity, nil, nil, notes, actorID)

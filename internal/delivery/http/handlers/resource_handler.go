@@ -181,13 +181,46 @@ func (h *ResourceHandler) DeleteResourceType(c *gin.Context) {
 	auditAndNotify(c, h.audit, h.notif, "resource_type", auditID(id), "delete", "Tip resursă șters", name, nil)
 }
 
+// GetAllResources listează resursele; filtrarea se face în SQL.
+// @Summary      Resurse
+// @Tags         resources
+// @Produce      json
+// @Security     BearerAuth
+// @Param        category query string false "Categoria tipului de resursă (fuel, seed, harvest…)"
+// @Param        q query string false "Text căutat în nume, tip, categorie sau unitate"
+// @Success      200 {array} domain.Resource
+// @Router       /resources [get]
 func (h *ResourceHandler) GetAllResources(c *gin.Context) {
-	items, err := h.service.GetResources()
+	items, err := h.service.ListResources(resourceFilterFromQuery(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if items == nil {
+		items = []domain.Resource{}
+	}
 	c.JSON(http.StatusOK, items)
+}
+
+// GetResourceCategoryCounts numără resursele pe categorie (pentru butoanele de filtrare).
+// @Summary      Resurse pe categorii
+// @Tags         resources
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} domain.CategoryCounts
+// @Router       /resources/category-counts [get]
+func (h *ResourceHandler) GetResourceCategoryCounts(c *gin.Context) {
+	counts, err := h.service.ResourceCategoryCounts()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, counts)
+}
+
+// resourceFilterFromQuery citește criteriile de listare din query string.
+func resourceFilterFromQuery(c *gin.Context) domain.ResourceFilter {
+	return domain.ResourceFilter{Category: c.Query("category"), Query: c.Query("q")}
 }
 
 func (h *ResourceHandler) GetResourceByID(c *gin.Context) {

@@ -14,6 +14,9 @@ type UserRepository interface {
 	MarkEmailConfirmed(id int64) error
 	UpdatePassword(id int64, passwordHash string) error
 	UpdateRole(userID int64, roleID int64) error
+	// CountByRole numără conturile active cu rolul dat (după codul rolului).
+	CountByRole(roleCode string) (int, error)
+	SetMustChangePassword(id int64, value bool) error
 	GetProfile(userID int64) (*domain.UserProfile, error)
 	UpsertProfile(profile *domain.UserProfile) error
 }

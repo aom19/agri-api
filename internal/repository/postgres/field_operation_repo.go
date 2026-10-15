@@ -219,16 +219,8 @@ func (repo *FieldOperationRepo) Create(op *domain.FieldOperation) error {
 			machine_id, implement_id, operator_id,
 			planned_start_at, planned_end_at, area_planned_ha,
 			notes, status, field_crop_id
-		) VALUES ($1,NULLIF($2, ''),$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, (
-				SELECT fc.id
-				FROM field_crops fc
-				JOIN seasons s ON s.id = fc.season_id
-				WHERE fc.field_id = $1
-				  AND COALESCE($7, NOW()) >= s.start_date
-				  AND COALESCE($7, NOW()) < s.end_date + INTERVAL '1 day'
-				ORDER BY s.is_active DESC, s.start_date DESC
-				LIMIT 1
-			)))
+		) VALUES ($1, NULLIF($2, ''), $3, $4, $5, $6, $7, $8, $9, $10, $11,
+			CASE WHEN $13 THEN NULL ELSE COALESCE($12, (` + openFieldCropExpr + `)) END)
 		RETURNING id, created_at, updated_at
 	`
 	return repo.db.QueryRow(query,
@@ -244,8 +236,13 @@ func (repo *FieldOperationRepo) Create(op *domain.FieldOperation) error {
 		op.Notes,
 		op.Status,
 		op.FieldCropID,
+		op.FieldCropNone,
 	).Scan(&op.ID, &op.CreatedAt, &op.UpdatedAt)
 }
+
+// openFieldCropExpr este cultura deschisă a terenului ($1): cel mult una, prin indexul unic
+// parțial. Lucrarea se leagă de ea când nu primește explicit o cultură.
+const openFieldCropExpr = `SELECT fc.id FROM field_crops fc WHERE fc.field_id = $1 AND fc.status = 'open'`
 
 func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) error {
 	query := `
@@ -261,16 +258,12 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 			area_planned_ha       = $9,
 			notes                 = $10,
 			status                = $11::text,
-			field_crop_id         = COALESCE($13, (
-				SELECT fc.id
-				FROM field_crops fc
-				JOIN seasons s ON s.id = fc.season_id
-				WHERE fc.field_id = $1
-				  AND COALESCE($7, NOW()) >= s.start_date
-				  AND COALESCE($7, NOW()) < s.end_date + INTERVAL '1 day'
-				ORDER BY s.is_active DESC, s.start_date DESC
-				LIMIT 1
-			)),
+			field_crop_id         = CASE
+				WHEN $14 THEN NULL
+				-- fără cultură explicită: păstrează legătura dacă terenul nu s-a schimbat,
+				-- altfel cultura deschisă a noului teren
+				ELSE COALESCE($13, CASE WHEN field_id = $1 THEN field_crop_id END, (` + openFieldCropExpr + `))
+			END,
 			actual_start_at       = CASE
 				WHEN $11::text IN ('in_progress', 'completed') AND actual_start_at IS NULL THEN COALESCE(planned_start_at, NOW())
 				ELSE actual_start_at
@@ -301,6 +294,7 @@ func (repo *FieldOperationRepo) Update(id int64, op *domain.FieldOperation) erro
 		op.Status,
 		id,
 		op.FieldCropID,
+		op.FieldCropNone,
 	)
 	return err
 }

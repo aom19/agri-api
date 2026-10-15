@@ -40,6 +40,26 @@ type ResourceType struct {
 	UpdatedAt   time.Time        `json:"updated_at"`
 }
 
+// ResourceFilter sunt criteriile de listare, aplicate în SQL: categoria tipului de resursă și un
+// text căutat în nume, tip și unitate. Folosit și de resurse, și de stocuri.
+type ResourceFilter struct {
+	Category string
+	Query    string
+}
+
+// CategoryCount este numărul de rânduri dintr-o categorie de resurse.
+type CategoryCount struct {
+	Category string `json:"category"`
+	Count    int    `json:"count"`
+}
+
+// CategoryCounts însoțește listele filtrate: totalul și repartiția pe categorii, pentru butoanele
+// de filtrare din interfață.
+type CategoryCounts struct {
+	Total      int             `json:"total"`
+	ByCategory []CategoryCount `json:"by_category"`
+}
+
 // Resource — resursa agricolă, cu stocul ei. Quantity se modifică doar prin mișcări de stoc,
 // astfel încât suma mișcărilor unei resurse să fie egală cu stocul ei curent.
 type Resource struct {

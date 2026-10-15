@@ -15,7 +15,7 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 func (r *UserRepo) GetAll() ([]domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.email_confirmed, (u.deleted_at IS NOT NULL) AS disabled, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.email_confirmed, (u.deleted_at IS NOT NULL) AS disabled, u.must_change_password, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
 		ORDER BY u.id`
@@ -29,7 +29,7 @@ func (r *UserRepo) GetAll() ([]domain.User, error) {
 	users := make([]domain.User, 0)
 	for rows.Next() {
 		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.Disabled, &u.RoleID, &u.RoleCode, &u.RoleName); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.Disabled, &u.MustChangePassword, &u.RoleID, &u.RoleCode, &u.RoleName); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -40,12 +40,12 @@ func (r *UserRepo) GetAll() ([]domain.User, error) {
 
 func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.must_change_password, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
 		WHERE u.email = $1 AND u.deleted_at IS NULL`
 	var u domain.User
-	err := r.db.QueryRow(query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.RoleID, &u.RoleCode, &u.RoleName)
+	err := r.db.QueryRow(query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.MustChangePassword, &u.RoleID, &u.RoleCode, &u.RoleName)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -54,12 +54,12 @@ func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {
 
 func (r *UserRepo) GetByID(id int64) (*domain.User, error) {
 	query := `
-		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
+		SELECT u.id, u.email, u.password_hash, u.email_confirmed, u.must_change_password, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
 		WHERE u.id = $1 AND u.deleted_at IS NULL`
 	var u domain.User
-	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.RoleID, &u.RoleCode, &u.RoleName)
+	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.MustChangePassword, &u.RoleID, &u.RoleCode, &u.RoleName)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -67,8 +67,26 @@ func (r *UserRepo) GetByID(id int64) (*domain.User, error) {
 }
 
 func (r *UserRepo) Create(user *domain.User) error {
-	query := `INSERT INTO users (email, password_hash, role_id) VALUES ($1, $2, $3) RETURNING id`
-	return r.db.QueryRow(query, user.Email, user.PasswordHash, user.RoleID).Scan(&user.ID)
+	query := `
+		INSERT INTO users (email, password_hash, role_id, email_confirmed, must_change_password)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id`
+	return r.db.QueryRow(query, user.Email, user.PasswordHash, user.RoleID, user.EmailConfirmed, user.MustChangePassword).Scan(&user.ID)
+}
+
+func (r *UserRepo) CountByRole(roleCode string) (int, error) {
+	var count int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM users u
+		JOIN roles ro ON ro.id = u.role_id
+		WHERE ro.code = $1 AND u.deleted_at IS NULL`, roleCode).Scan(&count)
+	return count, err
+}
+
+func (r *UserRepo) SetMustChangePassword(id int64, value bool) error {
+	_, err := r.db.Exec(`UPDATE users SET must_change_password = $1, updated_at = NOW() WHERE id = $2`, value, id)
+	return err
 }
 
 func (r *UserRepo) Update(user *domain.User) error {

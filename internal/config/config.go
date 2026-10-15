@@ -51,6 +51,10 @@ type Config struct {
 
 	// Intervalul la care se salvează observațiile meteo pentru terenuri ("0" dezactivează)
 	WeatherSnapshotInterval string
+
+	// Contul de administrator creat la pornire dacă instalarea nu are niciunul (T23).
+	AdminEmail    string
+	AdminPassword string
 }
 
 func LoadConfig() *Config {
@@ -60,6 +64,8 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
+		AdminEmail:        getEnv("ADMIN_EMAIL", ""),
+		AdminPassword:     getEnv("ADMIN_PASSWORD", ""),
 		AppName:           getEnv("APP_NAME", "agri-api"),
 		AppEnv:            getEnv("APP_ENV", "development"),
 		ServerHost:        getEnv("SERVER_HOST", "0.0.0.0"),

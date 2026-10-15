@@ -359,7 +359,7 @@ func TestAuthService_ConfirmEmail(t *testing.T) {
 }
 
 func TestAuthService_ChangePassword(t *testing.T) {
-	svc, users, _, _ := newAuthService(t, deadEmailService())
+	svc, users, _, mock := newAuthService(t, deadEmailService())
 
 	if err := svc.ChangePassword(9, "x", "y"); err == nil {
 		t.Error("utilizator inexistent trebuie să dea eroare")
@@ -369,8 +369,15 @@ func TestAuthService_ChangePassword(t *testing.T) {
 	}
 	updated := false
 	users.updatePassword = func(int64, string) error { updated = true; return nil }
+	// după schimbare, sesiunile vechi sunt revocate și se emite una nouă
+	mock.ExpectQuery("UPDATE refresh_tokens SET revoked = TRUE").
+		WillReturnRows(sqlmock.NewRows([]string{"access_jti"}).AddRow("jti-vechi"))
+	mock.ExpectExec("INSERT INTO refresh_tokens").WillReturnResult(sqlmock.NewResult(1, 1))
 	if err := svc.ChangePassword(1, "Parola1!", "Parola2!"); err != nil || !updated {
 		t.Errorf("ChangePassword: %v", err)
+	}
+	if err := svc.ChangePassword(1, "Parola1!", "Parola1!"); err == nil {
+		t.Error("parola nouă identică cu cea veche trebuie refuzată")
 	}
 	users.updatePassword = func(int64, string) error { return errors.New("db down") }
 	if err := svc.ChangePassword(1, "Parola1!", "Parola2!"); err == nil {
@@ -379,5 +386,97 @@ func TestAuthService_ChangePassword(t *testing.T) {
 	users.getByID = func(int64) (*domain.User, error) { return nil, errors.New("db down") }
 	if err := svc.ChangePassword(1, "Parola1!", "Parola2!"); err == nil {
 		t.Error("eroarea de citire trebuie propagată")
+	}
+}
+
+// Parola provizorie (ex. administratorul creat la pornire): autentificarea o semnalează și pune
+// revendicarea în token; schimbarea parolei o ridică și întoarce o sesiune nouă, fără revendicare.
+func TestAuthService_ProvisionalPassword(t *testing.T) {
+	svc, users, _, mock := newAuthService(t, deadEmailService())
+	hash := passwordHash(t)
+	admin := &domain.User{ID: 5, Email: "admin@x.ro", PasswordHash: hash, EmailConfirmed: true, RoleID: 1, RoleCode: "admin", RoleName: "Admin", MustChangePassword: true}
+	users.getByEmail = func(e string) (*domain.User, error) {
+		if e == admin.Email {
+			return admin, nil
+		}
+		return nil, nil
+	}
+	users.getByID = func(id int64) (*domain.User, error) {
+		if id == 5 {
+			return admin, nil
+		}
+		return nil, nil
+	}
+	cleared := false
+	users.setMustChange = func(id int64, value bool) error { cleared = id == 5 && !value; return nil }
+
+	mock.ExpectQuery("UPDATE refresh_tokens SET revoked = TRUE").WillReturnRows(sqlmock.NewRows([]string{"access_jti"}))
+	mock.ExpectExec("INSERT INTO refresh_tokens").WillReturnResult(sqlmock.NewResult(1, 1))
+	login, err := svc.LoginWithResult(admin.Email, "Parola1!")
+	if err != nil || !login.MustChangePassword {
+		t.Fatalf("autentificarea trebuie să semnaleze parola provizorie: %v, %+v", err, login)
+	}
+	claims, _ := svc.JWTService().Parse(login.AccessToken)
+	if claims[auth.ClaimMustChangePassword] != true {
+		t.Errorf("token-ul trebuie să poarte revendicarea: %v", claims)
+	}
+
+	mock.ExpectQuery("UPDATE refresh_tokens SET revoked = TRUE").WillReturnRows(sqlmock.NewRows([]string{"access_jti"}))
+	mock.ExpectExec("INSERT INTO refresh_tokens").WillReturnResult(sqlmock.NewResult(1, 1))
+	result, err := svc.ChangePasswordWithSession(5, "Parola1!", "Parola2!")
+	if err != nil || !cleared || result.AccessToken == "" || result.RefreshToken == "" {
+		t.Fatalf("schimbarea trebuie să ridice obligația și să emită sesiune nouă: %v, %v, %+v", err, cleared, result)
+	}
+	claims, _ = svc.JWTService().Parse(result.AccessToken)
+	if _, still := claims[auth.ClaimMustChangePassword]; still {
+		t.Errorf("sesiunea nouă nu mai poartă revendicarea: %v", claims)
+	}
+}
+
+// BootstrapAdmin: nimic fără ADMIN_EMAIL sau când există deja un admin; promovează contul
+// existent; altfel creează contul confirmat, cu parolă provizorie.
+func TestBootstrapAdmin(t *testing.T) {
+	admins := 0
+	var created *domain.User
+	promoted := map[int64]int64{}
+	users := &userRepoMock{
+		countByRole: func(code string) (int, error) { return admins, nil },
+		getByEmail: func(e string) (*domain.User, error) {
+			if e == "existent@x.ro" {
+				return &domain.User{ID: 4, Email: e, RoleID: 2}, nil
+			}
+			return nil, nil
+		},
+		create:     func(u *domain.User) error { u.ID = 10; created = u; return nil },
+		updateRole: func(userID, roleID int64) error { promoted[userID] = roleID; return nil },
+	}
+	roles := &roleRepoMock{getByCode: func(code string) (*domain.Role, error) {
+		if code == "admin" {
+			return &domain.Role{ID: 1, Code: "admin", Name: "Administrator"}, nil
+		}
+		return nil, nil
+	}}
+
+	if res, err := usecase.BootstrapAdmin(users, roles, "", "x"); err != nil || res != nil {
+		t.Errorf("fără ADMIN_EMAIL nu face nimic: %v, %+v", err, res)
+	}
+	admins = 1
+	if res, err := usecase.BootstrapAdmin(users, roles, "admin@x.ro", "parola-lunga"); err != nil || res != nil {
+		t.Errorf("cu un admin existent nu face nimic: %v, %+v", err, res)
+	}
+	admins = 0
+	if _, err := usecase.BootstrapAdmin(users, roles, "admin@x.ro", "scurta"); err == nil {
+		t.Error("parola prea scurtă trebuie refuzată")
+	}
+	res, err := usecase.BootstrapAdmin(users, roles, " Admin@X.ro ", "parola-lunga")
+	if err != nil || res == nil || !res.Created || created == nil {
+		t.Fatalf("crearea adminului: %v, %+v", err, res)
+	}
+	if created.Email != "admin@x.ro" || created.RoleCode != "admin" || !created.EmailConfirmed || !created.MustChangePassword || created.PasswordHash == "parola-lunga" {
+		t.Errorf("contul creat: %+v", created)
+	}
+	res, err = usecase.BootstrapAdmin(users, roles, "existent@x.ro", "")
+	if err != nil || res == nil || !res.Promoted || promoted[4] != 1 {
+		t.Errorf("promovarea contului existent: %v, %+v, %v", err, res, promoted)
 	}
 }

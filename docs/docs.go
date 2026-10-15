@@ -239,6 +239,9 @@ const docTemplate = `{
                                 "access_token": {
                                     "type": "string"
                                 },
+                                "must_change_password": {
+                                    "type": "boolean"
+                                },
                                 "refresh_token": {
                                     "type": "string"
                                 }
@@ -855,6 +858,12 @@ const docTemplate = `{
                         "description": "Filtru teren",
                         "name": "field_id",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtru stare: open, closed, compromised",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1031,6 +1040,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/field-crops/{id}/close": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Închidere cultură pe teren",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID cultură pe teren",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Starea finală",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.closeFieldCropRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.FieldCrop"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/field-crops/{id}/harvest": {
             "post": {
                 "security": [
@@ -1074,6 +1150,61 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/field-crops/{id}/reopen": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "crops"
+                ],
+                "summary": "Redeschidere cultură pe teren",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID cultură pe teren",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.FieldCrop"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -2932,6 +3063,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/resources": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "Resurse",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Categoria tipului de resursă (fuel, seed, harvest…)",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Text căutat în nume, tip, categorie sau unitate",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Resource"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resources/category-counts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "Resurse pe categorii",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.CategoryCounts"
+                        }
+                    }
+                }
+            }
+        },
         "/seasons": {
             "get": {
                 "security": [
@@ -3351,6 +3547,31 @@ const docTemplate = `{
                 "AssetStatusInactive"
             ]
         },
+        "domain.CategoryCount": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.CategoryCounts": {
+            "type": "object",
+            "properties": {
+                "by_category": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.CategoryCount"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "domain.ConsumptionEstimate": {
             "type": "object",
             "properties": {
@@ -3525,6 +3746,9 @@ const docTemplate = `{
         "domain.FieldCrop": {
             "type": "object",
             "properties": {
+                "closed_at": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -3580,6 +3804,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "season_start": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -3935,6 +4162,9 @@ const docTemplate = `{
         "domain.ReportFieldCropRow": {
             "type": "object",
             "properties": {
+                "closed_at": {
+                    "type": "string"
+                },
                 "cost_per_ha": {
                     "type": "number"
                 },
@@ -4002,6 +4232,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "season_start": {
+                    "type": "string"
+                },
+                "secondary_products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ReportSecondaryProduct"
+                    }
+                },
+                "status": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -4572,6 +4811,26 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.ReportSecondaryProduct": {
+            "type": "object",
+            "properties": {
+                "quantity": {
+                    "type": "number"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "total_value": {
+                    "type": "number"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.ReportStockRow": {
             "type": "object",
             "properties": {
@@ -4740,6 +4999,85 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.Resource": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "minimum_quantity": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "price_per_unit": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "resource_type": {
+                    "$ref": "#/definitions/domain.ResourceType"
+                },
+                "resource_type_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ResourceCategory": {
+            "type": "string",
+            "enum": [
+                "fuel",
+                "fertilizer",
+                "seed",
+                "pesticide",
+                "water",
+                "harvest",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "ResourceCategoryFuel",
+                "ResourceCategoryFertilizer",
+                "ResourceCategorySeed",
+                "ResourceCategoryPesticide",
+                "ResourceCategoryWater",
+                "ResourceCategoryHarvest",
+                "ResourceCategoryOther"
+            ]
+        },
+        "domain.ResourceType": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/domain.ResourceCategory"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "default_unit": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Season": {
             "type": "object",
             "properties": {
@@ -4747,6 +5085,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "end_date": {
+                    "description": "EndDate e nil cât timp sezonul e în curs; se completează când sezonul se încheie.",
                     "type": "string"
                 },
                 "id": {
@@ -5180,6 +5519,31 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.closeFieldCropRequest": {
+            "type": "object",
+            "required": [
+                "closed_at",
+                "status"
+            ],
+            "properties": {
+                "closed_at": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "production_total": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "closed",
+                        "compromised"
+                    ]
+                }
+            }
+        },
         "handlers.completeFieldOperationRequest": {
             "type": "object",
             "properties": {
@@ -5231,6 +5595,10 @@ const docTemplate = `{
                 "resource_id"
             ],
             "properties": {
+                "field_crop_id": {
+                    "description": "FieldCropID leagă intrarea de cultura pe teren care a produs-o (ex. paie după grâu).",
+                    "type": "integer"
+                },
                 "field_operation_id": {
                     "type": "integer"
                 },
@@ -5287,6 +5655,9 @@ const docTemplate = `{
                 "season_id"
             ],
             "properties": {
+                "closed_at": {
+                    "type": "string"
+                },
                 "crop_id": {
                     "type": "integer"
                 },
@@ -5313,6 +5684,10 @@ const docTemplate = `{
                 },
                 "season_id": {
                     "type": "integer"
+                },
+                "status": {
+                    "description": "Status e folosit doar la creare (implicit open); după aceea se schimbă prin close/reopen.",
+                    "type": "string"
                 }
             }
         },
@@ -5330,12 +5705,12 @@ const docTemplate = `{
         "handlers.seasonRequest": {
             "type": "object",
             "required": [
-                "end_date",
                 "name",
                 "start_date"
             ],
             "properties": {
                 "end_date": {
+                    "description": "Opțional: lipsă sau null = sezon în curs.",
                     "type": "string"
                 },
                 "is_active": {

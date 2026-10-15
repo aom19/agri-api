@@ -129,6 +129,15 @@ func (s *ResourceService) GetResources() ([]domain.Resource, error) {
 	return s.resourceRepo.GetAll()
 }
 
+// ListResources filtrează în SQL după categorie și text; fără criterii e echivalent cu GetResources.
+func (s *ResourceService) ListResources(filter domain.ResourceFilter) ([]domain.Resource, error) {
+	return s.resourceRepo.List(filter)
+}
+
+func (s *ResourceService) ResourceCategoryCounts() (*domain.CategoryCounts, error) {
+	return s.resourceRepo.CountByCategory()
+}
+
 func (s *ResourceService) GetResourceByID(id int64) (*domain.Resource, error) {
 	if id <= 0 {
 		return nil, errors.New("invalid resource id")

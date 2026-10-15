@@ -4,10 +4,11 @@ import "time"
 
 // Season este un sezon agricol (interval de date) pentru care se urmăresc culturile și producția.
 type Season struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	StartDate string    `json:"start_date"`
-	EndDate   string    `json:"end_date"`
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	StartDate string `json:"start_date"`
+	// EndDate e nil cât timp sezonul e în curs; se completează când sezonul se încheie.
+	EndDate   *string   `json:"end_date"`
 	IsActive  bool      `json:"is_active"`
 	Notes     string    `json:"notes"`
 	CreatedAt time.Time `json:"created_at"`
@@ -27,6 +28,14 @@ type Crop struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
+// Stările unei culturi pe teren. Pe un teren e cel mult o cultură deschisă (index unic parțial);
+// lucrările noi merg implicit la ea. Închiderea nu mută nicio lucrare deja salvată.
+const (
+	FieldCropStatusOpen        = "open"
+	FieldCropStatusClosed      = "closed"
+	FieldCropStatusCompromised = "compromised"
+)
+
 // FieldCrop leagă un teren de o cultură într-un sezon și reține producția obținută.
 type FieldCrop struct {
 	ID                 int64      `json:"id"`
@@ -40,6 +49,8 @@ type FieldCrop struct {
 	CropID             int64      `json:"crop_id"`
 	CropName           string     `json:"crop_name"`
 	YieldUnit          string     `json:"yield_unit"`
+	Status             string     `json:"status"`
+	ClosedAt           *string    `json:"closed_at,omitempty"`
 	PlantedAreaHa      *float64   `json:"planted_area_ha,omitempty"`
 	PlantedAt          *string    `json:"planted_at,omitempty"`
 	HarvestedAt        *string    `json:"harvested_at,omitempty"`
@@ -57,6 +68,16 @@ type FieldCropFilter struct {
 	SeasonID int64
 	CropID   int64
 	FieldID  string
+	Status   string
+}
+
+// FieldCropClose sunt datele cu care se închide o cultură pe teren: starea finală (closed sau
+// compromised), data și, opțional, producția obținută și observațiile.
+type FieldCropClose struct {
+	Status          string
+	ClosedAt        string
+	ProductionTotal *float64
+	Notes           *string
 }
 
 // ComputeYield calculează randamentul la hectar când există producție și suprafață.

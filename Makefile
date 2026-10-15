@@ -82,6 +82,20 @@ admin:
 	echo "UPDATE users SET role_id = (SELECT id FROM roles WHERE code = 'admin') WHERE LOWER(email) = LOWER(:'email');" \
 		| docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 -v email="$(email)"
 
+## Trei sezoane complete (culturi, lucrări, consumuri, recolte, paie) pentru testarea rapoartelor.
+## Rulează după `make seed`. Fiecare sezon poate fi rulat și separat; fișierele se regenerează cu
+## `python3 seeds/seasons/generate.py`.
+seed-seasons: seed-season-2024 seed-season-2025 seed-season-2026
+
+seed-season-2024:
+	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 < seeds/seasons/sezon_2023_2024.sql
+
+seed-season-2025:
+	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 < seeds/seasons/sezon_2024_2025.sql
+
+seed-season-2026:
+	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 < seeds/seasons/sezon_2025_2026.sql
+
 ## ─── Teste ───────────────────────────────────────────────────────────────────
 
 # Doar pachetele care au fișiere de test. Celelalte sunt instrumentate prin -coverpkg

@@ -38,11 +38,13 @@ type StockMovement struct {
 type StockMovementInput struct {
 	ResourceID       int64
 	FieldOperationID *int64
-	MovementType     StockMovementType
-	Quantity         float64
-	UnitCost         *float64
-	Notes            string
-	ActorID          *int64
+	// FieldCropID leagă o intrare manuală (ex. paie) de cultura pe teren care a produs-o.
+	FieldCropID  *int64
+	MovementType StockMovementType
+	Quantity     float64
+	UnitCost     *float64
+	Notes        string
+	ActorID      *int64
 }
 
 type StockMovementFilter struct {

@@ -15,12 +15,23 @@ type ReportCropStat struct {
 	CostPerHa          *float64 `json:"cost_per_ha,omitempty"`
 }
 
+// ReportSecondaryProduct este un produs secundar al culturii (ex. paie), intrat în stoc manual
+// și legat de cultura pe teren, pe o altă resursă decât cea de recoltă.
+type ReportSecondaryProduct struct {
+	ResourceID   int64   `json:"resource_id"`
+	ResourceName string  `json:"resource_name"`
+	Unit         string  `json:"unit"`
+	Quantity     float64 `json:"quantity"`
+	TotalValue   float64 `json:"total_value"`
+}
+
 type ReportFieldCropRow struct {
 	FieldCrop
-	OperationsCount int      `json:"operations_count"`
-	EstimatedCost   float64  `json:"estimated_cost"`
-	RealCost        float64  `json:"real_cost"`
-	CostPerHa       *float64 `json:"cost_per_ha,omitempty"`
+	OperationsCount   int                      `json:"operations_count"`
+	EstimatedCost     float64                  `json:"estimated_cost"`
+	RealCost          float64                  `json:"real_cost"`
+	CostPerHa         *float64                 `json:"cost_per_ha,omitempty"`
+	SecondaryProducts []ReportSecondaryProduct `json:"secondary_products"`
 }
 
 type ReportCropsTotals struct {

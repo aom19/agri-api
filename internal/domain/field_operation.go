@@ -26,12 +26,15 @@ type FieldOperation struct {
 	Notes               string               `json:"notes"`
 	Status              FieldOperationStatus `json:"status"`
 	FieldCropID         *int64               `json:"field_crop_id,omitempty"`
-	ActualStartAt       *time.Time           `json:"actual_start_at,omitempty"`
-	ActualEndAt         *time.Time           `json:"actual_end_at,omitempty"`
-	AreaCompletedHa     *float64             `json:"area_completed_ha,omitempty"`
-	FuelUsedL           *float64             `json:"fuel_used_l,omitempty"`
-	MachineHours        *float64             `json:"machine_hours,omitempty"`
-	CompletionNotes     string               `json:"completion_notes"`
+	// FieldCropNone cere explicit o lucrare fără cultură. Fără el, FieldCropID nil înseamnă
+	// „cultura deschisă a terenului”.
+	FieldCropNone   bool       `json:"-"`
+	ActualStartAt   *time.Time `json:"actual_start_at,omitempty"`
+	ActualEndAt     *time.Time `json:"actual_end_at,omitempty"`
+	AreaCompletedHa *float64   `json:"area_completed_ha,omitempty"`
+	FuelUsedL       *float64   `json:"fuel_used_l,omitempty"`
+	MachineHours    *float64   `json:"machine_hours,omitempty"`
+	CompletionNotes string     `json:"completion_notes"`
 
 	Auditfields
 }

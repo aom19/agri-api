@@ -44,38 +44,71 @@ func NewAuthService(users repository.UserRepository, roles repository.RoleReposi
 	}
 }
 
-func (service *AuthService) Login(email, password string) (string, string, error) {
-	user, err := service.users.GetByEmail(email)
+// accessClaims sunt revendicările suplimentare din access token, derivate din cont.
+func accessClaims(user *domain.User) map[string]interface{} {
+	if !user.MustChangePassword {
+		return nil
+	}
+	return map[string]interface{}{auth.ClaimMustChangePassword: true}
+}
+
+// issueSession emite o pereche nouă de token-uri pentru cont și o înregistrează.
+func (service *AuthService) issueSession(user *domain.User) (string, string, error) {
+	access, err := service.jwtService.GenerateAccessWithClaims(fmt.Sprintf("%d", user.ID), user.RoleID, user.RoleCode, user.RoleName, accessClaims(user))
 	if err != nil {
 		return "", "", err
 	}
-	if user == nil || !auth.CheckPasswordHash(password, user.PasswordHash) {
-		return "", "", errors.New("invalid credentials")
+	accessJTI, _, _ := service.jwtService.ExtractJTIAndTTL(access)
+	refresh := auth.GenerateRefreshToken()
+	if err := service.refreshRepo.StoreRefreshToken(user.ID, refresh, accessJTI, time.Now().Add(7*24*time.Hour)); err != nil {
+		return "", "", err
 	}
-	if !user.EmailConfirmed {
-		return "", "", ErrEmailNotConfirmed
-	}
+	return access, refresh, nil
+}
 
-	// Revocă toate sesiunile active și blacklistează access token-urile lor
-	oldJTIs, _ := service.refreshRepo.RevokeAllUserSessions(user.ID)
+// revokeAllSessions revocă toate sesiunile contului și blacklistează access token-urile lor.
+func (service *AuthService) revokeAllSessions(userID int64) {
+	oldJTIs, _ := service.refreshRepo.RevokeAllUserSessions(userID)
 	for _, jti := range oldJTIs {
 		_ = service.blacklist.Add(context.Background(), jti, service.jwtService.AccessTokenTTL())
 	}
+}
 
-	access, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.RoleID, user.RoleCode, user.RoleName)
+// LoginResult este rezultatul autentificării: token-urile și dacă parola trebuie schimbată acum.
+type LoginResult struct {
+	AccessToken        string
+	RefreshToken       string
+	MustChangePassword bool
+}
+
+func (service *AuthService) Login(email, password string) (string, string, error) {
+	result, err := service.LoginWithResult(email, password)
 	if err != nil {
 		return "", "", err
 	}
+	return result.AccessToken, result.RefreshToken, nil
+}
 
-	accessJTI, _, _ := service.jwtService.ExtractJTIAndTTL(access)
-	refresh := auth.GenerateRefreshToken()
-	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-
-	if err := service.refreshRepo.StoreRefreshToken(user.ID, refresh, accessJTI, expiresAt); err != nil {
-		return "", "", err
+// LoginWithResult autentifică utilizatorul; o sesiune nouă le revocă pe cele vechi.
+func (service *AuthService) LoginWithResult(email, password string) (*LoginResult, error) {
+	user, err := service.users.GetByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || !auth.CheckPasswordHash(password, user.PasswordHash) {
+		return nil, errors.New("invalid credentials")
+	}
+	if !user.EmailConfirmed {
+		return nil, ErrEmailNotConfirmed
 	}
 
-	return access, refresh, nil
+	service.revokeAllSessions(user.ID)
+
+	access, refresh, err := service.issueSession(user)
+	if err != nil {
+		return nil, err
+	}
+	return &LoginResult{AccessToken: access, RefreshToken: refresh, MustChangePassword: user.MustChangePassword}, nil
 }
 
 func (service *AuthService) Refresh(refreshToken, oldAccessToken string) (string, string, error) {
@@ -107,18 +140,8 @@ func (service *AuthService) Refresh(refreshToken, oldAccessToken string) (string
 		}
 	}
 
-	newAccess, err := service.jwtService.GenerateAccess(fmt.Sprintf("%d", user.ID), user.RoleID, user.RoleCode, user.RoleName)
-	if err != nil {
-		return "", "", err
-	}
-
-	newJTI, _, _ := service.jwtService.ExtractJTIAndTTL(newAccess)
-	newRefresh := auth.GenerateRefreshToken()
-	if err := service.refreshRepo.StoreRefreshToken(user.ID, newRefresh, newJTI, time.Now().Add(7*24*time.Hour)); err != nil {
-		return "", "", err
-	}
-
-	return newAccess, newRefresh, nil
+	// revendicarea de schimbare a parolei vine din cont, deci dispare de la sine după schimbare
+	return service.issueSession(user)
 }
 
 func (service *AuthService) Logout(refreshToken, accessToken string) error {
@@ -264,26 +287,53 @@ func (service *AuthService) sendAccountConfirmation(userID int64, emailAddr stri
 
 // ChangePassword verifică parola veche și o înlocuiește cu una nouă
 func (service *AuthService) ChangePassword(userID int64, oldPassword, newPassword string) error {
+	_, err := service.ChangePasswordWithSession(userID, oldPassword, newPassword)
+	return err
+}
+
+// ChangePasswordWithSession schimbă parola, ridică obligația de schimbare, revocă toate sesiunile
+// (inclusiv pe cea curentă, care nu mai poartă revendicarea veche) și emite una nouă.
+func (service *AuthService) ChangePasswordWithSession(userID int64, oldPassword, newPassword string) (*LoginResult, error) {
 	user, err := service.users.GetByID(userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if user == nil {
-		return errors.New("user not found")
+		return nil, errors.New("user not found")
 	}
 	if !auth.CheckPasswordHash(oldPassword, user.PasswordHash) {
-		return errors.New("parola curentă este incorectă")
+		return nil, errors.New("parola curentă este incorectă")
+	}
+	if oldPassword == newPassword {
+		return nil, errors.New("parola nouă trebuie să fie diferită de cea curentă")
 	}
 	hash, err := auth.HashPassword(newPassword)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := service.users.UpdatePassword(userID, hash); err != nil {
-		return err
+		return nil, err
 	}
+	if user.MustChangePassword {
+		if err := service.users.SetMustChangePassword(userID, false); err != nil {
+			return nil, err
+		}
+		user.MustChangePassword = false
+	}
+
+	result := &LoginResult{}
+	if service.refreshRepo != nil && service.jwtService != nil {
+		service.revokeAllSessions(userID)
+		access, refresh, err := service.issueSession(user)
+		if err != nil {
+			return nil, err
+		}
+		result.AccessToken, result.RefreshToken = access, refresh
+	}
+
 	// Trimite email de confirmare (non-blocant față de răspunsul HTTP)
 	if service.emailService != nil {
 		go func() { _ = service.emailService.SendPasswordChanged(user.Email) }()
 	}
-	return nil
+	return result, nil
 }

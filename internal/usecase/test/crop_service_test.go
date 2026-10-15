@@ -3,6 +3,7 @@ package usecase_test
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 
 	"agri-api/internal/domain"
@@ -34,10 +35,10 @@ func TestCropService_Seasons(t *testing.T) {
 	svc := usecase.NewCropService(repo, &fieldRepoMock{}, nil, nil)
 
 	invalid := map[string]*domain.Season{
-		"nume lipsă":        {StartDate: "2026-01-01", EndDate: "2026-06-01"},
-		"început invalid":   {Name: "S", StartDate: "azi", EndDate: "2026-06-01"},
-		"sfârșit invalid":   {Name: "S", StartDate: "2026-01-01", EndDate: "mâine"},
-		"interval inversat": {Name: "S", StartDate: "2026-06-01", EndDate: "2026-01-01"},
+		"nume lipsă":        {StartDate: "2026-01-01", EndDate: ptr("2026-06-01")},
+		"început invalid":   {Name: "S", StartDate: "azi", EndDate: ptr("2026-06-01")},
+		"sfârșit invalid":   {Name: "S", StartDate: "2026-01-01", EndDate: ptr("mâine")},
+		"interval inversat": {Name: "S", StartDate: "2026-06-01", EndDate: ptr("2026-01-01")},
 	}
 	for name, in := range invalid {
 		if _, err := svc.CreateSeason(in); !errors.Is(err, usecase.ErrCropInvalid) {
@@ -45,10 +46,21 @@ func TestCropService_Seasons(t *testing.T) {
 		}
 	}
 
-	season := &domain.Season{Name: "  2026  ", StartDate: " 2026-01-01", EndDate: "2026-12-31 "}
+	season := &domain.Season{Name: "  2026  ", StartDate: " 2026-01-01", EndDate: ptr("2026-12-31 ")}
 	created, err := svc.CreateSeason(season)
 	if err != nil || created.ID != 1 || season.Name != "2026" || season.StartDate != "2026-01-01" {
 		t.Fatalf("CreateSeason: %v, %+v", err, season)
+	}
+	if season.EndDate == nil || *season.EndDate != "2026-12-31" {
+		t.Errorf("sfârșitul trebuie normalizat: %v", season.EndDate)
+	}
+	// sezon în curs: fără dată de sfârșit (lipsă sau goală)
+	ongoing := &domain.Season{Name: "În curs", StartDate: "2026-08-01", EndDate: ptr("  ")}
+	if _, err := svc.CreateSeason(ongoing); err != nil || ongoing.EndDate != nil {
+		t.Errorf("sezonul fără sfârșit trebuie acceptat cu EndDate nil: %v, %v", err, ongoing.EndDate)
+	}
+	if _, err := svc.CreateSeason(&domain.Season{Name: "Fără", StartDate: "2026-08-01"}); err != nil {
+		t.Errorf("sezonul fără câmpul end_date: %v", err)
 	}
 	if _, err := svc.UpdateSeason(1, season); err != nil {
 		t.Errorf("UpdateSeason: %v", err)
@@ -69,11 +81,6 @@ func TestCropService_Seasons(t *testing.T) {
 		t.Errorf("update inexistent: %v", err)
 	}
 	repo.updateSeason = nil
-	boom := errors.New("db down")
-	repo.relinkOperations = func(int64) error { return boom }
-	if _, err := svc.UpdateSeason(1, season); !errors.Is(err, boom) {
-		t.Errorf("eroarea de relink trebuie propagată: %v", err)
-	}
 	repo.deleteSeason = func(int64) error { return sql.ErrNoRows }
 	if err := svc.DeleteSeason(1); !errors.Is(err, usecase.ErrCropNotFound) {
 		t.Errorf("delete inexistent: %v", err)
@@ -190,14 +197,6 @@ func TestCropService_FieldCrops(t *testing.T) {
 	}
 
 	boom := errors.New("db down")
-	repo.relinkOperations = func(int64) error { return boom }
-	if _, err := svc.CreateFieldCrop(item); !errors.Is(err, boom) {
-		t.Errorf("eroarea de relink la creare: %v", err)
-	}
-	if _, err := svc.UpdateFieldCrop(5, item); !errors.Is(err, boom) {
-		t.Errorf("eroarea de relink la update: %v", err)
-	}
-	repo.relinkOperations = nil
 	repo.createFieldCrop = func(*domain.FieldCrop) error { return repository.ErrDuplicateEntry }
 	if _, err := svc.CreateFieldCrop(item); !errors.Is(err, usecase.ErrCropDuplicate) {
 		t.Errorf("duplicat: %v", err)
@@ -334,5 +333,113 @@ func TestCropService_RecordHarvest(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("așteptări sqlmock: %v", err)
+	}
+}
+
+// Regula „pe un teren e cel mult o cultură deschisă”: crearea și redeschiderea sunt refuzate cu
+// numele culturii care trebuie închisă; închiderea nu cere nimic și nu atinge lucrările.
+func TestCropService_OpenCropPerField(t *testing.T) {
+	fields := &fieldRepoMock{getByID: func(id string) (*domain.Field, error) {
+		return &domain.Field{ID: id, AreaHa: ptr(10.0)}, nil
+	}}
+	open := &domain.FieldCrop{ID: 7, FieldID: "f1", CropName: "Grâu", SeasonName: "Ciclu toamnă 2025/2026", Status: domain.FieldCropStatusOpen}
+	var closed []domain.FieldCropClose
+	var reopened []int64
+	repo := &cropRepoMock{
+		getSeasonByID: func(int64) (*domain.Season, error) { return &domain.Season{ID: 1}, nil },
+		getCropByID:   func(int64) (*domain.Crop, error) { return &domain.Crop{ID: 1}, nil },
+		getOpenFieldCrop: func(fieldID string) (*domain.FieldCrop, error) {
+			if fieldID == "f1" {
+				return open, nil
+			}
+			return nil, nil
+		},
+		createFieldCrop: func(fc *domain.FieldCrop) error { fc.ID = 9; return nil },
+		getFieldCropByID: func(id int64) (*domain.FieldCrop, error) {
+			if id == 7 {
+				return open, nil
+			}
+			if id == 8 {
+				return &domain.FieldCrop{ID: 8, FieldID: "f1", Status: domain.FieldCropStatusClosed}, nil
+			}
+			if id == 9 {
+				return &domain.FieldCrop{ID: 9, FieldID: "f2", Status: domain.FieldCropStatusOpen}, nil
+			}
+			return nil, nil
+		},
+		closeFieldCrop:  func(_ int64, in domain.FieldCropClose) error { closed = append(closed, in); return nil },
+		reopenFieldCrop: func(id int64) error { reopened = append(reopened, id); return nil },
+	}
+	svc := usecase.NewCropService(repo, fields, nil, nil)
+
+	// a doua cultură deschisă pe f1 → 409, cu numele celei deschise
+	_, err := svc.CreateFieldCrop(&domain.FieldCrop{FieldID: "f1", SeasonID: 1, CropID: 1})
+	if !errors.Is(err, usecase.ErrFieldHasOpenCrop) || !errors.Is(err, usecase.ErrCropDuplicate) {
+		t.Fatalf("a doua cultură deschisă trebuie refuzată ca duplicat: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Grâu") || !strings.Contains(err.Error(), "Ciclu toamnă 2025/2026") {
+		t.Errorf("mesajul trebuie să spună ce cultură e deschisă: %v", err)
+	}
+	// pe alt teren merge, și starea implicită e open
+	in := &domain.FieldCrop{FieldID: "f2", SeasonID: 1, CropID: 1}
+	if _, err := svc.CreateFieldCrop(in); err != nil {
+		t.Fatalf("cultură pe teren liber: %v", err)
+	}
+	if in.Status != domain.FieldCropStatusOpen {
+		t.Errorf("starea implicită trebuie să fie open, am %q", in.Status)
+	}
+	// o cultură istorică se poate crea direct închisă, dar cere data închiderii
+	hist := &domain.FieldCrop{FieldID: "f1", SeasonID: 1, CropID: 1, Status: domain.FieldCropStatusClosed}
+	if _, err := svc.CreateFieldCrop(hist); !errors.Is(err, usecase.ErrCropInvalid) {
+		t.Errorf("închisă fără dată: %v", err)
+	}
+	hist.ClosedAt = ptr("2025-07-10")
+	if _, err := svc.CreateFieldCrop(hist); err != nil {
+		t.Errorf("cultură istorică închisă pe un teren cu alta deschisă trebuie acceptată: %v", err)
+	}
+	if _, err := svc.CreateFieldCrop(&domain.FieldCrop{FieldID: "f2", SeasonID: 1, CropID: 1, Status: "paused"}); !errors.Is(err, usecase.ErrCropInvalid) {
+		t.Error("o stare necunoscută trebuie refuzată")
+	}
+
+	// închiderea: compromisă ⇒ producție 0 și observații obligatorii
+	if _, err := svc.CloseFieldCrop(7, domain.FieldCropClose{Status: "compromised", ClosedAt: "2026-02-28"}); !errors.Is(err, usecase.ErrCropInvalid) {
+		t.Errorf("compromisă fără observații: %v", err)
+	}
+	if _, err := svc.CloseFieldCrop(7, domain.FieldCropClose{Status: "closed", ClosedAt: "azi"}); !errors.Is(err, usecase.ErrCropInvalid) {
+		t.Errorf("dată invalidă: %v", err)
+	}
+	if _, err := svc.CloseFieldCrop(7, domain.FieldCropClose{Status: "open", ClosedAt: "2026-02-28"}); !errors.Is(err, usecase.ErrCropInvalid) {
+		t.Errorf("închiderea nu poate duce la open: %v", err)
+	}
+	if _, err := svc.CloseFieldCrop(7, domain.FieldCropClose{Status: "compromised", ClosedAt: "2026-02-28", ProductionTotal: ptr(5.0), Notes: ptr("îngheț")}); err != nil {
+		t.Fatalf("CloseFieldCrop: %v", err)
+	}
+	if len(closed) != 1 || closed[0].ProductionTotal == nil || *closed[0].ProductionTotal != 0 {
+		t.Errorf("la compromisă producția devine 0: %+v", closed)
+	}
+	if _, err := svc.CloseFieldCrop(404, domain.FieldCropClose{Status: "closed", ClosedAt: "2026-07-10"}); !errors.Is(err, usecase.ErrCropNotFound) {
+		t.Errorf("inexistentă: %v", err)
+	}
+
+	// redeschiderea: refuzată cât timp terenul are alta deschisă; altfel merge; deschisă deja = no-op
+	if _, err := svc.ReopenFieldCrop(8); !errors.Is(err, usecase.ErrFieldHasOpenCrop) {
+		t.Errorf("redeschidere cu alta deschisă pe teren: %v", err)
+	}
+	repo.getOpenFieldCrop = func(string) (*domain.FieldCrop, error) { return nil, nil }
+	if _, err := svc.ReopenFieldCrop(8); err != nil || len(reopened) != 1 || reopened[0] != 8 {
+		t.Errorf("ReopenFieldCrop: %v, %v", err, reopened)
+	}
+	if _, err := svc.ReopenFieldCrop(9); err != nil || len(reopened) != 1 {
+		t.Errorf("redeschiderea unei culturi deschise nu face nimic: %v, %v", err, reopened)
+	}
+	repo.reopenFieldCrop = func(int64) error { return repository.ErrDuplicateEntry }
+	if _, err := svc.ReopenFieldCrop(8); !errors.Is(err, usecase.ErrFieldHasOpenCrop) {
+		t.Errorf("cursa pe indexul unic trebuie raportată ca 409: %v", err)
+	}
+
+	// modificarea sezonului nu mai are nimic de relegat: nu apelează niciun repo în afară de update
+	repo.updateSeason = func(int64, *domain.Season) error { return nil }
+	if _, err := svc.UpdateSeason(1, &domain.Season{Name: "Ciclu", StartDate: "2025-08-01", EndDate: ptr("2026-07-15")}); err != nil {
+		t.Errorf("UpdateSeason: %v", err)
 	}
 }

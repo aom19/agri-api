@@ -26,8 +26,12 @@ type CropRepository interface {
 	UpdateFieldCrop(id int64, item *domain.FieldCrop) error
 	DeleteFieldCrop(id int64) error
 
-	// Legături cu operațiunile și recolta.
-	RelinkOperations(seasonID int64) error
+	// Cultura deschisă pe teren: cel mult una; lucrările noi merg implicit la ea.
+	GetOpenFieldCrop(fieldID string) (*domain.FieldCrop, error)
+	CloseFieldCrop(id int64, input domain.FieldCropClose) error
+	ReopenFieldCrop(id int64) error
+
+	// Recolta.
 	LockFieldCropHarvest(tx *sql.Tx, fieldCropID int64) (production *float64, recorded float64, err error)
 	EnsureHarvestResource(tx *sql.Tx, crop *domain.Crop) (int64, error)
 	MarkHarvestRecorded(tx *sql.Tx, fieldCropID int64, quantity float64) error

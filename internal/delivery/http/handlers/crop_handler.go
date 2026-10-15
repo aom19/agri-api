@@ -24,9 +24,10 @@ func NewCropHandler(service *usecase.CropService, audit *usecase.AuditService) *
 type seasonRequest struct {
 	Name      string `json:"name" binding:"required"`
 	StartDate string `json:"start_date" binding:"required"`
-	EndDate   string `json:"end_date" binding:"required"`
-	IsActive  bool   `json:"is_active"`
-	Notes     string `json:"notes"`
+	// Opțional: lipsă sau null = sezon în curs.
+	EndDate  *string `json:"end_date"`
+	IsActive bool    `json:"is_active"`
+	Notes    string  `json:"notes"`
 }
 
 type cropRequest struct {
@@ -47,6 +48,16 @@ type fieldCropRequest struct {
 	ProductionTotal    *float64 `json:"production_total"`
 	ExpectedYieldPerHa *float64 `json:"expected_yield_per_ha"`
 	Notes              string   `json:"notes"`
+	// Status e folosit doar la creare (implicit open); după aceea se schimbă prin close/reopen.
+	Status   string  `json:"status"`
+	ClosedAt *string `json:"closed_at"`
+}
+
+type closeFieldCropRequest struct {
+	Status          string   `json:"status" binding:"required,oneof=closed compromised"`
+	ClosedAt        string   `json:"closed_at" binding:"required"`
+	ProductionTotal *float64 `json:"production_total"`
+	Notes           *string  `json:"notes"`
 }
 
 func respondCropError(c *gin.Context, err error) {
@@ -284,10 +295,11 @@ func (h *CropHandler) DeleteCrop(c *gin.Context) {
 // @Param        season_id query int false "Filtru sezon"
 // @Param        crop_id query int false "Filtru cultură"
 // @Param        field_id query string false "Filtru teren"
+// @Param        status query string false "Filtru stare: open, closed, compromised"
 // @Success      200 {array} domain.FieldCrop
 // @Router       /field-crops [get]
 func (h *CropHandler) ListFieldCrops(c *gin.Context) {
-	filter := domain.FieldCropFilter{FieldID: c.Query("field_id")}
+	filter := domain.FieldCropFilter{FieldID: c.Query("field_id"), Status: c.Query("status")}
 	var err error
 	if filter.SeasonID, err = optionalInt64Query(c.Query("season_id")); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "season_id invalid"})
@@ -316,6 +328,8 @@ func toDomainFieldCrop(req fieldCropRequest) *domain.FieldCrop {
 		ProductionTotal:    req.ProductionTotal,
 		ExpectedYieldPerHa: req.ExpectedYieldPerHa,
 		Notes:              req.Notes,
+		Status:             req.Status,
+		ClosedAt:           req.ClosedAt,
 	}
 }
 
@@ -395,6 +409,66 @@ func (h *CropHandler) DeleteFieldCrop(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 	h.log(c, "field_crop", id, "delete", nil)
+}
+
+// CloseFieldCrop închide cultura (recoltată sau compromisă); lucrările deja salvate rămân legate de ea.
+// @Summary      Închidere cultură pe teren
+// @Tags         crops
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID cultură pe teren"
+// @Param        payload body closeFieldCropRequest true "Starea finală"
+// @Success      200 {object} domain.FieldCrop
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Router       /field-crops/{id}/close [post]
+func (h *CropHandler) CloseFieldCrop(c *gin.Context) {
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	var req closeFieldCropRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.service.CloseFieldCrop(id, domain.FieldCropClose{
+		Status:          req.Status,
+		ClosedAt:        req.ClosedAt,
+		ProductionTotal: req.ProductionTotal,
+		Notes:           req.Notes,
+	})
+	if err != nil {
+		respondCropError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, item)
+	h.log(c, "field_crop", id, "close", map[string]interface{}{"field": item.FieldName, "crop": item.CropName, "status": item.Status, "closed_at": item.ClosedAt, "production_total": item.ProductionTotal})
+}
+
+// ReopenFieldCrop redeschide o cultură închisă, dacă terenul nu are deja alta deschisă.
+// @Summary      Redeschidere cultură pe teren
+// @Tags         crops
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID cultură pe teren"
+// @Success      200 {object} domain.FieldCrop
+// @Failure      404 {object} object{error=string}
+// @Failure      409 {object} object{error=string}
+// @Router       /field-crops/{id}/reopen [post]
+func (h *CropHandler) ReopenFieldCrop(c *gin.Context) {
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	item, err := h.service.ReopenFieldCrop(id)
+	if err != nil {
+		respondCropError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, item)
+	h.log(c, "field_crop", id, "reopen", map[string]interface{}{"field": item.FieldName, "crop": item.CropName})
 }
 
 type harvestResponse struct {

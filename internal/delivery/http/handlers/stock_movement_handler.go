@@ -29,7 +29,9 @@ type createStockMovementRequest struct {
 	Quantity         float64  `json:"quantity"`
 	UnitCost         *float64 `json:"unit_cost"`
 	FieldOperationID *int64   `json:"field_operation_id"`
-	Notes            string   `json:"notes"`
+	// FieldCropID leagă intrarea de cultura pe teren care a produs-o (ex. paie după grâu).
+	FieldCropID *int64 `json:"field_crop_id"`
+	Notes       string `json:"notes"`
 }
 
 // List returnează istoricul mișcărilor de stoc.
@@ -108,6 +110,7 @@ func (h *StockMovementHandler) Create(c *gin.Context) {
 	result, err := h.service.Create(domain.StockMovementInput{
 		ResourceID:       req.ResourceID,
 		FieldOperationID: req.FieldOperationID,
+		FieldCropID:      req.FieldCropID,
 		MovementType:     domain.StockMovementType(req.MovementType),
 		Quantity:         req.Quantity,
 		UnitCost:         req.UnitCost,

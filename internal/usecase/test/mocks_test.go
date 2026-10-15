@@ -244,6 +244,8 @@ func (m *resourceTypeRepoMock) Delete(id int64) error {
 
 type resourceRepoMock struct {
 	getAll  func() ([]domain.Resource, error)
+	list    func(domain.ResourceFilter) ([]domain.Resource, error)
+	counts  func() (*domain.CategoryCounts, error)
 	getByID func(int64) (*domain.Resource, error)
 	create  func(*domain.Resource) error
 	update  func(int64, *domain.Resource) error
@@ -255,6 +257,18 @@ func (m *resourceRepoMock) GetAll() ([]domain.Resource, error) {
 		return m.getAll()
 	}
 	return nil, nil
+}
+func (m *resourceRepoMock) List(f domain.ResourceFilter) ([]domain.Resource, error) {
+	if m.list != nil {
+		return m.list(f)
+	}
+	return m.GetAll()
+}
+func (m *resourceRepoMock) CountByCategory() (*domain.CategoryCounts, error) {
+	if m.counts != nil {
+		return m.counts()
+	}
+	return &domain.CategoryCounts{ByCategory: []domain.CategoryCount{}}, nil
 }
 func (m *resourceRepoMock) GetByID(id int64) (*domain.Resource, error) {
 	if m.getByID != nil {
@@ -641,6 +655,8 @@ type userRepoMock struct {
 	markEmailConfirmed func(int64) error
 	updatePassword     func(int64, string) error
 	updateRole         func(int64, int64) error
+	countByRole        func(string) (int, error)
+	setMustChange      func(int64, bool) error
 	getProfile         func(int64) (*domain.UserProfile, error)
 	upsertProfile      func(*domain.UserProfile) error
 }
@@ -708,6 +724,18 @@ func (m *userRepoMock) UpdatePassword(id int64, hash string) error {
 func (m *userRepoMock) UpdateRole(userID, roleID int64) error {
 	if m.updateRole != nil {
 		return m.updateRole(userID, roleID)
+	}
+	return nil
+}
+func (m *userRepoMock) CountByRole(code string) (int, error) {
+	if m.countByRole != nil {
+		return m.countByRole(code)
+	}
+	return 0, nil
+}
+func (m *userRepoMock) SetMustChangePassword(id int64, value bool) error {
+	if m.setMustChange != nil {
+		return m.setMustChange(id, value)
 	}
 	return nil
 }
@@ -834,7 +862,9 @@ type cropRepoMock struct {
 	createFieldCrop         func(*domain.FieldCrop) error
 	updateFieldCrop         func(int64, *domain.FieldCrop) error
 	deleteFieldCrop         func(int64) error
-	relinkOperations        func(int64) error
+	getOpenFieldCrop        func(string) (*domain.FieldCrop, error)
+	closeFieldCrop          func(int64, domain.FieldCropClose) error
+	reopenFieldCrop         func(int64) error
 	lockFieldCropHarvest    func(*sql.Tx, int64) (*float64, float64, error)
 	ensureHarvestResource   func(*sql.Tx, *domain.Crop) (int64, error)
 	markHarvestRecorded     func(*sql.Tx, int64, float64) error
@@ -936,9 +966,21 @@ func (m *cropRepoMock) DeleteFieldCrop(id int64) error {
 	}
 	return nil
 }
-func (m *cropRepoMock) RelinkOperations(id int64) error {
-	if m.relinkOperations != nil {
-		return m.relinkOperations(id)
+func (m *cropRepoMock) GetOpenFieldCrop(fieldID string) (*domain.FieldCrop, error) {
+	if m.getOpenFieldCrop != nil {
+		return m.getOpenFieldCrop(fieldID)
+	}
+	return nil, nil
+}
+func (m *cropRepoMock) CloseFieldCrop(id int64, input domain.FieldCropClose) error {
+	if m.closeFieldCrop != nil {
+		return m.closeFieldCrop(id, input)
+	}
+	return nil
+}
+func (m *cropRepoMock) ReopenFieldCrop(id int64) error {
+	if m.reopenFieldCrop != nil {
+		return m.reopenFieldCrop(id)
 	}
 	return nil
 }

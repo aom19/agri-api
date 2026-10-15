@@ -46,10 +46,14 @@ const seasonSelect = `
 func scanSeason(row interface {
 	Scan(dest ...interface{}) error
 }) (*domain.Season, error) {
-	var season domain.Season
-	if err := row.Scan(&season.ID, &season.Name, &season.StartDate, &season.EndDate, &season.IsActive, &season.Notes, &season.CreatedAt, &season.UpdatedAt); err != nil {
+	var (
+		season domain.Season
+		end    sql.NullString
+	)
+	if err := row.Scan(&season.ID, &season.Name, &season.StartDate, &end, &season.IsActive, &season.Notes, &season.CreatedAt, &season.UpdatedAt); err != nil {
 		return nil, err
 	}
+	season.EndDate = nullStringPtr(end)
 	return &season, nil
 }
 
@@ -101,9 +105,9 @@ func (repo *CropRepo) CreateSeason(season *domain.Season) error {
 	}
 	err = tx.QueryRow(`
 		INSERT INTO seasons (name, start_date, end_date, is_active, notes)
-		VALUES ($1, $2::date, $3::date, $4, $5)
+		VALUES ($1, $2::date, NULLIF($3, '')::date, $4, $5)
 		RETURNING id, created_at, updated_at`,
-		season.Name, season.StartDate, season.EndDate, season.IsActive, season.Notes,
+		season.Name, season.StartDate, derefString(season.EndDate), season.IsActive, season.Notes,
 	).Scan(&season.ID, &season.CreatedAt, &season.UpdatedAt)
 	if err != nil {
 		return wrapUnique(err)
@@ -125,9 +129,9 @@ func (repo *CropRepo) UpdateSeason(id int64, season *domain.Season) error {
 	}
 	result, err := tx.Exec(`
 		UPDATE seasons
-		SET name = $1, start_date = $2::date, end_date = $3::date, is_active = $4, notes = $5, updated_at = NOW()
+		SET name = $1, start_date = $2::date, end_date = NULLIF($3, '')::date, is_active = $4, notes = $5, updated_at = NOW()
 		WHERE id = $6`,
-		season.Name, season.StartDate, season.EndDate, season.IsActive, season.Notes, id,
+		season.Name, season.StartDate, derefString(season.EndDate), season.IsActive, season.Notes, id,
 	)
 	if err != nil {
 		return wrapUnique(err)
@@ -240,8 +244,9 @@ func (repo *CropRepo) DeleteCrop(id int64) error {
 const fieldCropSelect = `
 	SELECT
 		fc.id, fc.field_id, f.name, f.area_ha,
-		fc.season_id, s.name, to_char(s.start_date, 'YYYY-MM-DD'), to_char(s.end_date, 'YYYY-MM-DD'),
+		fc.season_id, s.name, to_char(s.start_date, 'YYYY-MM-DD'), COALESCE(to_char(s.end_date, 'YYYY-MM-DD'), ''),
 		fc.crop_id, c.name, c.yield_unit,
+		fc.status, to_char(fc.closed_at, 'YYYY-MM-DD'),
 		fc.planted_area_ha,
 		to_char(fc.planted_at, 'YYYY-MM-DD'),
 		to_char(fc.harvested_at, 'YYYY-MM-DD'),
@@ -260,6 +265,7 @@ func scanFieldCrop(row interface {
 		item        domain.FieldCrop
 		fieldArea   sql.NullFloat64
 		plantedArea sql.NullFloat64
+		closedAt    sql.NullString
 		plantedAt   sql.NullString
 		harvestedAt sql.NullString
 		production  sql.NullFloat64
@@ -271,11 +277,13 @@ func scanFieldCrop(row interface {
 		&item.ID, &item.FieldID, &item.FieldName, &fieldArea,
 		&item.SeasonID, &item.SeasonName, &item.SeasonStart, &item.SeasonEnd,
 		&item.CropID, &item.CropName, &item.YieldUnit,
+		&item.Status, &closedAt,
 		&plantedArea, &plantedAt, &harvestedAt, &production, &expected, &item.Notes,
 		&recordedQty, &recordedAt, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
+	item.ClosedAt = nullStringPtr(closedAt)
 	item.HarvestRecordedQty = nullFloatPtr(recordedQty)
 	if recordedAt.Valid {
 		value := recordedAt.Time
@@ -307,8 +315,13 @@ func (repo *CropRepo) ListFieldCrops(filter domain.FieldCropFilter) ([]domain.Fi
 		args = append(args, filter.FieldID)
 		fmt.Fprintf(&where, " AND fc.field_id = $%d", len(args))
 	}
+	if filter.Status != "" {
+		args = append(args, filter.Status)
+		fmt.Fprintf(&where, " AND fc.status = $%d", len(args))
+	}
 
-	rows, err := repo.db.Query(fieldCropSelect+where.String()+" ORDER BY s.start_date DESC, c.name, f.name", args...)
+	// culturile deschise primele, apoi cele mai recente
+	rows, err := repo.db.Query(fieldCropSelect+where.String()+" ORDER BY (fc.status = 'open') DESC, s.start_date DESC, c.name, f.name", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -335,14 +348,62 @@ func (repo *CropRepo) GetFieldCropByID(id int64) (*domain.FieldCrop, error) {
 
 func (repo *CropRepo) CreateFieldCrop(item *domain.FieldCrop) error {
 	err := repo.db.QueryRow(`
-		INSERT INTO field_crops (field_id, season_id, crop_id, planted_area_ha, planted_at, harvested_at, production_total, expected_yield_per_ha, notes)
-		VALUES ($1, $2, $3, $4, NULLIF($5, '')::date, NULLIF($6, '')::date, $7, $8, $9)
+		INSERT INTO field_crops (field_id, season_id, crop_id, planted_area_ha, planted_at, harvested_at, production_total, expected_yield_per_ha, notes, status, closed_at)
+		VALUES ($1, $2, $3, $4, NULLIF($5, '')::date, NULLIF($6, '')::date, $7, $8, $9, $10, NULLIF($11, '')::date)
 		RETURNING id, created_at, updated_at`,
 		item.FieldID, item.SeasonID, item.CropID, item.PlantedAreaHa,
 		derefString(item.PlantedAt), derefString(item.HarvestedAt),
 		item.ProductionTotal, item.ExpectedYieldPerHa, item.Notes,
+		item.Status, derefString(item.ClosedAt),
 	).Scan(&item.ID, &item.CreatedAt, &item.UpdatedAt)
 	return wrapUnique(err)
+}
+
+// GetOpenFieldCrop întoarce cultura deschisă a terenului, sau nil.
+func (repo *CropRepo) GetOpenFieldCrop(fieldID string) (*domain.FieldCrop, error) {
+	item, err := scanFieldCrop(repo.db.QueryRow(fieldCropSelect+" WHERE fc.field_id = $1 AND fc.status = 'open'", fieldID))
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return item, err
+}
+
+// CloseFieldCrop închide cultura (closed sau compromised). Nu atinge nicio lucrare: lucrările
+// păstrează field_crop_id; doar lucrările noi de pe teren nu mai merg la această cultură.
+func (repo *CropRepo) CloseFieldCrop(id int64, input domain.FieldCropClose) error {
+	result, err := repo.db.Exec(`
+		UPDATE field_crops
+		SET status           = $1,
+		    closed_at        = $2::date,
+		    harvested_at     = CASE WHEN $1 = 'closed' THEN COALESCE(harvested_at, $2::date) ELSE harvested_at END,
+		    production_total = COALESCE($3, production_total),
+		    notes            = COALESCE($4, notes),
+		    updated_at       = NOW()
+		WHERE id = $5`,
+		input.Status, input.ClosedAt, input.ProductionTotal, input.Notes, id,
+	)
+	if err != nil {
+		return err
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// ReopenFieldCrop redeschide cultura; indexul unic parțial refuză dacă terenul are deja una deschisă.
+func (repo *CropRepo) ReopenFieldCrop(id int64) error {
+	result, err := repo.db.Exec(`
+		UPDATE field_crops
+		SET status = 'open', closed_at = NULL, updated_at = NOW()
+		WHERE id = $1`, id)
+	if err != nil {
+		return wrapUnique(err)
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (repo *CropRepo) UpdateFieldCrop(id int64, item *domain.FieldCrop) error {
@@ -389,34 +450,6 @@ func nullFloatPtr(value sql.NullFloat64) *float64 {
 	}
 	result := value.Float64
 	return &result
-}
-
-// RelinkOperations leagă operațiunile terenurilor din sezon de cultura corespunzătoare
-// (după data planificată) și desface legăturile către culturi care nu mai corespund.
-func (repo *CropRepo) RelinkOperations(seasonID int64) error {
-	if _, err := repo.db.Exec(`
-		UPDATE field_operations fo
-		SET field_crop_id = NULL
-		FROM field_crops fc
-		JOIN seasons s ON s.id = fc.season_id
-		WHERE fo.field_crop_id = fc.id AND s.id = $1
-		  AND (fo.field_id <> fc.field_id
-		       OR COALESCE(fo.planned_start_at, fo.created_at) < s.start_date
-		       OR COALESCE(fo.planned_start_at, fo.created_at) >= s.end_date + INTERVAL '1 day')`, seasonID); err != nil {
-		return err
-	}
-	_, err := repo.db.Exec(`
-		UPDATE field_operations fo
-		SET field_crop_id = fc.id
-		FROM field_crops fc
-		JOIN seasons s ON s.id = fc.season_id
-		WHERE s.id = $1
-		  AND fo.deleted_at IS NULL
-		  AND fo.field_id = fc.field_id
-		  AND fo.field_crop_id IS NULL
-		  AND COALESCE(fo.planned_start_at, fo.created_at) >= s.start_date
-		  AND COALESCE(fo.planned_start_at, fo.created_at) < s.end_date + INTERVAL '1 day'`, seasonID)
-	return err
 }
 
 // LockFieldCropHarvest blochează cultura pe teren până la finalul tranzacției și întoarce

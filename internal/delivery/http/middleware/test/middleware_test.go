@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,5 +113,60 @@ func TestRequirePermission(t *testing.T) {
 	repo.allowed = true
 	if code := call("?role=ok"); code != http.StatusOK {
 		t.Errorf("cu permisiune: %d", code)
+	}
+}
+
+// Cu parolă provizorie (revendicarea must_change_password), trec doar rutele necesare schimbării
+// parolei; restul primesc 403 cu codul password_change_required. Fără revendicare, totul trece.
+func TestRequirePasswordChanged(t *testing.T) {
+	jwtService := auth.NewJWTService("secret", 15*time.Minute, time.Hour)
+	router := gin.New()
+	// fără jti, ca blacklist-ul să nu fie consultat
+	router.Use(func(c *gin.Context) {
+		claims, err := jwtService.Parse(c.GetHeader("Authorization")[len("Bearer "):])
+		if err != nil {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		if must, _ := claims[auth.ClaimMustChangePassword].(bool); must {
+			c.Set(auth.ClaimMustChangePassword, true)
+		}
+		c.Next()
+	}, middleware.RequirePasswordChanged())
+	ok := func(c *gin.Context) { c.Status(http.StatusOK) }
+	router.POST("/api/auth/change-password", ok)
+	router.POST("/api/auth/logout", ok)
+	router.GET("/api/profile", ok)
+	router.GET("/api/fields", ok)
+	router.POST("/api/field-operations", ok)
+
+	sign := func(claims jwt.MapClaims) string {
+		claims["exp"] = time.Now().Add(time.Hour).Unix()
+		token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("secret"))
+		return "Bearer " + token
+	}
+	call := func(method, path, header string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, nil)
+		req.Header.Set("Authorization", header)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		return rec
+	}
+
+	provisional := sign(jwt.MapClaims{"user_id": "5", auth.ClaimMustChangePassword: true})
+	for _, route := range [][2]string{{http.MethodPost, "/api/auth/change-password"}, {http.MethodPost, "/api/auth/logout"}, {http.MethodGet, "/api/profile"}} {
+		if rec := call(route[0], route[1], provisional); rec.Code != http.StatusOK {
+			t.Errorf("%s %s trebuie permisă cu parolă provizorie: %d", route[0], route[1], rec.Code)
+		}
+	}
+	for _, route := range [][2]string{{http.MethodGet, "/api/fields"}, {http.MethodPost, "/api/field-operations"}} {
+		rec := call(route[0], route[1], provisional)
+		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), middleware.ErrCodePasswordChangeRequired) {
+			t.Errorf("%s %s trebuie blocată cu parolă provizorie: %d %s", route[0], route[1], rec.Code, rec.Body.String())
+		}
+	}
+	normal := sign(jwt.MapClaims{"user_id": "5"})
+	if rec := call(http.MethodGet, "/api/fields", normal); rec.Code != http.StatusOK {
+		t.Errorf("fără revendicare totul trece: %d", rec.Code)
 	}
 }

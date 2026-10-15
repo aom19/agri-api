@@ -23,7 +23,7 @@ func NewAuthHandler(authService *usecase.AuthService) *AuthHandler {
 // @Accept       json
 // @Produce      json
 // @Param        body body object{email=string,password=string} true "Credențiale"
-// @Success      200 {object} object{access_token=string,refresh_token=string}
+// @Success      200 {object} object{access_token=string,refresh_token=string,must_change_password=bool}
 // @Failure      400 {object} object{errors=object}
 // @Failure      401 {object} object{error=string}
 // @Router       /auth/login [post]
@@ -37,7 +37,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := h.authService.Login(req.Email, req.Password)
+	result, err := h.authService.LoginWithResult(req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, usecase.ErrEmailNotConfirmed) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Contul nu este confirmat. Verifică emailul pentru link-ul de activare."})
@@ -46,7 +46,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email sau parolă incorectă"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"access_token": access, "refresh_token": refresh})
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":         result.AccessToken,
+		"refresh_token":        result.RefreshToken,
+		"must_change_password": result.MustChangePassword,
+	})
 
 }
 
@@ -251,11 +255,17 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
+	result, err := h.authService.ChangePasswordWithSession(userID, req.OldPassword, req.NewPassword)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Parola a fost modificată cu succes"})
+	// celelalte sesiuni sunt revocate; clientul continuă cu perechea nouă de token-uri
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Parola a fost modificată cu succes",
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+	})
 }
 
 // ConfirmEmail confirmă contul folosind token-ul primit pe email.

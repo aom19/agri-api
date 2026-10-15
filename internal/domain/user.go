@@ -8,9 +8,12 @@ type User struct {
 	PasswordHash   string `json:"-"`
 	EmailConfirmed bool   `json:"email_confirmed"`
 	Disabled       bool   `json:"disabled"`
-	RoleID         int64  `json:"role_id"`
-	RoleCode       string `json:"role_code"`
-	RoleName       string `json:"role"`
+	// MustChangePassword e setat pe conturile cu parolă provizorie (ex. administratorul creat la
+	// pornire): până la schimbarea parolei, API-ul acceptă doar schimbarea ei, profilul și logout.
+	MustChangePassword bool   `json:"must_change_password"`
+	RoleID             int64  `json:"role_id"`
+	RoleCode           string `json:"role_code"`
+	RoleName           string `json:"role"`
 }
 
 type UserProfile struct {

@@ -10,6 +10,22 @@ definitions:
     - AssetStatusActive
     - AssetStatusMaintenance
     - AssetStatusInactive
+  domain.CategoryCount:
+    properties:
+      category:
+        type: string
+      count:
+        type: integer
+    type: object
+  domain.CategoryCounts:
+    properties:
+      by_category:
+        items:
+          $ref: '#/definitions/domain.CategoryCount'
+        type: array
+      total:
+        type: integer
+    type: object
   domain.ConsumptionEstimate:
     properties:
       area_ha:
@@ -126,6 +142,8 @@ definitions:
     type: object
   domain.FieldCrop:
     properties:
+      closed_at:
+        type: string
       created_at:
         type: string
       crop_id:
@@ -163,6 +181,8 @@ definitions:
       season_name:
         type: string
       season_start:
+        type: string
+      status:
         type: string
       updated_at:
         type: string
@@ -412,6 +432,8 @@ definitions:
     type: object
   domain.ReportFieldCropRow:
     properties:
+      closed_at:
+        type: string
       cost_per_ha:
         type: number
       created_at:
@@ -457,6 +479,12 @@ definitions:
       season_name:
         type: string
       season_start:
+        type: string
+      secondary_products:
+        items:
+          $ref: '#/definitions/domain.ReportSecondaryProduct'
+        type: array
+      status:
         type: string
       updated_at:
         type: string
@@ -832,6 +860,19 @@ definitions:
       unit:
         type: string
     type: object
+  domain.ReportSecondaryProduct:
+    properties:
+      quantity:
+        type: number
+      resource_id:
+        type: integer
+      resource_name:
+        type: string
+      total_value:
+        type: number
+      unit:
+        type: string
+    type: object
   domain.ReportStockRow:
     properties:
       below_minimum:
@@ -942,11 +983,69 @@ definitions:
       total_precipitation_mm:
         type: number
     type: object
+  domain.Resource:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      minimum_quantity:
+        type: number
+      name:
+        type: string
+      notes:
+        type: string
+      price_per_unit:
+        type: number
+      quantity:
+        type: number
+      resource_type:
+        $ref: '#/definitions/domain.ResourceType'
+      resource_type_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  domain.ResourceCategory:
+    enum:
+    - fuel
+    - fertilizer
+    - seed
+    - pesticide
+    - water
+    - harvest
+    - other
+    type: string
+    x-enum-varnames:
+    - ResourceCategoryFuel
+    - ResourceCategoryFertilizer
+    - ResourceCategorySeed
+    - ResourceCategoryPesticide
+    - ResourceCategoryWater
+    - ResourceCategoryHarvest
+    - ResourceCategoryOther
+  domain.ResourceType:
+    properties:
+      category:
+        $ref: '#/definitions/domain.ResourceCategory'
+      created_at:
+        type: string
+      default_unit:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
   domain.Season:
     properties:
       created_at:
         type: string
       end_date:
+        description: EndDate e nil cât timp sezonul e în curs; se completează când
+          sezonul se încheie.
         type: string
       id:
         type: integer
@@ -1235,6 +1334,23 @@ definitions:
     required:
     - first_name
     type: object
+  handlers.closeFieldCropRequest:
+    properties:
+      closed_at:
+        type: string
+      notes:
+        type: string
+      production_total:
+        type: number
+      status:
+        enum:
+        - closed
+        - compromised
+        type: string
+    required:
+    - closed_at
+    - status
+    type: object
   handlers.completeFieldOperationRequest:
     properties:
       actual_end_at:
@@ -1266,6 +1382,10 @@ definitions:
     type: object
   handlers.createStockMovementRequest:
     properties:
+      field_crop_id:
+        description: FieldCropID leagă intrarea de cultura pe teren care a produs-o
+          (ex. paie după grâu).
+        type: integer
       field_operation_id:
         type: integer
       movement_type:
@@ -1303,6 +1423,8 @@ definitions:
     type: object
   handlers.fieldCropRequest:
     properties:
+      closed_at:
+        type: string
       crop_id:
         type: integer
       expected_yield_per_ha:
@@ -1321,6 +1443,10 @@ definitions:
         type: number
       season_id:
         type: integer
+      status:
+        description: Status e folosit doar la creare (implicit open); după aceea se
+          schimbă prin close/reopen.
+        type: string
     required:
     - crop_id
     - field_id
@@ -1336,6 +1462,7 @@ definitions:
   handlers.seasonRequest:
     properties:
       end_date:
+        description: 'Opțional: lipsă sau null = sezon în curs.'
         type: string
       is_active:
         type: boolean
@@ -1346,7 +1473,6 @@ definitions:
       start_date:
         type: string
     required:
-    - end_date
     - name
     - start_date
     type: object
@@ -1497,6 +1623,8 @@ paths:
             properties:
               access_token:
                 type: string
+              must_change_password:
+                type: boolean
               refresh_token:
                 type: string
             type: object
@@ -1876,6 +2004,10 @@ paths:
         in: query
         name: field_id
         type: string
+      - description: 'Filtru stare: open, closed, compromised'
+        in: query
+        name: status
+        type: string
       produces:
       - application/json
       responses:
@@ -1990,6 +2122,48 @@ paths:
       summary: Actualizare cultură pe teren
       tags:
       - crops
+  /field-crops/{id}/close:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID cultură pe teren
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Starea finală
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.closeFieldCropRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.FieldCrop'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Închidere cultură pe teren
+      tags:
+      - crops
   /field-crops/{id}/harvest:
     post:
       parameters:
@@ -2022,6 +2196,40 @@ paths:
       security:
       - BearerAuth: []
       summary: Recoltă în stoc
+      tags:
+      - crops
+  /field-crops/{id}/reopen:
+    post:
+      parameters:
+      - description: ID cultură pe teren
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.FieldCrop'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Redeschidere cultură pe teren
       tags:
       - crops
   /field-operations/{id}/complete:
@@ -3179,6 +3387,45 @@ paths:
       summary: Raport meteo
       tags:
       - reports
+  /resources:
+    get:
+      parameters:
+      - description: Categoria tipului de resursă (fuel, seed, harvest…)
+        in: query
+        name: category
+        type: string
+      - description: Text căutat în nume, tip, categorie sau unitate
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Resource'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Resurse
+      tags:
+      - resources
+  /resources/category-counts:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.CategoryCounts'
+      security:
+      - BearerAuth: []
+      summary: Resurse pe categorii
+      tags:
+      - resources
   /seasons:
     get:
       produces:
