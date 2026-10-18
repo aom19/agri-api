@@ -233,6 +233,12 @@ func (service *AuthService) ResetPassword(token, newPassword string) error {
 		return err
 	}
 
+	// Link-ul de resetare ajunge doar pe e-mailul contului, deci folosirea lui confirmă adresa: altfel
+	// un cont neconfirmat (ex. operatorii din seed, activați prin resetarea parolei) nu s-ar putea loga.
+	if err := service.users.MarkEmailConfirmed(userID); err != nil {
+		return err
+	}
+
 	return service.refreshRepo.InvalidateResetToken(token)
 }
 

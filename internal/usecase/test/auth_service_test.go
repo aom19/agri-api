@@ -270,7 +270,9 @@ func TestAuthService_PasswordReset(t *testing.T) {
 	}
 
 	var newHash string
+	var confirmedID int64
 	users.updatePassword = func(_ int64, hash string) error { newHash = hash; return nil }
+	users.markEmailConfirmed = func(id int64) error { confirmedID = id; return nil }
 	mock.ExpectQuery("SELECT user_id, expires_at, used FROM password_reset_tokens").
 		WillReturnRows(sqlmock.NewRows(resetColumns).AddRow(int64(1), time.Now().Add(time.Hour), false))
 	mock.ExpectExec("UPDATE password_reset_tokens SET used = TRUE WHERE token").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -280,6 +282,17 @@ func TestAuthService_PasswordReset(t *testing.T) {
 	if !auth.CheckPasswordHash("Parola2!", newHash) {
 		t.Error("parola nouă trebuie salvată ca hash")
 	}
+	if confirmedID != 1 {
+		t.Errorf("resetarea prin link-ul din e-mail trebuie să confirme contul, confirmat: %d", confirmedID)
+	}
+
+	users.markEmailConfirmed = func(int64) error { return errors.New("db down") }
+	mock.ExpectQuery("SELECT user_id, expires_at, used FROM password_reset_tokens").
+		WillReturnRows(sqlmock.NewRows(resetColumns).AddRow(int64(1), time.Now().Add(time.Hour), false))
+	if err := svc.ResetPassword("token", "Parola2!"); err == nil {
+		t.Error("eroarea la confirmarea contului trebuie propagată")
+	}
+	users.markEmailConfirmed = nil
 
 	users.updatePassword = func(int64, string) error { return errors.New("db down") }
 	mock.ExpectQuery("SELECT user_id, expires_at, used FROM password_reset_tokens").
