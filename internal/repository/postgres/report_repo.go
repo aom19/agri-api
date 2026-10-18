@@ -65,9 +65,16 @@ func operationsWhere(filter domain.ReportFilter, start int) (string, []interface
 	idx := start
 
 	sb.WriteString("fo.deleted_at IS NULL")
-	fmt.Fprintf(&sb, " AND %s >= $%d AND %s < $%d", reportOperationDateExpr, idx, reportOperationDateExpr, idx+1)
-	args = append(args, filter.From, filter.To)
-	idx += 2
+	if !filter.From.IsZero() {
+		fmt.Fprintf(&sb, " AND %s >= $%d AND %s < $%d", reportOperationDateExpr, idx, reportOperationDateExpr, idx+1)
+		args = append(args, filter.From, filter.To)
+		idx += 2
+	}
+	if filter.SeasonID > 0 {
+		fmt.Fprintf(&sb, " AND fo.field_crop_id IN (SELECT fc.id FROM field_crops fc WHERE fc.season_id = $%d)", idx)
+		args = append(args, filter.SeasonID)
+		idx++
+	}
 
 	if filter.FieldID != "" {
 		fmt.Fprintf(&sb, " AND fo.field_id = $%d", idx)
@@ -873,4 +880,26 @@ func (repo *ReportRepo) GetFieldCropRows(seasonID int64, fieldID string) ([]doma
 		items = append(items, row)
 	}
 	return items, rows.Err()
+}
+
+func (repo *ReportRepo) GetCompareName(kind domain.ReportCompareKind, id int64) (string, error) {
+	var query string
+	switch kind {
+	case domain.ReportCompareOperators:
+		query = `SELECT ` + operatorNameExpr + `
+			FROM users ou
+			JOIN roles r ON r.id = ou.role_id AND r.code = 'operator'
+			LEFT JOIN user_profiles oup ON oup.user_id = ou.id
+			WHERE ou.id = $1`
+	case domain.ReportCompareMachines:
+		query = `SELECT name FROM machines WHERE id = $1`
+	default:
+		return "", fmt.Errorf("tip de comparație fără nume: %s", kind)
+	}
+	var name string
+	err := repo.db.QueryRow(query, id).Scan(&name)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return name, err
 }

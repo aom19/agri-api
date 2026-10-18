@@ -22,4 +22,6 @@ type ReportRepository interface {
 	GetRealConsumption(filter domain.ReportFilter) ([]domain.ReportResourceConsumption, error)
 	GetMovementTotals(filter domain.ReportFilter) (*domain.ReportMovementTotals, error)
 	GetFieldCropRows(seasonID int64, fieldID string) ([]domain.ReportFieldCropRow, error)
+	// GetCompareName întoarce numele operatorului sau al mașinii (inclusiv arhivate); "" dacă nu există.
+	GetCompareName(kind domain.ReportCompareKind, id int64) (string, error)
 }

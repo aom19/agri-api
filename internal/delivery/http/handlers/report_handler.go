@@ -55,7 +55,11 @@ func optionalInt64Query(raw string) (int64, error) {
 
 func respondReport(c *gin.Context, payload interface{}, err error) {
 	if err != nil {
-		if errors.Is(err, usecase.ErrInvalidReportPeriod) {
+		if errors.Is(err, usecase.ErrCompareNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, usecase.ErrInvalidReportPeriod) || errors.Is(err, usecase.ErrInvalidCompare) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -143,6 +147,42 @@ func (h *ReportHandler) GetMyOperations(c *gin.Context) {
 		return
 	}
 	report, err := h.service.GetOperatorOperations(userID, query)
+	respondReport(c, report, err)
+}
+
+// Compare pune față în față două entități de același tip: operatori, mașini sau sezoane.
+// @Summary      Comparație între doi operatori, două mașini sau două sezoane
+// @Description  Operatori și mașini: indicatorii din perioada aleasă, cu serie temporală. Sezoane: tot sezonul (perioada e ignorată), cu producția pe culturi.
+// @Tags         reports
+// @Produce      json
+// @Security     BearerAuth
+// @Param        kind query string true "operators, machines sau seasons"
+// @Param        a query int true "Prima entitate"
+// @Param        b query int true "A doua entitate"
+// @Param        from query string false "Data de început (YYYY-MM-DD); nu se aplică sezoanelor"
+// @Param        to query string false "Data de sfârșit (YYYY-MM-DD); nu se aplică sezoanelor"
+// @Param        operation_type query string false "Filtru tip operațiune"
+// @Success      200 {object} domain.ReportCompare
+// @Failure      400 {object} object{error=string}
+// @Failure      404 {object} object{error=string}
+// @Failure      500 {object} object{error=string}
+// @Router       /reports/compare [get]
+func (h *ReportHandler) Compare(c *gin.Context) {
+	base, err := parseReportQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	query := usecase.ReportCompareQuery{ReportQuery: base, Kind: domain.ReportCompareKind(c.Query("kind"))}
+	if query.A, err = optionalInt64Query(c.Query("a")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "a invalid"})
+		return
+	}
+	if query.B, err = optionalInt64Query(c.Query("b")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "b invalid"})
+		return
+	}
+	report, err := h.service.Compare(query)
 	respondReport(c, report, err)
 }
 

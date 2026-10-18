@@ -128,7 +128,7 @@ func currentActorID(c *gin.Context) *int64 {
 // @Param        q query string false "Căutare în teren, template, mașină, echipament, operator, cultură și note"
 // @Param        planned_from query string false "Început planificat de la (RFC3339, inclusiv)"
 // @Param        planned_to query string false "Început planificat până la (RFC3339, exclusiv)"
-// @Param        sort query string false "planned_asc = cele mai apropiate primele; implicit cele mai recente primele"
+// @Param        sort query string false "recent (implicit), planned_asc, planned_desc, area_asc, area_desc, field_asc, field_desc"
 // @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
 // @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
 // @Success      200 {object} object{items=[]dto.FieldOperationResponse,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul dto.FieldOperationResponse"
@@ -140,62 +140,9 @@ func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	filter := repository.FieldOperationFilter{
-		FieldID:       c.Query("field_id"),
-		OperationType: c.Query("operation_type"),
-		MachineID:     c.Query("machine_id"),
-		OperatorID:    c.Query("operator_id"),
-		Search:        c.Query("q"),
-	}
-	if filter.OperationType != "" && !domain.OperationType(filter.OperationType).IsValid() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "operation_type invalid"})
+	filter, ok := scopedFieldOperationFilter(c)
+	if !ok {
 		return
-	}
-	if filter.FieldID != "" {
-		if _, err := uuid.Parse(filter.FieldID); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "field_id invalid"})
-			return
-		}
-	}
-	for _, id := range []string{filter.MachineID, filter.OperatorID} {
-		if _, err := optionalInt64Query(id); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "machine_id / operator_id invalid"})
-			return
-		}
-	}
-	for name, target := range map[string]**time.Time{"planned_from": &filter.PlannedFrom, "planned_to": &filter.PlannedTo} {
-		raw := strings.TrimSpace(c.Query(name))
-		if raw == "" {
-			continue
-		}
-		parsed, err := time.Parse(time.RFC3339, raw)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": name + " must be RFC3339"})
-			return
-		}
-		*target = &parsed
-	}
-	switch c.Query("sort") {
-	case "", "recent":
-	case "planned_asc":
-		filter.SortPlannedAsc = true
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sort"})
-		return
-	}
-	if isOperatorRequest(c) {
-		userID, ok := currentUserID(c)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
-			return
-		}
-		filter.OperatorID = ""
-		filter.AssignedUserID = userID
-	}
-	for _, status := range strings.Split(c.Query("status"), ",") {
-		if status = strings.TrimSpace(status); status != "" {
-			filter.Statuses = append(filter.Statuses, status)
-		}
 	}
 	items, total, err := h.service.List(filter, page)
 	if err != nil {
@@ -203,6 +150,121 @@ func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 		return
 	}
 	respondList(c, items, total, page)
+}
+
+// StatusCounts numără lucrările pe status, cu aceleași filtre ca lista (fără status).
+// @Summary      Numărul lucrărilor pe status
+// @Description  Pentru tab-urile listei: aceleași filtre ca GET /field-operations, statusul ignorat. Operatorul își numără doar lucrările proprii.
+// @Tags         field-operations
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} object{total=int,planned=int,in_progress=int,completed=int,canceled=int}
+// @Failure      400 {object} object{error=string}
+// @Router       /field-operations/status-counts [get]
+func (h *FieldOperationHandler) StatusCounts(c *gin.Context) {
+	filter, ok := scopedFieldOperationFilter(c)
+	if !ok {
+		return
+	}
+	counts, err := h.service.CountByStatus(filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, counts)
+}
+
+// scopedFieldOperationFilter citește filtrele listei și, pentru operator, le restrânge la
+// lucrările lui. La eroare a răspuns deja și întoarce false.
+func scopedFieldOperationFilter(c *gin.Context) (repository.FieldOperationFilter, bool) {
+	filter, err := fieldOperationListFilter(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return filter, false
+	}
+	if isOperatorRequest(c) {
+		userID, ok := currentUserID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+			return filter, false
+		}
+		filter.OperatorID = ""
+		filter.AssignedUserID = userID
+	}
+	return filter, true
+}
+
+// fieldOperationListFilter citește și validează filtrele listei de lucrări din query.
+func fieldOperationListFilter(c *gin.Context) (repository.FieldOperationFilter, error) {
+	filter := repository.FieldOperationFilter{
+		FieldID:       c.Query("field_id"),
+		OperationType: c.Query("operation_type"),
+		MachineID:     c.Query("machine_id"),
+		OperatorID:    c.Query("operator_id"),
+		Search:        c.Query("q"),
+		Statuses:      splitStatuses(c.Query("status")),
+	}
+	if filter.OperationType != "" && !domain.OperationType(filter.OperationType).IsValid() {
+		return filter, errors.New("operation_type invalid")
+	}
+	if filter.FieldID != "" {
+		if _, err := uuid.Parse(filter.FieldID); err != nil {
+			return filter, errors.New("field_id invalid")
+		}
+	}
+	for _, id := range []string{filter.MachineID, filter.OperatorID} {
+		if _, err := optionalInt64Query(id); err != nil {
+			return filter, errors.New("machine_id / operator_id invalid")
+		}
+	}
+	var err error
+	if filter.PlannedFrom, err = optionalRFC3339(c, "planned_from"); err != nil {
+		return filter, err
+	}
+	if filter.PlannedTo, err = optionalRFC3339(c, "planned_to"); err != nil {
+		return filter, err
+	}
+	sort := repository.FieldOperationSort(c.Query("sort"))
+	if sort == "recent" {
+		sort = repository.FieldOperationSortRecent
+	}
+	if !validFieldOperationSorts[sort] {
+		return filter, errors.New("invalid sort")
+	}
+	filter.Sort = sort
+	return filter, nil
+}
+
+var validFieldOperationSorts = map[repository.FieldOperationSort]bool{
+	repository.FieldOperationSortRecent:      true,
+	repository.FieldOperationSortPlannedAsc:  true,
+	repository.FieldOperationSortPlannedDesc: true,
+	repository.FieldOperationSortAreaAsc:     true,
+	repository.FieldOperationSortAreaDesc:    true,
+	repository.FieldOperationSortFieldAsc:    true,
+	repository.FieldOperationSortFieldDesc:   true,
+}
+
+func splitStatuses(raw string) []string {
+	var statuses []string
+	for _, status := range strings.Split(raw, ",") {
+		if status = strings.TrimSpace(status); status != "" {
+			statuses = append(statuses, status)
+		}
+	}
+	return statuses
+}
+
+func optionalRFC3339(c *gin.Context, name string) (*time.Time, error) {
+	raw := strings.TrimSpace(c.Query(name))
+	if raw == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, errors.New(name + " must be RFC3339")
+	}
+	return &parsed, nil
 }
 
 // fieldOperationErrorStatus: 404 pentru lucrarea inexistentă, 409 când resursele sunt pe altă

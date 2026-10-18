@@ -425,6 +425,7 @@ func (m *operationTemplateRepoMock) SetImplementTypes(id int64, t []string) erro
 // ─── Field operations ────────────────────────────────────────────────────────
 
 type fieldOperationRepoMock struct {
+	countByStatus          func(repository.FieldOperationFilter) (map[string]int, error)
 	getAll                 func(repository.FieldOperationFilter) ([]dto.FieldOperationResponse, error)
 	getByID                func(int64) (*dto.FieldOperationResponse, error)
 	getByIDForAssignedUser func(int64, int64) (*dto.FieldOperationResponse, error)
@@ -448,6 +449,12 @@ type fieldOperationRepoMock struct {
 func (m *fieldOperationRepoMock) List(f repository.FieldOperationFilter, _ *domain.PageRequest) ([]dto.FieldOperationResponse, int, error) {
 	items, err := m.GetAll(f)
 	return items, len(items), err
+}
+func (m *fieldOperationRepoMock) CountByStatus(f repository.FieldOperationFilter) (map[string]int, error) {
+	if m.countByStatus != nil {
+		return m.countByStatus(f)
+	}
+	return map[string]int{}, nil
 }
 func (m *fieldOperationRepoMock) GetAll(f repository.FieldOperationFilter) ([]dto.FieldOperationResponse, error) {
 	if m.getAll != nil {
@@ -1129,6 +1136,14 @@ type reportRepoMock struct {
 	getRealConsumption       func(domain.ReportFilter) ([]domain.ReportResourceConsumption, error)
 	getMovementTotals        func(domain.ReportFilter) (*domain.ReportMovementTotals, error)
 	getFieldCropRows         func(int64, string) ([]domain.ReportFieldCropRow, error)
+	getCompareName           func(domain.ReportCompareKind, int64) (string, error)
+}
+
+func (m *reportRepoMock) GetCompareName(kind domain.ReportCompareKind, id int64) (string, error) {
+	if m.getCompareName != nil {
+		return m.getCompareName(kind, id)
+	}
+	return fmt.Sprintf("%s #%d", kind, id), nil
 }
 
 func (m *reportRepoMock) GetOperationsMetrics(f domain.ReportFilter) (*domain.ReportOperationsMetrics, error) {

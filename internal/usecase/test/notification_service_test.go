@@ -104,10 +104,13 @@ func TestNotificationService_Subscribers(t *testing.T) {
 	}
 
 	svc.Unsubscribe(sub)
-	if _, open := <-sub.Ch; open {
-		// canalul are încă mesaje din buffer; golește-l până se închide
-		for range sub.Ch {
-		}
+	// canalul poate avea încă mesaje din buffer; le numără până se închide
+	drained := 0
+	for range sub.Ch {
+		drained++
+	}
+	if drained > 20 {
+		t.Errorf("buffer-ul are cel mult 20 de mesaje, am primit %d", drained)
 	}
 	svc.Unsubscribe(other)
 	if svc.SubscriberCount(1) != 0 || svc.SubscriberCount(2) != 0 {

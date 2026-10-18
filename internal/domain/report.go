@@ -14,6 +14,8 @@ type ReportFilter struct {
 	OperationType OperationType
 	MachineID     int64
 	OperatorID    int64
+	// SeasonID: doar lucrările legate de culturile sezonului. Cu From zero, fără filtru de dată.
+	SeasonID int64
 }
 
 // ReportPeriod descrie intervalul raportat și intervalul anterior de aceeași lungime,
@@ -259,4 +261,39 @@ type ReportStocks struct {
 	ValueByCategory      []ReportNamedValue          `json:"value_by_category"`
 	Items                []ReportStockRow            `json:"items"`
 	EstimatedConsumption []ReportResourceConsumption `json:"estimated_consumption"`
+}
+
+// ReportCompareKind este tipul entităților comparate.
+type ReportCompareKind string
+
+const (
+	ReportCompareOperators ReportCompareKind = "operators"
+	ReportCompareMachines  ReportCompareKind = "machines"
+	ReportCompareSeasons   ReportCompareKind = "seasons"
+)
+
+func (k ReportCompareKind) IsValid() bool {
+	return k == ReportCompareOperators || k == ReportCompareMachines || k == ReportCompareSeasons
+}
+
+// ReportCompareSide este una dintre cele două entități comparate, cu indicatorii ei.
+type ReportCompareSide struct {
+	ID       int64                     `json:"id"`
+	Name     string                    `json:"name"`
+	Metrics  ReportOperationsMetrics   `json:"metrics"`
+	ByType   []ReportOperationTypeStat `json:"by_type"`
+	Timeline []ReportTimeBucket        `json:"timeline,omitempty"`
+	// Doar pentru sezoane: perioada sezonului și producția pe culturi.
+	Season     *Season            `json:"season,omitempty"`
+	CropTotals *ReportCropsTotals `json:"crop_totals,omitempty"`
+	ByCrop     []ReportCropStat   `json:"by_crop,omitempty"`
+}
+
+// ReportCompare pune față în față două entități de același tip. Pentru operatori și mașini,
+// indicatorii sunt din perioada aleasă; pentru sezoane, din tot sezonul.
+type ReportCompare struct {
+	Kind   ReportCompareKind `json:"kind"`
+	Period *ReportPeriod     `json:"period,omitempty"`
+	A      ReportCompareSide `json:"a"`
+	B      ReportCompareSide `json:"b"`
 }

@@ -53,13 +53,8 @@ func BootstrapAdmin(users repository.UserRepository, roles repository.RoleReposi
 		return nil, err
 	}
 	if existing != nil {
-		if err := users.UpdateRole(existing.ID, role.ID); err != nil {
+		if err := promoteToAdmin(users, existing, role.ID); err != nil {
 			return nil, err
-		}
-		if !existing.EmailConfirmed {
-			if err := users.MarkEmailConfirmed(existing.ID); err != nil {
-				return nil, err
-			}
 		}
 		return &BootstrapAdminResult{Promoted: true, Email: email}, nil
 	}
@@ -84,4 +79,15 @@ func BootstrapAdmin(users repository.UserRepository, roles repository.RoleReposi
 		return nil, err
 	}
 	return &BootstrapAdminResult{Created: true, Email: email}, nil
+}
+
+// promoteToAdmin dă contului existent rolul admin și îi confirmă e-mailul, dacă nu era confirmat.
+func promoteToAdmin(users repository.UserRepository, user *domain.User, adminRoleID int64) error {
+	if err := users.UpdateRole(user.ID, adminRoleID); err != nil {
+		return err
+	}
+	if user.EmailConfirmed {
+		return nil
+	}
+	return users.MarkEmailConfirmed(user.ID)
 }

@@ -21,7 +21,7 @@ func TestFieldOperations_PlannedRangeAndSort(t *testing.T) {
 	insertFieldOperation(t, db, fieldOperation{FieldID: field, OperationType: "soil_preparation", Status: "planned", PlannedStart: day.Add(24 * time.Hour)})
 
 	from, to := day, day.Add(24*time.Hour)
-	items, err := repo.GetAll(repository.FieldOperationFilter{PlannedFrom: &from, PlannedTo: &to, SortPlannedAsc: true})
+	items, err := repo.GetAll(repository.FieldOperationFilter{PlannedFrom: &from, PlannedTo: &to, Sort: repository.FieldOperationSortPlannedAsc})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,5 +50,36 @@ func TestFieldOperations_Search(t *testing.T) {
 	}
 	if items, err = repo.GetAll(repository.FieldOperationFilter{Search: "100%"}); err != nil || len(items) != 0 {
 		t.Fatalf("caracterele speciale sunt căutate literal: %v, %+v", err, items)
+	}
+}
+
+// Numărătorile pe status ignoră statusul din filtru; ordonarea după suprafață și teren.
+func TestFieldOperations_CountByStatusAndSort(t *testing.T) {
+	db := requireDB(t)
+	repo := postgres.NewFieldOperationRepo(db)
+	north := insertField(t, db, "A Nord")
+	south := insertField(t, db, "B Sud")
+	small := insertFieldOperation(t, db, fieldOperation{FieldID: south, OperationType: "soil_preparation", Status: "planned", PlannedStart: time.Now(), AreaPlannedHa: 5})
+	big := insertFieldOperation(t, db, fieldOperation{FieldID: north, OperationType: "soil_preparation", Status: "completed", PlannedStart: time.Now(), AreaPlannedHa: 50})
+	insertFieldOperation(t, db, fieldOperation{FieldID: north, OperationType: "soil_preparation", Status: "completed", PlannedStart: time.Now(), AreaPlannedHa: 20, Deleted: true})
+
+	counts, err := repo.CountByStatus(repository.FieldOperationFilter{Statuses: []string{"planned"}})
+	if err != nil || counts["planned"] != 1 || counts["completed"] != 1 {
+		t.Fatalf("numărători (fără lucrarea ștearsă, statusul ignorat): %v, %v", err, counts)
+	}
+	if counts, err = repo.CountByStatus(repository.FieldOperationFilter{Search: "nord"}); err != nil || counts["planned"] != 0 || counts["completed"] != 1 {
+		t.Fatalf("numărători cu căutare: %v, %v", err, counts)
+	}
+
+	for sort, first := range map[repository.FieldOperationSort]int64{
+		repository.FieldOperationSortAreaDesc:  big,
+		repository.FieldOperationSortAreaAsc:   small,
+		repository.FieldOperationSortFieldAsc:  big,
+		repository.FieldOperationSortFieldDesc: small,
+	} {
+		items, err := repo.GetAll(repository.FieldOperationFilter{Sort: sort})
+		if err != nil || len(items) != 2 || items[0].ID != first {
+			t.Errorf("sort %s: %v, %+v", sort, err, items)
+		}
 	}
 }

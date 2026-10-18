@@ -208,28 +208,37 @@ func (service *FieldOperationCompletionService) resolveResourceUsage(existing *d
 		}
 	}
 	for _, explicit := range completion.Resources {
-		replaced := false
-		for i := range usages {
-			if usages[i].ResourceID == explicit.ResourceID {
-				usages[i].Quantity = explicit.Quantity
-				replaced = true
-			}
-		}
-		if !replaced {
-			usages = append(usages, explicit)
-		}
+		usages = overrideUsage(usages, explicit)
 	}
-
 	if fuel := fuelUsage(completion); fuel != nil {
-		filtered := usages[:0]
-		for _, usage := range usages {
-			if usage.ResourceID != fuel.ResourceID {
-				filtered = append(filtered, usage)
-			}
-		}
-		usages = filtered
+		usages = withoutResource(usages, fuel.ResourceID)
 	}
 	return usages, nil
+}
+
+// overrideUsage înlocuiește cantitatea resursei deja prezente sau o adaugă.
+func overrideUsage(usages []domain.FieldOperationResourceUsage, explicit domain.FieldOperationResourceUsage) []domain.FieldOperationResourceUsage {
+	replaced := false
+	for i := range usages {
+		if usages[i].ResourceID == explicit.ResourceID {
+			usages[i].Quantity = explicit.Quantity
+			replaced = true
+		}
+	}
+	if !replaced {
+		usages = append(usages, explicit)
+	}
+	return usages
+}
+
+func withoutResource(usages []domain.FieldOperationResourceUsage, resourceID int64) []domain.FieldOperationResourceUsage {
+	filtered := usages[:0]
+	for _, usage := range usages {
+		if usage.ResourceID != resourceID {
+			filtered = append(filtered, usage)
+		}
+	}
+	return filtered
 }
 
 // operationArea este suprafața pe care se aplică normele: cea realizată sau, în lipsă, cea planificată.

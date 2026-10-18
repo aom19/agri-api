@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+// FieldOperationSort este ordonarea listei de lucrări.
+type FieldOperationSort string
+
+const (
+	FieldOperationSortRecent      FieldOperationSort = ""
+	FieldOperationSortPlannedAsc  FieldOperationSort = "planned_asc"
+	FieldOperationSortPlannedDesc FieldOperationSort = "planned_desc"
+	FieldOperationSortAreaAsc     FieldOperationSort = "area_asc"
+	FieldOperationSortAreaDesc    FieldOperationSort = "area_desc"
+	FieldOperationSortFieldAsc    FieldOperationSort = "field_asc"
+	FieldOperationSortFieldDesc   FieldOperationSort = "field_desc"
+)
+
 type FieldOperationFilter struct {
 	Status string
 	// Statuses: oricare din statusurile date (ex. Alocări: planned + in_progress).
@@ -19,8 +32,8 @@ type FieldOperationFilter struct {
 	// PlannedFrom / PlannedTo: începutul planificat în [PlannedFrom, PlannedTo).
 	PlannedFrom *time.Time
 	PlannedTo   *time.Time
-	// SortPlannedAsc: cele mai apropiate primele (fără dată la final), în loc de cele mai recente.
-	SortPlannedAsc bool
+	// Sort: ordonarea listei; gol = cele mai recente primele.
+	Sort FieldOperationSort
 	// Search: text căutat în teren, template, mașină, echipament, operator, cultură și note.
 	Search string
 }
@@ -40,6 +53,8 @@ type FieldOperationRepository interface {
 	GetAll(filter FieldOperationFilter) ([]dto.FieldOperationResponse, error)
 	// List: filtre și paginare opțională; cele mai recente primele.
 	List(filter FieldOperationFilter, page *domain.PageRequest) ([]dto.FieldOperationResponse, int, error)
+	// CountByStatus numără lucrările filtrului pe fiecare status (statusurile din filtru sunt ignorate).
+	CountByStatus(filter FieldOperationFilter) (map[string]int, error)
 	GetByID(id int64) (*dto.FieldOperationResponse, error)
 	GetByIDForAssignedUser(id int64, userID int64) (*dto.FieldOperationResponse, error)
 	Create(op *domain.FieldOperation) error

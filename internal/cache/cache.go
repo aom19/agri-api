@@ -256,7 +256,11 @@ func (w *bufferedWriter) WriteString(s string) (int, error) {
 
 func (w *bufferedWriter) Status() int   { return w.status }
 func (w *bufferedWriter) Written() bool { return w.written }
-func (w *bufferedWriter) Flush()        {}
+
+// Flush nu face nimic: răspunsul e ținut în buffer și trimis o singură dată, după handler.
+func (w *bufferedWriter) Flush() {
+	// intenționat gol
+}
 
 func (w *bufferedWriter) Size() int {
 	if !w.written {

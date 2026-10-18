@@ -46,6 +46,24 @@ func (s *FieldOperationService) List(filter repository.FieldOperationFilter, pag
 	return s.repo.List(filter, page)
 }
 
+// CountByStatus întoarce numărul lucrărilor filtrului pe fiecare status și totalul; statusurile
+// fără lucrări apar cu 0.
+func (s *FieldOperationService) CountByStatus(filter repository.FieldOperationFilter) (map[string]int, error) {
+	counts, err := s.repo.CountByStatus(filter)
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]int{"total": 0}
+	for _, status := range []domain.FieldOperationStatus{
+		domain.FieldOperationStatusPlanned, domain.FieldOperationStatusInProgress,
+		domain.FieldOperationStatusCompleted, domain.FieldOperationStatusCanceled,
+	} {
+		result[string(status)] = counts[string(status)]
+		result["total"] += counts[string(status)]
+	}
+	return result, nil
+}
+
 func (s *FieldOperationService) GetByID(id int64) (*dto.FieldOperationResponse, error) {
 	item, err := s.repo.GetByID(id)
 	if err != nil {

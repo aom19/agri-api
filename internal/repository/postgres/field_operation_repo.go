@@ -82,6 +82,10 @@ var fieldOperationBaseSelect = `
 		` + savedOperationConflictsExpr + `,
 		fo.created_at,
 		fo.updated_at
+	` + fieldOperationFrom
+
+// fieldOperationFrom sunt tabelele lucrării, comune listei și numărătorilor pe status.
+const fieldOperationFrom = `
 	FROM field_operations fo
 	JOIN fields f              ON f.id  = fo.field_id
 	LEFT JOIN operation_templates t ON t.id  = fo.operation_template_id
@@ -144,17 +148,31 @@ func (repo *FieldOperationRepo) GetAll(filter repository.FieldOperationFilter) (
 }
 
 // List întoarce lucrările filtrate, cele mai recente primele; cu page, doar pagina cerută și totalul.
-func (repo *FieldOperationRepo) List(filter repository.FieldOperationFilter, page *domain.PageRequest) ([]dto.FieldOperationResponse, int, error) {
-	query := fieldOperationBaseSelect
+// fieldOperationOrderBy: ordonarea listei; implicit cele mai recente primele. id-ul la final
+// păstrează ordinea stabilă între pagini.
+var fieldOperationOrderBy = map[repository.FieldOperationSort]string{
+	repository.FieldOperationSortRecent:      "COALESCE(fo.planned_start_at, fo.created_at) DESC, fo.id DESC",
+	repository.FieldOperationSortPlannedAsc:  "fo.planned_start_at ASC NULLS LAST, fo.id ASC",
+	repository.FieldOperationSortPlannedDesc: "fo.planned_start_at DESC NULLS LAST, fo.id DESC",
+	repository.FieldOperationSortAreaAsc:     "fo.area_planned_ha ASC NULLS LAST, fo.id ASC",
+	repository.FieldOperationSortAreaDesc:    "fo.area_planned_ha DESC NULLS LAST, fo.id DESC",
+	repository.FieldOperationSortFieldAsc:    "f.name ASC, fo.planned_start_at DESC NULLS LAST, fo.id DESC",
+	repository.FieldOperationSortFieldDesc:   "f.name DESC, fo.planned_start_at DESC NULLS LAST, fo.id DESC",
+}
+
+// fieldOperationWhere sunt condițiile filtrului (fiecare începe cu AND), cu parametrii lor.
+// Cu withStatus false, statusurile sunt ignorate: numărătorile pe status le folosesc pe celelalte.
+func fieldOperationWhere(filter repository.FieldOperationFilter, withStatus bool) (string, []interface{}) {
+	var where strings.Builder
 	var args []interface{}
 	add := func(clause string, value interface{}) {
 		args = append(args, value)
-		query += fmt.Sprintf(clause, len(args))
+		fmt.Fprintf(&where, clause, len(args))
 	}
-	if filter.Status != "" {
+	if withStatus && filter.Status != "" {
 		add(" AND fo.status = $%d", filter.Status)
 	}
-	if len(filter.Statuses) > 0 {
+	if withStatus && len(filter.Statuses) > 0 {
 		add(" AND fo.status = ANY($%d)", pq.Array(filter.Statuses))
 	}
 	if strings.TrimSpace(filter.FieldID) != "" {
@@ -178,13 +196,19 @@ func (repo *FieldOperationRepo) List(filter repository.FieldOperationFilter, pag
 	if filter.PlannedTo != nil {
 		add(" AND fo.planned_start_at < $%d", *filter.PlannedTo)
 	}
-	query += textSearchClause(filter.Search, &args,
-		"f.name", "t.name", "m.name", "imp.name", operatorNameExpr, "cr.name", "fo.notes")
-	orderBy := "COALESCE(fo.planned_start_at, fo.created_at) DESC, fo.id DESC"
-	if filter.SortPlannedAsc {
-		orderBy = "fo.planned_start_at ASC NULLS LAST, fo.id ASC"
+	where.WriteString(textSearchClause(filter.Search, &args,
+		"f.name", "t.name", "m.name", "imp.name", operatorNameExpr, "cr.name", "fo.notes"))
+	return where.String(), args
+}
+
+// List întoarce lucrările filtrate, ordonate după filter.Sort; cu page, doar pagina cerută și totalul.
+func (repo *FieldOperationRepo) List(filter repository.FieldOperationFilter, page *domain.PageRequest) ([]dto.FieldOperationResponse, int, error) {
+	where, args := fieldOperationWhere(filter, true)
+	orderBy, ok := fieldOperationOrderBy[filter.Sort]
+	if !ok {
+		orderBy = fieldOperationOrderBy[repository.FieldOperationSortRecent]
 	}
-	return listPage(repo.db, query, args, orderBy, page,
+	return listPage(repo.db, fieldOperationBaseSelect+where, args, orderBy, page,
 		func(rows *sql.Rows) (dto.FieldOperationResponse, error) {
 			item, err := scanFieldOperationRow(rows)
 			if err != nil {
@@ -192,6 +216,26 @@ func (repo *FieldOperationRepo) List(filter repository.FieldOperationFilter, pag
 			}
 			return *item, nil
 		})
+}
+
+// CountByStatus numără lucrările filtrului pe fiecare status (statusurile din filtru sunt ignorate).
+func (repo *FieldOperationRepo) CountByStatus(filter repository.FieldOperationFilter) (map[string]int, error) {
+	where, args := fieldOperationWhere(filter, false)
+	rows, err := repo.db.Query("SELECT fo.status, COUNT(*)"+fieldOperationFrom+where+" GROUP BY fo.status", args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := map[string]int{}
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, err
+		}
+		counts[status] = count
+	}
+	return counts, rows.Err()
 }
 
 func (repo *FieldOperationRepo) GetByID(id int64) (*dto.FieldOperationResponse, error) {
