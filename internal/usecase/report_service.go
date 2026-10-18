@@ -172,6 +172,27 @@ func (service *ReportService) GetOperations(query ReportQuery) (*domain.ReportOp
 	}, nil
 }
 
+// GetOperatorOperations este raportul operațiunilor unui singur operator (contul curent): filtrul pe
+// operator e impus aici, indiferent de ce cere clientul, iar costurile — informație de management —
+// nu sunt incluse.
+func (service *ReportService) GetOperatorOperations(userID int64, query ReportQuery) (*domain.ReportOperations, error) {
+	query.OperatorID = userID
+	report, err := service.GetOperations(query)
+	if err != nil {
+		return nil, err
+	}
+	report.Metrics.EstimatedCost = 0
+	report.Metrics.RealCost = 0
+	for i := range report.ByType {
+		report.ByType[i].EstimatedCost = 0
+	}
+	for i := range report.Items {
+		report.Items[i].EstimatedCost = 0
+		report.Items[i].RealCost = 0
+	}
+	return report, nil
+}
+
 // fillTimeline completează intervalele fără operațiuni cu valori zero, ca axa
 // temporală să fie continuă.
 func fillTimeline(buckets []domain.ReportTimeBucket, from, to time.Time, granularity string) []domain.ReportTimeBucket {

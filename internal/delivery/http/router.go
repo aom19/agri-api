@@ -92,6 +92,8 @@ func SetupRoutes(r *gin.Engine, deps AppDeps) {
 	reportHandler := handlers.NewReportHandler(deps.ReportService, handlers.WithReportEmail(deps.ReportEmailService, deps.UserService))
 	api.GET("/reports/summary", perm("reports:read"), reportHandler.GetSummary)
 	api.GET("/reports/operations", perm("reports:read"), reportHandler.GetOperations)
+	// raportul propriu al operatorului: doar lucrările contului curent, fără reports:read
+	api.GET("/reports/my-operations", perm("field_operations:read"), reportHandler.GetMyOperations)
 	api.GET("/reports/fields", perm("reports:read"), reportHandler.GetFields)
 	api.GET("/reports/fleet", perm("reports:read"), reportHandler.GetFleet)
 	api.GET("/reports/operators", perm("reports:read"), reportHandler.GetOperators)

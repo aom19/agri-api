@@ -115,6 +115,37 @@ func (h *ReportHandler) GetOperations(c *gin.Context) {
 	respondReport(c, report, err)
 }
 
+// GetMyOperations returnează raportul operațiunilor contului curent (pagina „Rapoartele mele” a operatorului).
+// @Summary      Raportul operațiunilor proprii
+// @Description  Ca /reports/operations, dar mereu pentru contul autentificat (operator_id e ignorat) și fără costuri.
+// @Tags         reports
+// @Produce      json
+// @Security     BearerAuth
+// @Param        from query string false "Data de început (YYYY-MM-DD, implicit ultimele 30 de zile)"
+// @Param        to query string false "Data de sfârșit (YYYY-MM-DD, implicit azi)"
+// @Param        field_id query string false "Filtru teren"
+// @Param        operation_type query string false "Filtru tip operațiune"
+// @Param        machine_id query int false "Filtru mașină"
+// @Success      200 {object} domain.ReportOperations
+// @Failure      400 {object} object{error=string}
+// @Failure      401 {object} object{error=string}
+// @Failure      500 {object} object{error=string}
+// @Router       /reports/my-operations [get]
+func (h *ReportHandler) GetMyOperations(c *gin.Context) {
+	userID, ok := currentUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid token"})
+		return
+	}
+	query, err := parseReportQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	report, err := h.service.GetOperatorOperations(userID, query)
+	respondReport(c, report, err)
+}
+
 // GetFields returnează raportul terenurilor (suprafețe, lucrări, geometrie pentru hartă).
 // @Summary      Raport terenuri
 // @Tags         reports

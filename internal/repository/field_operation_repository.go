@@ -16,6 +16,13 @@ type FieldOperationFilter struct {
 	MachineID      string
 	OperatorID     string
 	AssignedUserID int64
+	// PlannedFrom / PlannedTo: începutul planificat în [PlannedFrom, PlannedTo).
+	PlannedFrom *time.Time
+	PlannedTo   *time.Time
+	// SortPlannedAsc: cele mai apropiate primele (fără dată la final), în loc de cele mai recente.
+	SortPlannedAsc bool
+	// Search: text căutat în teren, template, mașină, echipament, operator, cultură și note.
+	Search string
 }
 
 // FieldOperationConflictQuery descrie o lucrare (salvată sau doar în formular) pentru care se

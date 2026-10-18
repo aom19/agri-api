@@ -172,7 +172,19 @@ func (repo *FieldOperationRepo) List(filter repository.FieldOperationFilter, pag
 	if filter.AssignedUserID > 0 {
 		add(" AND fo.operator_id = $%d", filter.AssignedUserID)
 	}
-	return listPage(repo.db, query, args, "COALESCE(fo.planned_start_at, fo.created_at) DESC, fo.id DESC", page,
+	if filter.PlannedFrom != nil {
+		add(" AND fo.planned_start_at >= $%d", *filter.PlannedFrom)
+	}
+	if filter.PlannedTo != nil {
+		add(" AND fo.planned_start_at < $%d", *filter.PlannedTo)
+	}
+	query += textSearchClause(filter.Search, &args,
+		"f.name", "t.name", "m.name", "imp.name", operatorNameExpr, "cr.name", "fo.notes")
+	orderBy := "COALESCE(fo.planned_start_at, fo.created_at) DESC, fo.id DESC"
+	if filter.SortPlannedAsc {
+		orderBy = "fo.planned_start_at ASC NULLS LAST, fo.id ASC"
+	}
+	return listPage(repo.db, query, args, orderBy, page,
 		func(rows *sql.Rows) (dto.FieldOperationResponse, error) {
 			item, err := scanFieldOperationRow(rows)
 			if err != nil {

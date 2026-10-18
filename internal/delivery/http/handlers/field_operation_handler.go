@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type FieldOperationHandler struct {
@@ -123,7 +124,11 @@ func currentActorID(c *gin.Context) *int64 {
 // @Param        field_id query string false "Teren"
 // @Param        operation_type query string false "Tipul operațiunii"
 // @Param        machine_id query int false "Mașină"
-// @Param        operator_id query int false "Operator"
+// @Param        operator_id query int false "Operator (ignorat pentru rolul operator: vede doar lucrările proprii)"
+// @Param        q query string false "Căutare în teren, template, mașină, echipament, operator, cultură și note"
+// @Param        planned_from query string false "Început planificat de la (RFC3339, inclusiv)"
+// @Param        planned_to query string false "Început planificat până la (RFC3339, exclusiv)"
+// @Param        sort query string false "planned_asc = cele mai apropiate primele; implicit cele mai recente primele"
 // @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
 // @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
 // @Success      200 {object} object{items=[]dto.FieldOperationResponse,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul dto.FieldOperationResponse"
@@ -140,6 +145,43 @@ func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 		OperationType: c.Query("operation_type"),
 		MachineID:     c.Query("machine_id"),
 		OperatorID:    c.Query("operator_id"),
+		Search:        c.Query("q"),
+	}
+	if filter.OperationType != "" && !domain.OperationType(filter.OperationType).IsValid() {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "operation_type invalid"})
+		return
+	}
+	if filter.FieldID != "" {
+		if _, err := uuid.Parse(filter.FieldID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "field_id invalid"})
+			return
+		}
+	}
+	for _, id := range []string{filter.MachineID, filter.OperatorID} {
+		if _, err := optionalInt64Query(id); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "machine_id / operator_id invalid"})
+			return
+		}
+	}
+	for name, target := range map[string]**time.Time{"planned_from": &filter.PlannedFrom, "planned_to": &filter.PlannedTo} {
+		raw := strings.TrimSpace(c.Query(name))
+		if raw == "" {
+			continue
+		}
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": name + " must be RFC3339"})
+			return
+		}
+		*target = &parsed
+	}
+	switch c.Query("sort") {
+	case "", "recent":
+	case "planned_asc":
+		filter.SortPlannedAsc = true
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sort"})
+		return
 	}
 	if isOperatorRequest(c) {
 		userID, ok := currentUserID(c)

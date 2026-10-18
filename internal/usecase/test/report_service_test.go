@@ -396,3 +396,37 @@ func TestReportService_GetWeather(t *testing.T) {
 		t.Error("eroarea seriei trebuie propagată")
 	}
 }
+
+// Raportul propriu: filtrul pe operator vine din cont, nu din cerere, iar costurile lipsesc.
+func TestReportService_GetOperatorOperations(t *testing.T) {
+	var seen []int64
+	repo := &reportRepoMock{
+		getOperationsMetrics: func(f domain.ReportFilter) (*domain.ReportOperationsMetrics, error) {
+			seen = append(seen, f.OperatorID)
+			return &domain.ReportOperationsMetrics{OperationsCompleted: 2, EstimatedCost: 100, RealCost: 90}, nil
+		},
+		getOperationsByType: func(f domain.ReportFilter) ([]domain.ReportOperationTypeStat, error) {
+			seen = append(seen, f.OperatorID)
+			return []domain.ReportOperationTypeStat{{Total: 2, EstimatedCost: 100}}, nil
+		},
+		getOperationRows: func(f domain.ReportFilter, _ int) ([]domain.ReportOperationRow, error) {
+			seen = append(seen, f.OperatorID)
+			return []domain.ReportOperationRow{{ID: 1, EstimatedCost: 50, RealCost: 45}}, nil
+		},
+	}
+	svc := usecase.NewReportService(repo)
+
+	report, err := svc.GetOperatorOperations(7, usecase.ReportQuery{OperatorID: 99})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range seen {
+		if id != 7 {
+			t.Fatalf("filtrul pe operator trebuie să fie contul curent: %v", seen)
+		}
+	}
+	if report.Metrics.OperationsCompleted != 2 || report.Metrics.EstimatedCost != 0 || report.Metrics.RealCost != 0 ||
+		report.ByType[0].EstimatedCost != 0 || report.Items[0].EstimatedCost != 0 || report.Items[0].RealCost != 0 {
+		t.Errorf("costurile nu trebuie incluse: %+v", report)
+	}
+}
