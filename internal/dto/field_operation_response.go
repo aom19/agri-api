@@ -9,7 +9,7 @@ type FieldOperationResponse struct {
 	ID            int64           `json:"id"`
 	FieldID       string          `json:"field_id"`
 	FieldName     string          `json:"field_name"`
-	FieldGeometry json.RawMessage `json:"field_geometry,omitempty"`
+	FieldGeometry json.RawMessage `json:"field_geometry,omitempty" swaggertype:"object"`
 	// OperationType este tipul efectiv: al template-ului, sau tipul propriu fără template.
 	OperationType       string     `json:"operation_type"`
 	OperationTypeName   string     `json:"operation_type_name"`

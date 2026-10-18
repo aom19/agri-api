@@ -33,8 +33,7 @@ func (r *AuditRepo) Log(entry *domain.AuditEntry) error {
 	return err
 }
 
-func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.AuditEntry, error) {
-	query := `
+var auditSelect = `
 		SELECT
 			al.id,
 			al.entity_type,
@@ -54,10 +53,12 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 			) AS entity_name,
 			al.action,
 			al.actor_id,
-			NULLIF(BTRIM(CONCAT_WS(' ', up.first_name, up.last_name)), '') AS actor_name,
+			-- numele din profil sau, fără profil completat, e-mailul contului
+			COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', up.first_name, up.last_name)), ''), au.email) AS actor_name,
 			al.changes,
 			al.created_at
 		FROM audit_log al
+		LEFT JOIN users au ON au.id = al.actor_id
 		LEFT JOIN user_profiles up ON up.user_id = al.actor_id
 		LEFT JOIN machines m ON al.entity_type = 'machine' AND m.id::text = al.entity_id
 		LEFT JOIN implements i ON al.entity_type = 'implement' AND i.id::text = al.entity_id
@@ -73,37 +74,33 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 		LEFT JOIN field_operations fo ON al.entity_type = 'field_operation' AND fo.id::text = al.entity_id
 		LEFT JOIN fields fof ON fof.id = fo.field_id
 		WHERE 1=1`
-	args := []interface{}{}
-	idx := 1
 
-	if entityType != "" {
-		query += fmt.Sprintf(" AND al.entity_type = $%d", idx)
-		args = append(args, entityType)
-		idx++
-	}
-	if entityID != "" {
-		query += fmt.Sprintf(" AND al.entity_id = $%d", idx)
-		args = append(args, entityID)
-		idx++
-	}
-	query += " ORDER BY al.created_at DESC"
-	query += fmt.Sprintf(" LIMIT $%d", idx)
-	args = append(args, limit)
+// GetAll întoarce cele mai recente `limit` intrări (dashboard), filtrate opțional după entitate.
+func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.AuditEntry, error) {
+	entries, _, err := r.List(domain.AuditFilter{EntityType: entityType, EntityID: entityID}, &domain.PageRequest{Page: 1, PageSize: limit})
+	return entries, err
+}
 
-	rows, err := r.db.Query(query, args...)
-	if err != nil {
-		return nil, err
+// List întoarce intrările jurnalului, cele mai noi primele, filtrate după tipul și id-ul entității;
+// cu page, doar pagina cerută și totalul.
+func (r *AuditRepo) List(filter domain.AuditFilter, page *domain.PageRequest) ([]domain.AuditEntry, int, error) {
+	query := auditSelect
+	var args []interface{}
+	if filter.EntityType != "" {
+		args = append(args, filter.EntityType)
+		query += fmt.Sprintf(" AND al.entity_type = $%d", len(args))
 	}
-	defer func() { _ = rows.Close() }()
-
-	var result []domain.AuditEntry
-	for rows.Next() {
+	if filter.EntityID != "" {
+		args = append(args, filter.EntityID)
+		query += fmt.Sprintf(" AND al.entity_id = $%d", len(args))
+	}
+	return listPage(r.db, query, args, "al.created_at DESC, al.id DESC", page, func(rows *sql.Rows) (domain.AuditEntry, error) {
 		var e domain.AuditEntry
 		var changesRaw []byte
 		var entityName sql.NullString
 		var actorName sql.NullString
 		if err := rows.Scan(&e.ID, &e.EntityType, &e.EntityID, &entityName, &e.Action, &e.ActorID, &actorName, &changesRaw, &e.CreatedAt); err != nil {
-			return nil, err
+			return e, err
 		}
 		if entityName.Valid {
 			e.EntityName = &entityName.String
@@ -114,7 +111,6 @@ func (r *AuditRepo) GetAll(limit int, entityType, entityID string) ([]domain.Aud
 		if changesRaw != nil {
 			_ = json.Unmarshal(changesRaw, &e.Changes)
 		}
-		result = append(result, e)
-	}
-	return result, rows.Err()
+		return e, nil
+	})
 }

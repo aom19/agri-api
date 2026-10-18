@@ -58,21 +58,19 @@ func scanSeason(row interface {
 }
 
 func (repo *CropRepo) GetSeasons() ([]domain.Season, error) {
-	rows, err := repo.db.Query(seasonSelect + " ORDER BY start_date DESC, id DESC")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	items, _, err := repo.ListSeasons(nil)
+	return items, err
+}
 
-	items := []domain.Season{}
-	for rows.Next() {
+// ListSeasons întoarce sezoanele, cele mai recente primele; cu page, doar pagina cerută și totalul.
+func (repo *CropRepo) ListSeasons(page *domain.PageRequest) ([]domain.Season, int, error) {
+	return listPage(repo.db, seasonSelect, nil, "start_date DESC, id DESC", page, func(rows *sql.Rows) (domain.Season, error) {
 		season, err := scanSeason(rows)
 		if err != nil {
-			return nil, err
+			return domain.Season{}, err
 		}
-		items = append(items, *season)
-	}
-	return items, rows.Err()
+		return *season, nil
+	})
 }
 
 func (repo *CropRepo) GetSeasonByID(id int64) (*domain.Season, error) {
@@ -177,21 +175,19 @@ func scanCrop(row interface {
 }
 
 func (repo *CropRepo) GetCrops() ([]domain.Crop, error) {
-	rows, err := repo.db.Query(cropSelect + " ORDER BY name")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	items, _, err := repo.ListCrops(nil)
+	return items, err
+}
 
-	items := []domain.Crop{}
-	for rows.Next() {
+// ListCrops întoarce catalogul de culturi după nume; cu page, doar pagina cerută și totalul.
+func (repo *CropRepo) ListCrops(page *domain.PageRequest) ([]domain.Crop, int, error) {
+	return listPage(repo.db, cropSelect, nil, "name, id", page, func(rows *sql.Rows) (domain.Crop, error) {
 		crop, err := scanCrop(rows)
 		if err != nil {
-			return nil, err
+			return domain.Crop{}, err
 		}
-		items = append(items, *crop)
-	}
-	return items, rows.Err()
+		return *crop, nil
+	})
 }
 
 func (repo *CropRepo) GetCropByID(id int64) (*domain.Crop, error) {
@@ -300,6 +296,13 @@ func scanFieldCrop(row interface {
 }
 
 func (repo *CropRepo) ListFieldCrops(filter domain.FieldCropFilter) ([]domain.FieldCrop, error) {
+	items, _, err := repo.ListFieldCropsPage(filter, nil)
+	return items, err
+}
+
+// ListFieldCropsPage întoarce culturile pe terenuri filtrate, cele deschise primele, apoi cele mai
+// recente; cu page, doar pagina cerută și totalul.
+func (repo *CropRepo) ListFieldCropsPage(filter domain.FieldCropFilter, page *domain.PageRequest) ([]domain.FieldCrop, int, error) {
 	var where strings.Builder
 	where.WriteString(" WHERE f.deleted_at IS NULL")
 	args := []interface{}{}
@@ -319,23 +322,14 @@ func (repo *CropRepo) ListFieldCrops(filter domain.FieldCropFilter) ([]domain.Fi
 		args = append(args, filter.Status)
 		fmt.Fprintf(&where, " AND fc.status = $%d", len(args))
 	}
-
-	// culturile deschise primele, apoi cele mai recente
-	rows, err := repo.db.Query(fieldCropSelect+where.String()+" ORDER BY (fc.status = 'open') DESC, s.start_date DESC, c.name, f.name", args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	items := []domain.FieldCrop{}
-	for rows.Next() {
+	query := fieldCropSelect + where.String() + textSearchClause(filter.Query, &args, "f.name", "c.name")
+	return listPage(repo.db, query, args, "(fc.status = 'open') DESC, s.start_date DESC, c.name, f.name, fc.id", page, func(rows *sql.Rows) (domain.FieldCrop, error) {
 		item, err := scanFieldCrop(rows)
 		if err != nil {
-			return nil, err
+			return domain.FieldCrop{}, err
 		}
-		items = append(items, *item)
-	}
-	return items, rows.Err()
+		return *item, nil
+	})
 }
 
 func (repo *CropRepo) GetFieldCropByID(id int64) (*domain.FieldCrop, error) {

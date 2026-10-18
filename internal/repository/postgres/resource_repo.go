@@ -62,23 +62,17 @@ func resourceFilterClause(filter domain.ResourceFilter, args *[]interface{}) str
 }
 
 func (r *ResourceRepo) List(filter domain.ResourceFilter) ([]domain.Resource, error) {
+	items, _, err := r.ListPage(filter, nil)
+	return items, err
+}
+
+// ListPage întoarce resursele filtrate (categorie, text) după nume; cu page, doar pagina cerută și totalul.
+func (r *ResourceRepo) ListPage(filter domain.ResourceFilter, page *domain.PageRequest) ([]domain.Resource, int, error) {
 	args := []interface{}{}
 	where := resourceFilterClause(filter, &args)
-	rows, err := r.db.Query(resourceSelectWithType+` WHERE `+where+` ORDER BY r.name`, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	var result []domain.Resource
-	for rows.Next() {
-		res, err := scanResource(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, res)
-	}
-	return result, nil
+	return listPage(r.db, resourceSelectWithType+` WHERE `+where, args, "r.name, r.id", page, func(rows *sql.Rows) (domain.Resource, error) {
+		return scanResource(rows)
+	})
 }
 
 func (r *ResourceRepo) CountByCategory() (*domain.CategoryCounts, error) {

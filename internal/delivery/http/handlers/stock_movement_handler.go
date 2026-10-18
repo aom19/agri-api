@@ -44,13 +44,19 @@ type createStockMovementRequest struct {
 // @Param        from query string false "De la (YYYY-MM-DD)"
 // @Param        to query string false "Până la (YYYY-MM-DD, inclusiv)"
 // @Param        limit query int false "Număr maxim (implicit 200, maxim 500)"
-// @Success      200 {array} domain.StockMovement
+// @Param        page query int false "Pagina (de la 1); fără ea, ultimele `limit` mișcări ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.StockMovement,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.StockMovement"
 // @Failure      400 {object} object{error=string}
 // @Failure      500 {object} object{error=string}
 // @Router       /stock-movements [get]
 func (h *StockMovementHandler) List(c *gin.Context) {
+	page, err := pageRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	filter := domain.StockMovementFilter{}
-	var err error
 	if filter.ResourceID, err = optionalInt64Query(c.Query("resource_id")); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "resource_id invalid"})
 		return
@@ -80,12 +86,21 @@ func (h *StockMovementHandler) List(c *gin.Context) {
 		filter.To = &exclusive
 	}
 
-	items, err := h.service.List(filter)
+	if page == nil {
+		items, err := h.service.List(filter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		respondList(c, items, len(items), nil)
+		return
+	}
+	items, total, err := h.service.ListPage(filter, page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respondList(c, items, total, page)
 }
 
 // Create înregistrează o mișcare manuală de stoc (recepție, consum, ajustare).

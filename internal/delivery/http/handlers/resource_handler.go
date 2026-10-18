@@ -188,18 +188,23 @@ func (h *ResourceHandler) DeleteResourceType(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        category query string false "Categoria tipului de resursă (fuel, seed, harvest…)"
 // @Param        q query string false "Text căutat în nume, tip, categorie sau unitate"
-// @Success      200 {array} domain.Resource
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.Resource,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.Resource"
+// @Failure      400 {object} object{error=string}
 // @Router       /resources [get]
 func (h *ResourceHandler) GetAllResources(c *gin.Context) {
-	items, err := h.service.ListResources(resourceFilterFromQuery(c))
+	page, err := pageRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	items, total, err := h.service.ListResourcesPage(resourceFilterFromQuery(c), page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if items == nil {
-		items = []domain.Resource{}
-	}
-	c.JSON(http.StatusOK, items)
+	respondList(c, items, total, page)
 }
 
 // GetResourceCategoryCounts numără resursele pe categorie (pentru butoanele de filtrare).

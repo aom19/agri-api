@@ -21,6 +21,11 @@ func (s *UserService) GetAllUsers() ([]domain.User, error) {
 	return s.users.GetAll()
 }
 
+// ListUsers întoarce conturile filtrate și, cu page, doar pagina cerută și totalul.
+func (s *UserService) ListUsers(filter domain.ListFilter, page *domain.PageRequest) ([]domain.User, int, error) {
+	return s.users.List(filter, page)
+}
+
 func (s *UserService) GetUserByID(id int64) (*domain.User, error) {
 	user, err := s.users.GetByID(id)
 	if err != nil {

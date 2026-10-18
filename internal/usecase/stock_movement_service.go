@@ -25,6 +25,11 @@ func (service *StockMovementService) List(filter domain.StockMovementFilter) ([]
 	return service.repo.List(filter)
 }
 
+// ListPage întoarce mișcările filtrate; cu page, doar pagina cerută și totalul.
+func (service *StockMovementService) ListPage(filter domain.StockMovementFilter, page *domain.PageRequest) ([]domain.StockMovement, int, error) {
+	return service.repo.ListPage(filter, page)
+}
+
 // StockMovementResult conține mișcarea înregistrată și starea stocului față de pragul minim.
 type StockMovementResult struct {
 	Movement     *domain.StockMovement

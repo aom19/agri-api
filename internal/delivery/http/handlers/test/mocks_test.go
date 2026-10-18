@@ -53,6 +53,7 @@ func waitUntil(t *testing.T, cond func() bool) {
 }
 
 type machineRepoMock struct {
+	list func(domain.ListFilter, *domain.PageRequest) ([]domain.Machine, int, error)
 	getAll  func() ([]domain.Machine, error)
 	getByID func(int64) (*domain.Machine, error)
 	create  func(*domain.Machine) error
@@ -65,6 +66,13 @@ func (m *machineRepoMock) Create(x *domain.Machine) error {
 		return m.create(x)
 	}
 	return nil
+}
+func (m *machineRepoMock) List(f domain.ListFilter, p *domain.PageRequest) ([]domain.Machine, int, error) {
+	if m.list != nil {
+		return m.list(f, p)
+	}
+	items, err := m.GetAll()
+	return items, len(items), err
 }
 func (m *machineRepoMock) GetAll() ([]domain.Machine, error) {
 	if m.getAll != nil {
@@ -122,6 +130,14 @@ func (m *auditRepoMock) Log(e *domain.AuditEntry) error {
 	defer m.mu.Unlock()
 	m.entries = append(m.entries, *e)
 	return nil
+}
+func (m *auditRepoMock) List(f domain.AuditFilter, p *domain.PageRequest) ([]domain.AuditEntry, int, error) {
+	limit := 100
+	if p != nil {
+		limit = p.PageSize
+	}
+	items, err := m.GetAll(limit, f.EntityType, f.EntityID)
+	return items, len(items), err
 }
 func (m *auditRepoMock) GetAll(limit int, entityType, entityID string) ([]domain.AuditEntry, error) {
 	if m.getAll != nil {

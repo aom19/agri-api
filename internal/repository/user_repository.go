@@ -4,6 +4,8 @@ import "agri-api/internal/domain"
 
 type UserRepository interface {
 	GetAll() ([]domain.User, error)
+	// List: căutare (e-mail, rol) și paginare opțională.
+	List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.User, int, error)
 	GetByEmail(email string) (*domain.User, error)
 	GetByID(id int64) (*domain.User, error)
 	Create(user *domain.User) error

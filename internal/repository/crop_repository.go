@@ -8,6 +8,7 @@ import (
 
 type CropRepository interface {
 	GetSeasons() ([]domain.Season, error)
+	ListSeasons(page *domain.PageRequest) ([]domain.Season, int, error)
 	GetSeasonByID(id int64) (*domain.Season, error)
 	GetActiveOrLatestSeason() (*domain.Season, error)
 	CreateSeason(season *domain.Season) error
@@ -15,12 +16,14 @@ type CropRepository interface {
 	DeleteSeason(id int64) error
 
 	GetCrops() ([]domain.Crop, error)
+	ListCrops(page *domain.PageRequest) ([]domain.Crop, int, error)
 	GetCropByID(id int64) (*domain.Crop, error)
 	CreateCrop(crop *domain.Crop) error
 	UpdateCrop(id int64, crop *domain.Crop) error
 	DeleteCrop(id int64) error
 
 	ListFieldCrops(filter domain.FieldCropFilter) ([]domain.FieldCrop, error)
+	ListFieldCropsPage(filter domain.FieldCropFilter, page *domain.PageRequest) ([]domain.FieldCrop, int, error)
 	GetFieldCropByID(id int64) (*domain.FieldCrop, error)
 	CreateFieldCrop(item *domain.FieldCrop) error
 	UpdateFieldCrop(id int64, item *domain.FieldCrop) error

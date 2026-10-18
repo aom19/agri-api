@@ -21,6 +21,11 @@ func NewOperatorService(operatorRepo repository.OperatorRepository) *OperatorSer
 	return &OperatorService{operatorRepo: operatorRepo}
 }
 
+// ListOperators întoarce operatorii filtrați și, cu page, doar pagina cerută și totalul.
+func (operatorService *OperatorService) ListOperators(filter domain.ListFilter, page *domain.PageRequest) ([]domain.Operator, int, error) {
+	return operatorService.operatorRepo.List(filter, page)
+}
+
 // GetOperators returnează toți operatorii, inclusiv cei dezactivați.
 func (operatorService *OperatorService) GetOperators() ([]domain.Operator, error) {
 	return operatorService.operatorRepo.GetAll()

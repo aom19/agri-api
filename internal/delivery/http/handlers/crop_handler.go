@@ -96,15 +96,22 @@ func (h *CropHandler) log(c *gin.Context, entityType string, id int64, action st
 // @Tags         crops
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200 {array} domain.Season
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.Season,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.Season"
 // @Router       /seasons [get]
 func (h *CropHandler) GetSeasons(c *gin.Context) {
-	items, err := h.service.GetSeasons()
+	page, err := pageRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	items, total, err := h.service.ListSeasons(page)
 	if err != nil {
 		respondCropError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respondList(c, items, total, page)
 }
 
 // CreateSeason creează un sezon; dacă este marcat activ, celelalte devin inactive.
@@ -192,15 +199,22 @@ func (h *CropHandler) DeleteSeason(c *gin.Context) {
 // @Tags         crops
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200 {array} domain.Crop
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.Crop,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.Crop"
 // @Router       /crops [get]
 func (h *CropHandler) GetCrops(c *gin.Context) {
-	items, err := h.service.GetCrops()
+	page, err := pageRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	items, total, err := h.service.ListCrops(page)
 	if err != nil {
 		respondCropError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respondList(c, items, total, page)
 }
 
 // CreateCrop adaugă o cultură în catalog.
@@ -296,10 +310,17 @@ func (h *CropHandler) DeleteCrop(c *gin.Context) {
 // @Param        crop_id query int false "Filtru cultură"
 // @Param        field_id query string false "Filtru teren"
 // @Param        status query string false "Filtru stare: open, closed, compromised"
-// @Success      200 {array} domain.FieldCrop
+// @Param        q query string false "Caută în numele terenului sau al culturii"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.FieldCrop,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.FieldCrop"
 // @Router       /field-crops [get]
 func (h *CropHandler) ListFieldCrops(c *gin.Context) {
-	filter := domain.FieldCropFilter{FieldID: c.Query("field_id"), Status: c.Query("status")}
+	search, page, ok := listRequest(c)
+	if !ok {
+		return
+	}
+	filter := domain.FieldCropFilter{Query: search.Query, FieldID: c.Query("field_id"), Status: c.Query("status")}
 	var err error
 	if filter.SeasonID, err = optionalInt64Query(c.Query("season_id")); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "season_id invalid"})
@@ -309,12 +330,12 @@ func (h *CropHandler) ListFieldCrops(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "crop_id invalid"})
 		return
 	}
-	items, err := h.service.ListFieldCrops(filter)
+	items, total, err := h.service.ListFieldCropsPage(filter, page)
 	if err != nil {
 		respondCropError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respondList(c, items, total, page)
 }
 
 func toDomainFieldCrop(req fieldCropRequest) *domain.FieldCrop {

@@ -4,6 +4,8 @@ import "agri-api/internal/domain"
 
 type OperationTemplateRepository interface {
 	GetAll() ([]domain.OperationTemplate, error)
+	// List: căutare (nume, unitate, tip) și paginare opțională.
+	List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.OperationTemplate, int, error)
 	GetByID(id int64) (*domain.OperationTemplate, error)
 	Create(t *domain.OperationTemplate) error
 	Update(id int64, t *domain.OperationTemplate) error

@@ -114,9 +114,28 @@ func currentActorID(c *gin.Context) *int64 {
 	return &userID
 }
 
+// GetAll listează lucrările pe teren, cele mai recente primele.
+// @Summary      Listare lucrări pe teren
+// @Tags         field-operations
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status query string false "Status; mai multe separate prin virgulă (planned,in_progress)"
+// @Param        field_id query string false "Teren"
+// @Param        operation_type query string false "Tipul operațiunii"
+// @Param        machine_id query int false "Mașină"
+// @Param        operator_id query int false "Operator"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]dto.FieldOperationResponse,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul dto.FieldOperationResponse"
+// @Failure      400 {object} object{error=string}
+// @Router       /field-operations [get]
 func (h *FieldOperationHandler) GetAll(c *gin.Context) {
+	page, err := pageRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	filter := repository.FieldOperationFilter{
-		Status:        c.Query("status"),
 		FieldID:       c.Query("field_id"),
 		OperationType: c.Query("operation_type"),
 		MachineID:     c.Query("machine_id"),
@@ -131,12 +150,17 @@ func (h *FieldOperationHandler) GetAll(c *gin.Context) {
 		filter.OperatorID = ""
 		filter.AssignedUserID = userID
 	}
-	items, err := h.service.GetAll(filter)
+	for _, status := range strings.Split(c.Query("status"), ",") {
+		if status = strings.TrimSpace(status); status != "" {
+			filter.Statuses = append(filter.Statuses, status)
+		}
+	}
+	items, total, err := h.service.List(filter, page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respondList(c, items, total, page)
 }
 
 // fieldOperationErrorStatus: 404 pentru lucrarea inexistentă, 409 când resursele sunt pe altă

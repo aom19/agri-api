@@ -11,6 +11,8 @@ var ErrEmailTaken = errors.New("email already in use")
 // OperatorRepository lucrează pe utilizatorii cu rolul `operator` (users + user_profiles).
 type OperatorRepository interface {
 	GetAll() ([]domain.Operator, error)
+	// List: căutare (nume, telefon, e-mail) și paginare opțională.
+	List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.Operator, int, error)
 	GetByID(id int64) (*domain.Operator, error)
 	// Create creează contul (rol operator, fără parolă utilizabilă) și profilul, într-o tranzacție.
 	Create(operator *domain.Operator) error

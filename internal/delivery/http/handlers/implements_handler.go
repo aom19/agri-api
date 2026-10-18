@@ -199,15 +199,23 @@ func (h *ImplementHandler) GetByID(c *gin.Context) {
 // @Tags         implements
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200 {array} domain.Implement
+// @Param        q query string false "Căutare text"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.Implement,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.Implement"
+// @Failure      400 {object} object{error=string}
 // @Router       /implements [get]
 func (h *ImplementHandler) GetAll(c *gin.Context) {
-	implements, err := h.service.GetImplements()
+	filter, page, ok := listRequest(c)
+	if !ok {
+		return
+	}
+	implements, total, err := h.service.ListImplements(filter, page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, implements)
+	respondList(c, implements, total, page)
 }
 
 // Delete șterge un utilaj agricol existent

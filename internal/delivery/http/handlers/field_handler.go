@@ -5,6 +5,8 @@ import (
 	"agri-api/internal/usecase"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -71,13 +73,49 @@ func (h *FieldHandler) Create(c *gin.Context) {
 	})
 }
 
+// GetAll listează terenurile; cu page, o pagină cu totalul și suprafața totală filtrată.
+// @Summary      Listare terenuri
+// @Tags         fields
+// @Produce      json
+// @Security     BearerAuth
+// @Param        q query string false "Nume sau număr cadastral"
+// @Param        min_area query number false "Suprafață minimă (ha)"
+// @Param        max_area query number false "Suprafață maximă (ha)"
+// @Param        sort query string false "name (implicit) sau area"
+// @Param        order query string false "asc (implicit) sau desc"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.Field,total=int,page=int,page_size=int,total_area_ha=number} "Cu page: pagina; fără page: tabloul domain.Field"
+// @Failure      400 {object} object{error=string}
+// @Router       /fields [get]
 func (h *FieldHandler) GetAll(c *gin.Context) {
-	fields, err := h.service.GetFields()
+	search, page, ok := listRequest(c)
+	if !ok {
+		return
+	}
+	filter := domain.FieldFilter{Query: search.Query, SortBy: c.Query("sort"), SortDesc: c.Query("order") == "desc"}
+	for name, target := range map[string]**float64{"min_area": &filter.MinArea, "max_area": &filter.MaxArea} {
+		raw := strings.TrimSpace(c.Query(name))
+		if raw == "" {
+			continue
+		}
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || value < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": name + " trebuie să fie un număr pozitiv"})
+			return
+		}
+		*target = &value
+	}
+	fields, total, totalArea, err := h.service.ListFields(filter, page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, fields)
+	if page == nil {
+		respondList(c, fields, total, nil)
+		return
+	}
+	c.JSON(http.StatusOK, domain.FieldPage{Page: domain.NewPage(fields, total, *page), TotalAreaHa: totalArea})
 }
 
 func (h *FieldHandler) GetByID(c *gin.Context) {

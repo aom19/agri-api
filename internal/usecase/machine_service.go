@@ -22,6 +22,11 @@ func (machineService *MachineService) GetMachines() ([]domain.Machine, error) {
 	return machineService.machineRepo.GetAll()
 }
 
+// ListMachines întoarce mașinile filtrate și, cu page, doar pagina cerută și totalul.
+func (machineService *MachineService) ListMachines(filter domain.ListFilter, page *domain.PageRequest) ([]domain.Machine, int, error) {
+	return machineService.machineRepo.List(filter, page)
+}
+
 // GetMachineByID returnează o mașină după ID sau eroare dacă nu există
 func (machineService *MachineService) GetMachineByID(id int64) (*domain.Machine, error) {
 	machine, err := machineService.machineRepo.GetByID(id)

@@ -21,6 +21,11 @@ func (implementService *ImplementService) GetImplements() ([]domain.Implement, e
 	return implementService.implementRepo.GetAll()
 }
 
+// ListImplements întoarce echipamentele filtrate și, cu page, doar pagina cerută și totalul.
+func (implementService *ImplementService) ListImplements(filter domain.ListFilter, page *domain.PageRequest) ([]domain.Implement, int, error) {
+	return implementService.implementRepo.List(filter, page)
+}
+
 // utilajul agricol by ID
 func (implementService *ImplementService) GetImplementByID(id int64) (*domain.Implement, error) {
 	implement, err := implementService.implementRepo.GetByID(id)

@@ -65,6 +65,8 @@ type FieldCrop struct {
 }
 
 type FieldCropFilter struct {
+	// Query caută în numele terenului și al culturii.
+	Query    string
 	SeasonID int64
 	CropID   int64
 	FieldID  string

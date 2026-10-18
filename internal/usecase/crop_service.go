@@ -58,6 +58,11 @@ func parseISODate(value string) (time.Time, error) {
 
 func (service *CropService) GetSeasons() ([]domain.Season, error) { return service.repo.GetSeasons() }
 
+// ListSeasons întoarce sezoanele; cu page, doar pagina cerută și totalul.
+func (service *CropService) ListSeasons(page *domain.PageRequest) ([]domain.Season, int, error) {
+	return service.repo.ListSeasons(page)
+}
+
 func (service *CropService) validateSeason(season *domain.Season) error {
 	season.Name = strings.TrimSpace(season.Name)
 	if season.Name == "" {
@@ -114,6 +119,11 @@ func (service *CropService) DeleteSeason(id int64) error {
 
 func (service *CropService) GetCrops() ([]domain.Crop, error) { return service.repo.GetCrops() }
 
+// ListCrops întoarce catalogul de culturi; cu page, doar pagina cerută și totalul.
+func (service *CropService) ListCrops(page *domain.PageRequest) ([]domain.Crop, int, error) {
+	return service.repo.ListCrops(page)
+}
+
 func validateCrop(crop *domain.Crop) error {
 	crop.Name = strings.TrimSpace(crop.Name)
 	if crop.Name == "" {
@@ -158,6 +168,11 @@ func (service *CropService) DeleteCrop(id int64) error {
 }
 
 // ─── Field crops ─────────────────────────────────────────────────────────────
+
+// ListFieldCropsPage întoarce culturile pe terenuri filtrate; cu page, doar pagina cerută și totalul.
+func (service *CropService) ListFieldCropsPage(filter domain.FieldCropFilter, page *domain.PageRequest) ([]domain.FieldCrop, int, error) {
+	return service.repo.ListFieldCropsPage(filter, page)
+}
 
 func (service *CropService) ListFieldCrops(filter domain.FieldCropFilter) ([]domain.FieldCrop, error) {
 	return service.repo.ListFieldCrops(filter)

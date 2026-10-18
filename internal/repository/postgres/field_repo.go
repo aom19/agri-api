@@ -3,6 +3,7 @@ package postgres
 import (
 	"agri-api/internal/domain"
 	"database/sql"
+	"fmt"
 )
 
 // FieldRepo implementeaza repository.FieldRepository folosind PostgreSQL.
@@ -28,36 +29,51 @@ func (repo *FieldRepo) Create(field *domain.Field) error {
 }
 
 func (repo *FieldRepo) GetAll() ([]domain.Field, error) {
-	rows, err := repo.db.Query(`
+	fields, _, _, err := repo.List(domain.FieldFilter{}, nil)
+	return fields, err
+}
+
+func scanField(rows *sql.Rows) (domain.Field, error) {
+	var field domain.Field
+	var geometry []byte
+	err := rows.Scan(&field.ID, &field.Name, &field.CadastralNumber, &field.AreaHa, &geometry, &field.CreatedAt, &field.UpdatedAt)
+	field.Geometry = geometry
+	return field, err
+}
+
+// List întoarce terenurile filtrate (nume sau număr cadastral, interval de suprafață), în ordinea
+// cerută, și suprafața totală a tuturor celor filtrate; cu page, doar pagina cerută.
+func (repo *FieldRepo) List(filter domain.FieldFilter, page *domain.PageRequest) ([]domain.Field, int, float64, error) {
+	var args []interface{}
+	query := `
 		SELECT id, name, cadastral_number, area_ha, geometry, created_at, updated_at
 		FROM fields
-		WHERE deleted_at IS NULL
-		ORDER BY created_at DESC`)
+		WHERE deleted_at IS NULL` + textSearchClause(filter.Query, &args, "name", "cadastral_number")
+	if filter.MinArea != nil {
+		args = append(args, *filter.MinArea)
+		query += fmt.Sprintf(" AND area_ha >= $%d", len(args))
+	}
+	if filter.MaxArea != nil {
+		args = append(args, *filter.MaxArea)
+		query += fmt.Sprintf(" AND area_ha <= $%d", len(args))
+	}
+	direction := "ASC"
+	if filter.SortDesc {
+		direction = "DESC"
+	}
+	orderBy := "name " + direction + ", id"
+	if filter.SortBy == "area" {
+		orderBy = "area_ha " + direction + " NULLS LAST, name, id"
+	}
+	fields, total, err := listPage(repo.db, query, args, orderBy, page, scanField)
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
-	defer func() { _ = rows.Close() }()
-
-	var fields []domain.Field
-	for rows.Next() {
-		var field domain.Field
-		var geometry []byte
-		if err := rows.Scan(
-			&field.ID,
-			&field.Name,
-			&field.CadastralNumber,
-			&field.AreaHa,
-			&geometry,
-			&field.CreatedAt,
-			&field.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		field.Geometry = geometry
-		fields = append(fields, field)
+	var totalArea float64
+	if err := repo.db.QueryRow("SELECT COALESCE(SUM(area_ha), 0) FROM ("+query+") AS filtered", args...).Scan(&totalArea); err != nil {
+		return nil, 0, 0, err
 	}
-
-	return fields, nil
+	return fields, total, totalArea, nil
 }
 
 func (repo *FieldRepo) GetByID(id string) (*domain.Field, error) {

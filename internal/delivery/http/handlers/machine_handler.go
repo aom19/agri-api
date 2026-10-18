@@ -99,16 +99,23 @@ func (h *MachineHandler) Create(c *gin.Context) {
 // @Tags         machines
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200 {array} domain.Machine
+// @Param        q query string false "Căutare text"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.Machine,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.Machine"
+// @Failure      400 {object} object{error=string}
 // @Router       /machines [get]
 func (h *MachineHandler) GetAll(c *gin.Context) {
-	machines, err := h.service.GetMachines()
-
+	filter, page, ok := listRequest(c)
+	if !ok {
+		return
+	}
+	machines, total, err := h.service.ListMachines(filter, page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, machines)
+	respondList(c, machines, total, page)
 }
 
 // GetByID returnează o mașină după ID

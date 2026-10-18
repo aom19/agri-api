@@ -70,6 +70,16 @@ func (repo *StockMovementRepo) ApplyMovement(tx *sql.Tx, movement *domain.StockM
 }
 
 func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain.StockMovement, error) {
+	limit := filter.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	items, _, err := repo.ListPage(filter, &domain.PageRequest{Page: 1, PageSize: limit})
+	return items, err
+}
+
+// ListPage întoarce mișcările filtrate, cele mai noi primele; cu page, doar pagina cerută și totalul.
+func (repo *StockMovementRepo) ListPage(filter domain.StockMovementFilter, page *domain.PageRequest) ([]domain.StockMovement, int, error) {
 	var where strings.Builder
 	where.WriteString("1=1")
 	args := []interface{}{}
@@ -89,18 +99,12 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 	if filter.To != nil {
 		add("sm.created_at < $%d", *filter.To)
 	}
-	limit := filter.Limit
-	if limit <= 0 || limit > 500 {
-		limit = 200
-	}
-	args = append(args, limit)
-
-	query := fmt.Sprintf(`
+	query := `
 		SELECT
 			sm.id, sm.resource_id, r.name, rt.category, rt.default_unit,
 			sm.field_operation_id,
 			CASE
-				WHEN fo.id IS NOT NULL THEN CONCAT_WS(' - ', `+fieldOperationTypeNameExpr+`, f.name)
+				WHEN fo.id IS NOT NULL THEN CONCAT_WS(' - ', ` + fieldOperationTypeNameExpr + `, f.name)
 				-- recolta pe resursa culturii; orice altă intrare legată de cultură e un produs secundar
 				WHEN hc.id IS NOT NULL AND hcr.harvest_resource_id = sm.resource_id THEN CONCAT_WS(' - ', 'Recoltă ' || hcr.name, hf.name)
 				WHEN hc.id IS NOT NULL THEN CONCAT_WS(' - ', hcr.name, hf.name)
@@ -109,29 +113,21 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 			sm.field_crop_id,
 			sm.movement_type, sm.quantity_delta, sm.resulting_quantity, sm.unit_cost, sm.total_cost,
 			sm.notes, sm.actor_id,
-			NULLIF(BTRIM(CONCAT_WS(' ', up.first_name, up.last_name)), ''),
+			-- numele din profil sau, fără profil completat, e-mailul contului
+			COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', up.first_name, up.last_name)), ''), au.email),
 			sm.created_at
 		FROM stock_movements sm
 		JOIN resources r ON r.id = sm.resource_id
 		JOIN resource_types rt ON rt.id = r.resource_type_id
 		LEFT JOIN field_operations fo ON fo.id = sm.field_operation_id
 		LEFT JOIN fields f ON f.id = fo.field_id
+		LEFT JOIN users au ON au.id = sm.actor_id
 		LEFT JOIN user_profiles up ON up.user_id = sm.actor_id
 		LEFT JOIN field_crops hc ON hc.id = sm.field_crop_id
 		LEFT JOIN crops hcr ON hcr.id = hc.crop_id
 		LEFT JOIN fields hf ON hf.id = hc.field_id
-		WHERE %s
-		ORDER BY sm.created_at DESC, sm.id DESC
-		LIMIT $%d`, where.String(), len(args))
-
-	rows, err := repo.db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	items := []domain.StockMovement{}
-	for rows.Next() {
+		WHERE ` + where.String()
+	return listPage(repo.db, query, args, "sm.created_at DESC, sm.id DESC", page, func(rows *sql.Rows) (domain.StockMovement, error) {
 		var (
 			item      domain.StockMovement
 			opLabel   sql.NullString
@@ -145,7 +141,7 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 			&item.MovementType, &item.QuantityDelta, &item.ResultingQuantity, &unitCost, &totalCost,
 			&item.Notes, &item.ActorID, &actorName, &item.CreatedAt,
 		); err != nil {
-			return nil, err
+			return item, err
 		}
 		item.FieldOperationLabel = nullStringPtr(opLabel)
 		item.ActorName = nullStringPtr(actorName)
@@ -157,9 +153,8 @@ func (repo *StockMovementRepo) List(filter domain.StockMovementFilter) ([]domain
 			value := totalCost.Float64
 			item.TotalCost = &value
 		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
+		return item, nil
+	})
 }
 
 func (repo *StockMovementRepo) ListFuelStocks() ([]domain.FuelStock, error) {

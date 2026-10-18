@@ -14,28 +14,28 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 }
 
 func (r *UserRepo) GetAll() ([]domain.User, error) {
-	query := `
+	users, _, err := r.List(domain.ListFilter{}, nil)
+	return users, err
+}
+
+const userListSelect = `
 		SELECT u.id, u.email, u.password_hash, u.email_confirmed, (u.deleted_at IS NOT NULL) AS disabled, u.must_change_password, u.role_id, COALESCE(ro.code, ''), COALESCE(ro.name, '')
 		FROM users u
 		LEFT JOIN roles ro ON ro.id = u.role_id
-		ORDER BY u.id`
+		WHERE TRUE`
 
-	rows, err := r.db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+func scanUserRow(rows *sql.Rows) (domain.User, error) {
+	var u domain.User
+	err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.Disabled, &u.MustChangePassword, &u.RoleID, &u.RoleCode, &u.RoleName)
+	return u, err
+}
 
-	users := make([]domain.User, 0)
-	for rows.Next() {
-		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.EmailConfirmed, &u.Disabled, &u.MustChangePassword, &u.RoleID, &u.RoleCode, &u.RoleName); err != nil {
-			return nil, err
-		}
-		users = append(users, u)
-	}
-
-	return users, rows.Err()
+// List întoarce conturile (inclusiv cele dezactivate) filtrate după e-mail sau rol, ordonate după
+// e-mail; cu page, doar pagina cerută și totalul.
+func (r *UserRepo) List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.User, int, error) {
+	var args []interface{}
+	query := userListSelect + textSearchClause(filter.Query, &args, "u.email", "ro.name", "ro.code")
+	return listPage(r.db, query, args, "u.email, u.id", page, scanUserRow)
 }
 
 func (r *UserRepo) GetByEmail(email string) (*domain.User, error) {

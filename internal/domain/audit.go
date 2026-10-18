@@ -13,3 +13,9 @@ type AuditEntry struct {
 	Changes    map[string]interface{} `json:"changes,omitempty"`
 	CreatedAt  time.Time              `json:"created_at"`
 }
+
+// AuditFilter restrânge jurnalul la un tip de entitate și, opțional, la o entitate.
+type AuditFilter struct {
+	EntityType string
+	EntityID   string
+}

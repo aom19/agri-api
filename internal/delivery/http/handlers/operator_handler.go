@@ -104,16 +104,23 @@ func (h *OperatorHandler) Create(c *gin.Context) {
 // @Tags         operators
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200 {array} domain.Operator
+// @Param        q query string false "Căutare text"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.Operator,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.Operator"
+// @Failure      400 {object} object{error=string}
 // @Router       /operators [get]
 func (h *OperatorHandler) GetAll(c *gin.Context) {
-	operators, err := h.service.GetOperators()
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"operators": []domain.Operator{}})
+	filter, page, ok := listRequest(c)
+	if !ok {
 		return
 	}
-	c.JSON(http.StatusOK, operators)
+	operators, total, err := h.service.ListOperators(filter, page)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	respondList(c, operators, total, page)
 }
 
 // GetByID returnează un operator după ID

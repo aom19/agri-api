@@ -72,6 +72,10 @@ func (m *machineRepoMock) Create(x *domain.Machine) error {
 	}
 	return nil
 }
+func (m *machineRepoMock) List(_ domain.ListFilter, _ *domain.PageRequest) ([]domain.Machine, int, error) {
+	items, err := m.GetAll()
+	return items, len(items), err
+}
 func (m *machineRepoMock) GetAll() ([]domain.Machine, error) {
 	if m.getAll != nil {
 		return m.getAll()
@@ -120,6 +124,10 @@ func (m *operatorRepoMock) Create(x *domain.Operator) error {
 	}
 	return nil
 }
+func (m *operatorRepoMock) List(_ domain.ListFilter, _ *domain.PageRequest) ([]domain.Operator, int, error) {
+	items, err := m.GetAll()
+	return items, len(items), err
+}
 func (m *operatorRepoMock) GetAll() ([]domain.Operator, error) {
 	if m.getAll != nil {
 		return m.getAll()
@@ -162,6 +170,10 @@ func (m *implementRepoMock) Create(x *domain.Implement) error {
 		return m.create(x)
 	}
 	return nil
+}
+func (m *implementRepoMock) List(_ domain.ListFilter, _ *domain.PageRequest) ([]domain.Implement, int, error) {
+	items, err := m.GetAll()
+	return items, len(items), err
 }
 func (m *implementRepoMock) GetAll() ([]domain.Implement, error) {
 	if m.getAll != nil {
@@ -258,6 +270,10 @@ func (m *resourceRepoMock) GetAll() ([]domain.Resource, error) {
 	}
 	return nil, nil
 }
+func (m *resourceRepoMock) ListPage(f domain.ResourceFilter, _ *domain.PageRequest) ([]domain.Resource, int, error) {
+	items, err := m.List(f)
+	return items, len(items), err
+}
 func (m *resourceRepoMock) List(f domain.ResourceFilter) ([]domain.Resource, error) {
 	if m.list != nil {
 		return m.list(f)
@@ -311,6 +327,10 @@ func (m *fieldRepoMock) Create(x *domain.Field) error {
 	}
 	return nil
 }
+func (m *fieldRepoMock) List(_ domain.FieldFilter, _ *domain.PageRequest) ([]domain.Field, int, float64, error) {
+	items, err := m.GetAll()
+	return items, len(items), 0, err
+}
 func (m *fieldRepoMock) GetAll() ([]domain.Field, error) {
 	if m.getAll != nil {
 		return m.getAll()
@@ -349,6 +369,10 @@ type operationTemplateRepoMock struct {
 	setImplementTypes func(int64, []string) error
 }
 
+func (m *operationTemplateRepoMock) List(_ domain.ListFilter, _ *domain.PageRequest) ([]domain.OperationTemplate, int, error) {
+	items, err := m.GetAll()
+	return items, len(items), err
+}
 func (m *operationTemplateRepoMock) GetAll() ([]domain.OperationTemplate, error) {
 	if m.getAll != nil {
 		return m.getAll()
@@ -421,6 +445,10 @@ type fieldOperationRepoMock struct {
 	inProgressConflicts    func(repository.FieldOperationConflictQuery) ([]dto.FieldOperationConflict, error)
 }
 
+func (m *fieldOperationRepoMock) List(f repository.FieldOperationFilter, _ *domain.PageRequest) ([]dto.FieldOperationResponse, int, error) {
+	items, err := m.GetAll(f)
+	return items, len(items), err
+}
 func (m *fieldOperationRepoMock) GetAll(f repository.FieldOperationFilter) ([]dto.FieldOperationResponse, error) {
 	if m.getAll != nil {
 		return m.getAll(f)
@@ -566,6 +594,14 @@ func (m *auditRepoMock) Log(e *domain.AuditEntry) error {
 	m.entries = append(m.entries, *e)
 	return m.logErr
 }
+func (m *auditRepoMock) List(f domain.AuditFilter, p *domain.PageRequest) ([]domain.AuditEntry, int, error) {
+	limit := 100
+	if p != nil {
+		limit = p.PageSize
+	}
+	items, err := m.GetAll(limit, f.EntityType, f.EntityID)
+	return items, len(items), err
+}
 func (m *auditRepoMock) GetAll(limit int, entityType, entityID string) ([]domain.AuditEntry, error) {
 	if m.getAll != nil {
 		return m.getAll(limit, entityType, entityID)
@@ -675,6 +711,10 @@ type userRepoMock struct {
 	upsertProfile      func(*domain.UserProfile) error
 }
 
+func (m *userRepoMock) List(_ domain.ListFilter, _ *domain.PageRequest) ([]domain.User, int, error) {
+	items, err := m.GetAll()
+	return items, len(items), err
+}
 func (m *userRepoMock) GetAll() ([]domain.User, error) {
 	if m.getAll != nil {
 		return m.getAll()
@@ -844,6 +884,10 @@ func (m *stockMovementRepoMock) ApplyMovement(tx *sql.Tx, mv *domain.StockMoveme
 	}
 	return nil
 }
+func (m *stockMovementRepoMock) ListPage(f domain.StockMovementFilter, _ *domain.PageRequest) ([]domain.StockMovement, int, error) {
+	items, err := m.List(f)
+	return items, len(items), err
+}
 func (m *stockMovementRepoMock) List(f domain.StockMovementFilter) ([]domain.StockMovement, error) {
 	if m.list != nil {
 		return m.list(f)
@@ -884,6 +928,10 @@ type cropRepoMock struct {
 	markHarvestRecorded     func(*sql.Tx, int64, float64) error
 }
 
+func (m *cropRepoMock) ListSeasons(_ *domain.PageRequest) ([]domain.Season, int, error) {
+	items, err := m.GetSeasons()
+	return items, len(items), err
+}
 func (m *cropRepoMock) GetSeasons() ([]domain.Season, error) {
 	if m.getSeasons != nil {
 		return m.getSeasons()
@@ -920,6 +968,10 @@ func (m *cropRepoMock) DeleteSeason(id int64) error {
 	}
 	return nil
 }
+func (m *cropRepoMock) ListCrops(_ *domain.PageRequest) ([]domain.Crop, int, error) {
+	items, err := m.GetCrops()
+	return items, len(items), err
+}
 func (m *cropRepoMock) GetCrops() ([]domain.Crop, error) {
 	if m.getCrops != nil {
 		return m.getCrops()
@@ -949,6 +1001,10 @@ func (m *cropRepoMock) DeleteCrop(id int64) error {
 		return m.deleteCrop(id)
 	}
 	return nil
+}
+func (m *cropRepoMock) ListFieldCropsPage(f domain.FieldCropFilter, _ *domain.PageRequest) ([]domain.FieldCrop, int, error) {
+	items, err := m.ListFieldCrops(f)
+	return items, len(items), err
 }
 func (m *cropRepoMock) ListFieldCrops(f domain.FieldCropFilter) ([]domain.FieldCrop, error) {
 	if m.listFieldCrops != nil {

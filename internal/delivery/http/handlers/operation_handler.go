@@ -64,13 +64,28 @@ type updateTemplateRequest struct {
 
 // ─── OperationTemplate Handlers ──────────────────────────────────────────────
 
+// GetAllTemplates listează template-urile de operațiuni.
+// @Summary      Listare template-uri de operațiuni
+// @Tags         operations
+// @Produce      json
+// @Security     BearerAuth
+// @Param        q query string false "Nume, unitate sau tipul operațiunii"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.OperationTemplate,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.OperationTemplate"
+// @Failure      400 {object} object{error=string}
+// @Router       /operation-templates [get]
 func (h *OperationHandler) GetAllTemplates(c *gin.Context) {
-	items, err := h.service.GetAllTemplates()
+	filter, page, ok := listRequest(c)
+	if !ok {
+		return
+	}
+	items, total, err := h.service.ListTemplates(filter, page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respondList(c, items, total, page)
 }
 
 func (h *OperationHandler) GetTemplateByID(c *gin.Context) {

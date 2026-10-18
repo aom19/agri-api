@@ -14,47 +14,48 @@ func NewImplementRepo(db *sql.DB) *ImplementRepo {
 	return &ImplementRepo{db: db}
 }
 
-// GetAll returneaza toate utilajele a
+// marca, modelul și observațiile pot fi NULL în bază
+const implementListSelect = "SELECT id, name, code, type, COALESCE(brand, ''), COALESCE(model, ''), year, status, COALESCE(notes, ''), working_width, capacity, deleted_at FROM implements WHERE deleted_at IS NULL"
+
+func scanImplement(rows *sql.Rows) (domain.Implement, error) {
+	var m domain.Implement
+	var year sql.NullInt64
+	var workingWidth sql.NullFloat64
+	var capacity sql.NullFloat64
+	var deletedAt sql.NullTime
+	if err := rows.Scan(&m.ID, &m.Name, &m.Code, &m.Type, &m.Brand, &m.Model, &year, &m.Status, &m.Notes, &workingWidth, &capacity, &deletedAt); err != nil {
+		return m, err
+	}
+	if year.Valid {
+		y := int(year.Int64)
+		m.Year = &y
+	}
+	if workingWidth.Valid {
+		w := workingWidth.Float64
+		m.WorkingWidth = &w
+	}
+	if capacity.Valid {
+		c := capacity.Float64
+		m.Capacity = &c
+	}
+	if deletedAt.Valid {
+		d := deletedAt.Time
+		m.DeletedAt = &d
+	}
+	return m, nil
+}
+
+// GetAll returneaza toate utilajele agricole, ordonate dupa nume.
 func (implementRepo *ImplementRepo) GetAll() ([]domain.Implement, error) {
-	rows, err := implementRepo.db.Query("SELECT id, name, code, type, brand, model, year, status, notes, working_width, capacity, deleted_at FROM implements WHERE deleted_at IS NULL")
-	if err != nil {
-		return nil, err
-	}
-	//defer pentru a inchide rows dupa ce functia se termina
-	defer func() { _ = rows.Close() }()
+	implements, _, err := implementRepo.List(domain.ListFilter{}, nil)
+	return implements, err
+}
 
-	var implements []domain.Implement
-	//parcurgem toate randurile returnate
-	for rows.Next() {
-		var m domain.Implement
-		var year sql.NullInt64
-		var workingWidth sql.NullFloat64
-		var capacity sql.NullFloat64
-		var deletedAt sql.NullTime
-		if err := rows.Scan(&m.ID, &m.Name, &m.Code, &m.Type, &m.Brand, &m.Model, &year, &m.Status, &m.Notes, &workingWidth, &capacity, &deletedAt); err != nil {
-			return nil, err
-		}
-		if year.Valid {
-			y := int(year.Int64)
-			m.Year = &y
-		}
-
-		if workingWidth.Valid {
-			w := float64(workingWidth.Float64)
-			m.WorkingWidth = &w
-		}
-		if capacity.Valid {
-			c := float64(capacity.Float64)
-			m.Capacity = &c
-		}
-		if deletedAt.Valid {
-			d := deletedAt.Time
-			m.DeletedAt = &d
-		}
-		implements = append(implements, m)
-	}
-
-	return implements, nil
+// List întoarce echipamentele, filtrate după textul căutat (nume, cod, tip, marcă, model), ordonate după nume; cu page, doar pagina cerută și totalul.
+func (implementRepo *ImplementRepo) List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.Implement, int, error) {
+	var args []interface{}
+	query := implementListSelect + textSearchClause(filter.Query, &args, "name", "code", "type", "brand", "model")
+	return listPage(implementRepo.db, query, args, "name, id", page, scanImplement)
 }
 
 // GetByID returneaza un utilaj agricol dupa ID

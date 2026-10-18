@@ -52,13 +52,28 @@ type updateUserRequest struct {
 	EmailConfirmed bool   `json:"email_confirmed"`
 }
 
+// GetAll listează conturile.
+// @Summary      Listare utilizatori
+// @Tags         users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        q query string false "E-mail sau rol"
+// @Param        page query int false "Pagina (de la 1); fără ea, lista întreagă ca tablou"
+// @Param        page_size query int false "Rânduri pe pagină (implicit 25, maxim 200)"
+// @Success      200 {object} object{items=[]domain.User,total=int,page=int,page_size=int} "Cu page: pagina; fără page: tabloul domain.User"
+// @Failure      400 {object} object{error=string}
+// @Router       /users [get]
 func (h *UserHandler) GetAll(c *gin.Context) {
-	users, err := h.service.GetAllUsers()
+	filter, page, ok := listRequest(c)
+	if !ok {
+		return
+	}
+	users, total, err := h.service.ListUsers(filter, page)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, users)
+	respondList(c, users, total, page)
 }
 
 func (h *UserHandler) GetByID(c *gin.Context) {

@@ -138,6 +138,11 @@ func (s *ResourceService) ResourceCategoryCounts() (*domain.CategoryCounts, erro
 	return s.resourceRepo.CountByCategory()
 }
 
+// ListResourcesPage filtrează în SQL; cu page, doar pagina cerută și totalul.
+func (s *ResourceService) ListResourcesPage(filter domain.ResourceFilter, page *domain.PageRequest) ([]domain.Resource, int, error) {
+	return s.resourceRepo.ListPage(filter, page)
+}
+
 func (s *ResourceService) GetResourceByID(id int64) (*domain.Resource, error) {
 	if id <= 0 {
 		return nil, errors.New("invalid resource id")

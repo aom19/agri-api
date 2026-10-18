@@ -15,43 +15,47 @@ func NewMachineRepo(db *sql.DB) *MachineRepo {
 	return &MachineRepo{db: db}
 }
 
-// GetAll returnează toate mașinile din baza de date
+// marca, modelul și observațiile pot fi NULL în bază (ex. mașini introduse direct)
+const machineListSelect = "SELECT id, name, code, type, COALESCE(brand, ''), COALESCE(model, ''), year, registration_number, fuel_type, asset_status, operating_hours, COALESCE(notes, '') FROM machines WHERE deleted_at IS NULL"
+
+func scanMachine(rows *sql.Rows) (domain.Machine, error) {
+	var m domain.Machine
+	var year sql.NullInt64
+	var registrationNumber sql.NullString
+	var fuelType sql.NullString
+	var operatingHours sql.NullFloat64
+	if err := rows.Scan(&m.ID, &m.Name, &m.Code, &m.Type, &m.Brand, &m.Model, &year, &registrationNumber, &fuelType, &m.Status, &operatingHours, &m.Notes); err != nil {
+		return m, err
+	}
+	if year.Valid {
+		y := int(year.Int64)
+		m.Year = &y
+	}
+	if registrationNumber.Valid {
+		m.RegistrationNumber = registrationNumber.String
+	}
+	if fuelType.Valid {
+		ft := domain.FuelType(fuelType.String)
+		m.FuelType = &ft
+	}
+	if operatingHours.Valid {
+		w := operatingHours.Float64
+		m.OperatingHours = &w
+	}
+	return m, nil
+}
+
+// GetAll returnează toate mașinile din baza de date, ordonate după nume.
 func (machineRepo *MachineRepo) GetAll() ([]domain.Machine, error) {
-	rows, err := machineRepo.db.Query("SELECT id, name, code, type, brand, model, year, registration_number, fuel_type, asset_status, operating_hours, notes FROM machines WHERE deleted_at IS NULL")
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
+	machines, _, err := machineRepo.List(domain.ListFilter{}, nil)
+	return machines, err
+}
 
-	var machines []domain.Machine
-	for rows.Next() {
-		var m domain.Machine
-		var year sql.NullInt64
-		var registrationNumber sql.NullString
-		var fuelType sql.NullString
-		var operatingHours sql.NullFloat64
-		if err := rows.Scan(&m.ID, &m.Name, &m.Code, &m.Type, &m.Brand, &m.Model, &year, &registrationNumber, &fuelType, &m.Status, &operatingHours, &m.Notes); err != nil {
-			return nil, err
-		}
-		if year.Valid {
-			y := int(year.Int64)
-			m.Year = &y
-		}
-		if registrationNumber.Valid {
-			m.RegistrationNumber = registrationNumber.String
-		}
-		if fuelType.Valid {
-			ft := domain.FuelType(fuelType.String)
-			m.FuelType = &ft
-		}
-		if operatingHours.Valid {
-			w := float64(operatingHours.Float64)
-			m.OperatingHours = &w
-		}
-		machines = append(machines, m)
-	}
-
-	return machines, nil
+// List întoarce mașinile, filtrate după textul căutat (nume, cod, tip, marcă, model, număr de înmatriculare), ordonate după nume; cu page, doar pagina cerută și totalul.
+func (machineRepo *MachineRepo) List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.Machine, int, error) {
+	var args []interface{}
+	query := machineListSelect + textSearchClause(filter.Query, &args, "name", "code", "type", "brand", "model", "registration_number")
+	return listPage(machineRepo.db, query, args, "name, id", page, scanMachine)
 }
 
 // GetByID returnează o mașină după ID; returnează nil, nil dacă nu există

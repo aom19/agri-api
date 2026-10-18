@@ -9,6 +9,90 @@
     "host": "localhost:8080",
     "basePath": "/api",
     "paths": {
+        "/audit-log": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Jurnal de audit",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tipul entității",
+                        "name": "entity_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Id-ul entității",
+                        "name": "entity_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Fără page: numărul de intrări (implicit 100, maxim 500)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cu page: pagina; fără page: tabloul domain.AuditEntry",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.AuditEntry"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/change-password": {
             "post": {
                 "security": [
@@ -530,13 +614,41 @@
                     "crops"
                 ],
                 "summary": "Culturi",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.Crop",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.Crop"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.Crop"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
                             }
                         }
                     }
@@ -858,15 +970,47 @@
                         "description": "Filtru stare: open, closed, compromised",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Caută în numele terenului sau al culturii",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.FieldCrop",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.FieldCrop"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.FieldCrop"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
                             }
                         }
                     }
@@ -1211,6 +1355,102 @@
                 }
             }
         },
+        "/field-operations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "field-operations"
+                ],
+                "summary": "Listare lucrări pe teren",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status; mai multe separate prin virgulă (planned,in_progress)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Teren",
+                        "name": "field_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tipul operațiunii",
+                        "name": "operation_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Mașină",
+                        "name": "machine_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Operator",
+                        "name": "operator_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cu page: pagina; fără page: tabloul dto.FieldOperationResponse",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/dto.FieldOperationResponse"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/field-operations/conflicts": {
             "get": {
                 "security": [
@@ -1450,6 +1690,105 @@
                 }
             }
         },
+        "/fields": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "fields"
+                ],
+                "summary": "Listare terenuri",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Nume sau număr cadastral",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Suprafață minimă (ha)",
+                        "name": "min_area",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Suprafață maximă (ha)",
+                        "name": "max_area",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "name (implicit) sau area",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc (implicit) sau desc",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cu page: pagina; fără page: tabloul domain.Field",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.Field"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                },
+                                "total_area_ha": {
+                                    "type": "number"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "produces": [
@@ -1488,13 +1827,58 @@
                     "implements"
                 ],
                 "summary": "Listare utilaje agricole",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Căutare text",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.Implement",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.Implement"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.Implement"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
                             }
                         }
                     }
@@ -1806,13 +2190,58 @@
                     "machines"
                 ],
                 "summary": "Listare mașini",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Căutare text",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.Machine",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.Machine"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.Machine"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
                             }
                         }
                     }
@@ -2022,6 +2451,78 @@
                 }
             }
         },
+        "/operation-templates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operations"
+                ],
+                "summary": "Listare template-uri de operațiuni",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Nume, unitate sau tipul operațiunii",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cu page: pagina; fără page: tabloul domain.OperationTemplate",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.OperationTemplate"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/operators": {
             "get": {
                 "security": [
@@ -2036,13 +2537,58 @@
                     "operators"
                 ],
                 "summary": "Listare operatori",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Căutare text",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.Operator",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.Operator"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.Operator"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
                             }
                         }
                     }
@@ -3172,15 +3718,52 @@
                         "description": "Text căutat în nume, tip, categorie sau unitate",
                         "name": "q",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.Resource",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.Resource"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.Resource"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
                             }
                         }
                     }
@@ -3225,13 +3808,41 @@
                     "crops"
                 ],
                 "summary": "Sezoane",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.Season",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.Season"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.Season"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
                             }
                         }
                     }
@@ -3443,15 +4054,41 @@
                         "description": "Număr maxim (implicit 200, maxim 500)",
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, ultimele `limit` mișcări ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Cu page: pagina; fără page: tabloul domain.StockMovement",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.StockMovement"
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.StockMovement"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
                             }
                         }
                     },
@@ -3549,6 +4186,78 @@
                 }
             }
         },
+        "/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Listare utilizatori",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "E-mail sau rol",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagina (de la 1); fără ea, lista întreagă ca tablou",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rânduri pe pagină (implicit 25, maxim 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cu page: pagina; fără page: tabloul domain.User",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/domain.User"
+                                    }
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "page_size": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/weather/current": {
             "get": {
                 "security": [
@@ -3629,6 +4338,39 @@
                 "AssetStatusMaintenance",
                 "AssetStatusInactive"
             ]
+        },
+        "domain.AuditEntry": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "actor_id": {
+                    "type": "integer"
+                },
+                "actor_name": {
+                    "type": "string"
+                },
+                "changes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "string"
+                },
+                "entity_name": {
+                    "type": "string"
+                },
+                "entity_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
         },
         "domain.CategoryCount": {
             "type": "object",
@@ -3823,6 +4565,35 @@
                 },
                 "total_stocks": {
                     "type": "integer"
+                }
+            }
+        },
+        "domain.Field": {
+            "type": "object",
+            "properties": {
+                "area_ha": {
+                    "type": "number"
+                },
+                "cadastral_number": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "type": "string"
+                },
+                "geometry": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -4091,6 +4862,56 @@
                 "MachineTypeSmallTruck",
                 "MachineTypeOther"
             ]
+        },
+        "domain.OperationTemplate": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "crop_id": {
+                    "type": "integer"
+                },
+                "crop_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "implement_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "machine_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operation_type": {
+                    "$ref": "#/definitions/domain.OperationType"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.TemplateResource"
+                    }
+                },
+                "unit": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
         },
         "domain.OperationType": {
             "type": "string",
@@ -5260,6 +6081,65 @@
                 "StockMovementAdjustment"
             ]
         },
+        "domain.TemplateResource": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "quantity_per_unit": {
+                    "type": "number"
+                },
+                "resource": {
+                    "$ref": "#/definitions/domain.Resource"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "template_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.User": {
+            "type": "object",
+            "properties": {
+                "disabled": {
+                    "type": "boolean"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_confirmed": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "must_change_password": {
+                    "description": "MustChangePassword e setat pe conturile cu parolă provizorie (ex. administratorul creat la\npornire): până la schimbarea parolei, API-ul acceptă doar schimbarea ei, profilul și logout.",
+                    "type": "boolean"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "role_code": {
+                    "type": "string"
+                },
+                "role_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "domain.UserProfile": {
             "type": "object",
             "properties": {
@@ -5402,6 +6282,118 @@
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.FieldOperationResponse": {
+            "type": "object",
+            "properties": {
+                "actual_duration_minutes": {
+                    "type": "integer"
+                },
+                "actual_end_at": {
+                    "type": "string"
+                },
+                "actual_start_at": {
+                    "type": "string"
+                },
+                "area_completed_ha": {
+                    "type": "number"
+                },
+                "area_planned_ha": {
+                    "type": "number"
+                },
+                "completion_notes": {
+                    "type": "string"
+                },
+                "conflicts": {
+                    "description": "Conflicts sunt celelalte lucrări planificate sau în lucru care folosesc același operator,\naceeași mașină sau același echipament într-un interval suprapus. Doar avertisment: nu\nblochează salvarea, ci doar pornirea cât timp o lucrare suprapusă e în lucru.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.FieldOperationConflict"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "crop_name": {
+                    "type": "string"
+                },
+                "field_crop_id": {
+                    "type": "integer"
+                },
+                "field_geometry": {
+                    "type": "object"
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "fuel_used_l": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "implement_id": {
+                    "type": "integer"
+                },
+                "implement_name": {
+                    "type": "string"
+                },
+                "implement_status": {
+                    "type": "string"
+                },
+                "machine_hours": {
+                    "type": "number"
+                },
+                "machine_id": {
+                    "type": "integer"
+                },
+                "machine_name": {
+                    "type": "string"
+                },
+                "machine_status": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "operation_template_id": {
+                    "type": "integer"
+                },
+                "operation_template_name": {
+                    "type": "string"
+                },
+                "operation_type": {
+                    "description": "OperationType este tipul efectiv: al template-ului, sau tipul propriu fără template.",
+                    "type": "string"
+                },
+                "operation_type_name": {
+                    "type": "string"
+                },
+                "operator_id": {
+                    "type": "integer"
+                },
+                "operator_name": {
+                    "type": "string"
+                },
+                "planned_end_at": {
+                    "type": "string"
+                },
+                "planned_start_at": {
+                    "type": "string"
+                },
+                "season_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

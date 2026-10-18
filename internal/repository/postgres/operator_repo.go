@@ -74,21 +74,22 @@ func scanOperator(row interface{ Scan(...interface{}) error }) (*domain.Operator
 
 // GetAll returnează toți operatorii, inclusiv cei dezactivați, ordonați după nume.
 func (operatorRepo *OperatorRepo) GetAll() ([]domain.Operator, error) {
-	rows, err := operatorRepo.db.Query(operatorSelect + " ORDER BY up.first_name, up.last_name, u.id")
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
+	operators, _, err := operatorRepo.List(domain.ListFilter{}, nil)
+	return operators, err
+}
 
-	operators := []domain.Operator{}
-	for rows.Next() {
+// List întoarce operatorii, inclusiv cei dezactivați, filtrate după textul căutat (prenume, nume, nume complet, telefon, e-mail), ordonate după nume; cu page, doar pagina cerută și totalul.
+func (operatorRepo *OperatorRepo) List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.Operator, int, error) {
+	var args []interface{}
+	query := operatorSelect + " WHERE TRUE" + textSearchClause(filter.Query, &args,
+		"up.first_name", "up.last_name", "CONCAT_WS(' ', up.first_name, up.last_name)", "up.phone", "u.email")
+	return listPage(operatorRepo.db, query, args, "up.first_name, up.last_name, u.id", page, func(rows *sql.Rows) (domain.Operator, error) {
 		o, err := scanOperator(rows)
 		if err != nil {
-			return nil, err
+			return domain.Operator{}, err
 		}
-		operators = append(operators, *o)
-	}
-	return operators, rows.Err()
+		return *o, nil
+	})
 }
 
 // GetByID returnează operatorul după id-ul contului; nil, nil dacă nu există sau nu e operator.

@@ -139,58 +139,47 @@ func scanFieldOperationRow(row interface {
 }
 
 func (repo *FieldOperationRepo) GetAll(filter repository.FieldOperationFilter) ([]dto.FieldOperationResponse, error) {
+	items, _, err := repo.List(filter, nil)
+	return items, err
+}
+
+// List întoarce lucrările filtrate, cele mai recente primele; cu page, doar pagina cerută și totalul.
+func (repo *FieldOperationRepo) List(filter repository.FieldOperationFilter, page *domain.PageRequest) ([]dto.FieldOperationResponse, int, error) {
 	query := fieldOperationBaseSelect
 	var args []interface{}
-	i := 1
-
+	add := func(clause string, value interface{}) {
+		args = append(args, value)
+		query += fmt.Sprintf(clause, len(args))
+	}
 	if filter.Status != "" {
-		query += fmt.Sprintf(" AND fo.status = $%d", i)
-		args = append(args, filter.Status)
-		i++
+		add(" AND fo.status = $%d", filter.Status)
+	}
+	if len(filter.Statuses) > 0 {
+		add(" AND fo.status = ANY($%d)", pq.Array(filter.Statuses))
 	}
 	if strings.TrimSpace(filter.FieldID) != "" {
-		query += fmt.Sprintf(" AND fo.field_id = $%d", i)
-		args = append(args, filter.FieldID)
-		i++
+		add(" AND fo.field_id = $%d", filter.FieldID)
 	}
 	if filter.OperationType != "" {
-		query += fmt.Sprintf(" AND "+fieldOperationTypeExpr+" = $%d", i)
-		args = append(args, filter.OperationType)
-		i++
+		add(" AND "+fieldOperationTypeExpr+" = $%d", filter.OperationType)
 	}
 	if filter.MachineID != "" {
-		query += fmt.Sprintf(" AND fo.machine_id = $%d", i)
-		args = append(args, filter.MachineID)
-		i++
+		add(" AND fo.machine_id = $%d", filter.MachineID)
 	}
 	if filter.OperatorID != "" {
-		query += fmt.Sprintf(" AND fo.operator_id = $%d", i)
-		args = append(args, filter.OperatorID)
-		i++
+		add(" AND fo.operator_id = $%d", filter.OperatorID)
 	}
 	if filter.AssignedUserID > 0 {
-		query += fmt.Sprintf(" AND fo.operator_id = $%d", i)
-		args = append(args, filter.AssignedUserID)
-		i++
+		add(" AND fo.operator_id = $%d", filter.AssignedUserID)
 	}
-
-	query += " ORDER BY COALESCE(fo.planned_start_at, fo.created_at) DESC, fo.id DESC"
-
-	rows, err := repo.db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	result := make([]dto.FieldOperationResponse, 0)
-	for rows.Next() {
-		item, err := scanFieldOperationRow(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, *item)
-	}
-	return result, rows.Err()
+	return listPage(repo.db, query, args, "COALESCE(fo.planned_start_at, fo.created_at) DESC, fo.id DESC", page,
+		func(rows *sql.Rows) (dto.FieldOperationResponse, error) {
+			item, err := scanFieldOperationRow(rows)
+			if err != nil {
+				return dto.FieldOperationResponse{}, err
+			}
+			return *item, nil
+		})
 }
 
 func (repo *FieldOperationRepo) GetByID(id int64) (*dto.FieldOperationResponse, error) {

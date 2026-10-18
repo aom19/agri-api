@@ -41,6 +41,11 @@ func (s *FieldOperationService) GetAll(filter repository.FieldOperationFilter) (
 	return s.repo.GetAll(filter)
 }
 
+// List întoarce lucrările filtrate; cu page, doar pagina cerută și totalul.
+func (s *FieldOperationService) List(filter repository.FieldOperationFilter, page *domain.PageRequest) ([]dto.FieldOperationResponse, int, error) {
+	return s.repo.List(filter, page)
+}
+
 func (s *FieldOperationService) GetByID(id int64) (*dto.FieldOperationResponse, error) {
 	item, err := s.repo.GetByID(id)
 	if err != nil {

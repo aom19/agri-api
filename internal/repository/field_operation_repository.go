@@ -8,7 +8,9 @@ import (
 )
 
 type FieldOperationFilter struct {
-	Status         string
+	Status string
+	// Statuses: oricare din statusurile date (ex. Alocări: planned + in_progress).
+	Statuses       []string
 	FieldID        string
 	OperationType  string
 	MachineID      string
@@ -29,6 +31,8 @@ type FieldOperationConflictQuery struct {
 
 type FieldOperationRepository interface {
 	GetAll(filter FieldOperationFilter) ([]dto.FieldOperationResponse, error)
+	// List: filtre și paginare opțională; cele mai recente primele.
+	List(filter FieldOperationFilter, page *domain.PageRequest) ([]dto.FieldOperationResponse, int, error)
 	GetByID(id int64) (*dto.FieldOperationResponse, error)
 	GetByIDForAssignedUser(id int64, userID int64) (*dto.FieldOperationResponse, error)
 	Create(op *domain.FieldOperation) error

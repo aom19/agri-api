@@ -27,6 +27,11 @@ func (s *FieldService) GetFields() ([]domain.Field, error) {
 	return s.fieldRepo.GetAll()
 }
 
+// ListFields întoarce terenurile filtrate, totalul și suprafața lor totală.
+func (s *FieldService) ListFields(filter domain.FieldFilter, page *domain.PageRequest) ([]domain.Field, int, float64, error) {
+	return s.fieldRepo.List(filter, page)
+}
+
 func (s *FieldService) GetFieldByID(id string) (*domain.Field, error) {
 	if id == "" {
 		return nil, errors.New("field id is required")

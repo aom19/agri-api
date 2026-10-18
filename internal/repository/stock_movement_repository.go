@@ -22,6 +22,7 @@ type StockMovementRepository interface {
 	// ApplyMovement inserează mișcarea și actualizează cantitatea resursei, în tranzacție.
 	ApplyMovement(tx *sql.Tx, movement *domain.StockMovement) error
 	List(filter domain.StockMovementFilter) ([]domain.StockMovement, error)
+	ListPage(filter domain.StockMovementFilter, page *domain.PageRequest) ([]domain.StockMovement, int, error)
 	// ListFuelStocks returnează resursele de combustibil, cu stocul lor.
 	ListFuelStocks() ([]domain.FuelStock, error)
 }

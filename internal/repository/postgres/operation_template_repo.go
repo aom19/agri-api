@@ -14,54 +14,44 @@ func NewOperationTemplateRepo(db *sql.DB) *OperationTemplateRepo {
 }
 
 func (r *OperationTemplateRepo) GetAll() ([]domain.OperationTemplate, error) {
-	rows, err := r.db.Query(
-		`SELECT t.id, t.operation_type, t.name, COALESCE(t.description, ''), t.unit, t.crop_id, c.name,
+	templates, _, err := r.List(domain.ListFilter{}, nil)
+	return templates, err
+}
+
+// List întoarce template-urile filtrate după text (nume, unitate, tipul operațiunii), ordonate după
+// nume, cu resursele și tipurile de mașini și echipamente; cu page, doar pagina cerută și totalul.
+func (r *OperationTemplateRepo) List(filter domain.ListFilter, page *domain.PageRequest) ([]domain.OperationTemplate, int, error) {
+	var args []interface{}
+	query := `SELECT t.id, t.operation_type, t.name, COALESCE(t.description, ''), t.unit, t.crop_id, c.name,
 		        t.created_at, t.updated_at
 		 FROM operation_templates t
 		 LEFT JOIN crops c ON c.id = t.crop_id
-		 WHERE t.deleted_at IS NULL
-		 ORDER BY t.name`)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	byID := make(map[int64]*domain.OperationTemplate)
-	var result []domain.OperationTemplate
-	for rows.Next() {
+		 WHERE t.deleted_at IS NULL` + textSearchClause(filter.Query, &args, "t.name", "t.unit", operationTypeNameExpr("t.operation_type"))
+	result, total, err := listPage(r.db, query, args, "t.name, t.id", page, func(rows *sql.Rows) (domain.OperationTemplate, error) {
 		var t domain.OperationTemplate
-		if err := rows.Scan(
-			&t.ID, &t.OperationType, &t.Name, &t.Description, &t.Unit, &t.CropID, &t.CropName,
-			&t.CreatedAt, &t.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
+		err := rows.Scan(&t.ID, &t.OperationType, &t.Name, &t.Description, &t.Unit, &t.CropID, &t.CropName, &t.CreatedAt, &t.UpdatedAt)
 		t.Resources = []domain.TemplateResource{}
 		t.MachineTypes = []string{}
 		t.ImplementTypes = []string{}
-		result = append(result, t)
+		return t, err
+	})
+	if err != nil || len(result) == 0 {
+		return result, total, err
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
+	byID := make(map[int64]*domain.OperationTemplate, len(result))
 	for i := range result {
 		byID[result[i].ID] = &result[i]
 	}
-	if len(result) == 0 {
-		return result, nil
-	}
-
 	if err := r.attachResources(byID); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if err := r.attachMachineTypes(byID); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if err := r.attachImplementTypes(byID); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-
-	return result, nil
+	return result, total, nil
 }
 
 func (r *OperationTemplateRepo) attachResources(byID map[int64]*domain.OperationTemplate) error {

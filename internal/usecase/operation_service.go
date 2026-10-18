@@ -27,6 +27,11 @@ func (s *OperationService) GetAllTemplates() ([]domain.OperationTemplate, error)
 	return s.templateRepo.GetAll()
 }
 
+// ListTemplates întoarce template-urile filtrate și, cu page, doar pagina cerută și totalul.
+func (s *OperationService) ListTemplates(filter domain.ListFilter, page *domain.PageRequest) ([]domain.OperationTemplate, int, error) {
+	return s.templateRepo.List(filter, page)
+}
+
 func (s *OperationService) GetTemplateByID(id int64) (*domain.OperationTemplate, error) {
 	t, err := s.templateRepo.GetByID(id)
 	if err != nil {
