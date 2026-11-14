@@ -2,11 +2,17 @@ package email
 
 import (
 	"bytes"
+	"crypto/rand"
 	_ "embed"
+	"encoding/hex"
 	"fmt"
 	"html/template"
+	"mime"
+	"mime/quotedprintable"
+	"net/mail"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"agri-api/internal/logger"
 )
@@ -74,22 +80,23 @@ func (s *EmailService) SendPasswordChanged(to string) error {
 func (s *EmailService) sendHTML(to, subject, htmlBody string) error {
 	addr := fmt.Sprintf("%s:%d", s.host, s.port)
 
-	headers := []string{
-		fmt.Sprintf("From: %s", s.from),
-		fmt.Sprintf("To: %s", to),
-		fmt.Sprintf("Subject: %s", subject),
-		"MIME-Version: 1.0",
-		"Content-Type: text/html; charset=UTF-8",
+	from, err := mail.ParseAddress(s.from)
+	if err != nil {
+		return fmt.Errorf("SMTP_FROM invalid (%q): %w", s.from, err)
+	}
+	message, err := buildMessage(from, to, subject, htmlBody, time.Now())
+	if err != nil {
+		return err
 	}
 
-	message := strings.Join(headers, "\r\n") + "\r\n\r\n" + strings.TrimSpace(htmlBody)
-
+	// SendMail trece pe STARTTLS când serverul îl oferă (Mailtrap, Gmail etc.); fără TLS,
+	// PlainAuth refuză să trimită parola, cu excepția serverelor locale (Mailpit).
 	var auth smtp.Auth
 	if s.user != "" && s.password != "" {
 		auth = smtp.PlainAuth("", s.user, s.password, s.host)
 	}
 
-	if err := smtp.SendMail(addr, auth, s.from, []string{to}, []byte(message)); err != nil {
+	if err := smtp.SendMail(addr, auth, from.Address, []string{to}, message); err != nil {
 		if s.log != nil {
 			s.log.Errorf("[email] send failed to=%s subject=%s: %v", to, subject, err)
 		}
@@ -100,6 +107,44 @@ func (s *EmailService) sendHTML(to, subject, htmlBody string) error {
 		s.log.Infof("[email] sent to=%s subject=%s", to, subject)
 	}
 	return nil
+}
+
+// buildMessage compune mesajul MIME: subiectul și numele expeditorului codate pentru diacritice,
+// Date și Message-ID (fără ele, Gmail trimite mai ușor în spam) și corpul HTML quoted-printable,
+// ca liniile să rămână sub limita SMTP de 998 de caractere.
+func buildMessage(from *mail.Address, to, subject, htmlBody string, now time.Time) ([]byte, error) {
+	var body bytes.Buffer
+	qp := quotedprintable.NewWriter(&body)
+	if _, err := qp.Write([]byte(strings.TrimSpace(htmlBody))); err != nil {
+		return nil, err
+	}
+	if err := qp.Close(); err != nil {
+		return nil, err
+	}
+
+	domain := "localhost"
+	if at := strings.LastIndex(from.Address, "@"); at >= 0 {
+		domain = from.Address[at+1:]
+	}
+	headers := []string{
+		"From: " + from.String(),
+		"To: " + to,
+		"Subject: " + mime.QEncoding.Encode("utf-8", subject),
+		"Date: " + now.Format(time.RFC1123Z),
+		fmt.Sprintf("Message-ID: <%d.%s@%s>", now.UnixNano(), randomToken(), domain),
+		"MIME-Version: 1.0",
+		"Content-Type: text/html; charset=UTF-8",
+		"Content-Transfer-Encoding: quoted-printable",
+	}
+	return []byte(strings.Join(headers, "\r\n") + "\r\n\r\n" + body.String()), nil
+}
+
+func randomToken() string {
+	buf := make([]byte, 8)
+	if _, err := rand.Read(buf); err != nil {
+		return "0"
+	}
+	return hex.EncodeToString(buf)
 }
 
 // SendHTML trimite un e-mail HTML arbitrar (folosit de rapoartele programate).

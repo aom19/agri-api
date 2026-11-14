@@ -11,7 +11,7 @@ TEST_DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME
 MIGRATE=migrate -path ./migrations -database "$(DB_URL)"
 
 .PHONY: run migrate-up migrate-down migrate-status migrate-create fmt lint swagger test test-cover test-db \
-        docker-infra docker-dev docker-prod docker-build seed admin \
+        docker-infra docker-dev docker-prod docker-build seed admin tunnel \
         sonar-up sonar-down sonar-token sonar sonar-api sonar-front sonar-check
 
 ## Pornește serverul cu live-reload
@@ -74,6 +74,14 @@ docker-build:
 ## tranzacție: la prima eroare nu se schimbă nimic.
 seed:
 	docker exec -i agri_postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 --single-transaction < seeds/seed.sql
+
+## Expune aplicația (frontend + API prin proxy-ul Vite, portul 3000) pe internet prin ngrok.
+## Prima dată: ngrok config add-authtoken <token>. Cu NGROK_DOMAIN în .env (domeniul static
+## gratuit din dashboard-ul ngrok), adresa rămâne aceeași la fiecare pornire.
+NGROK ?= $(shell command -v ngrok 2>/dev/null || echo $(HOME)/.local/bin/ngrok)
+tunnel:
+	@test -x "$(NGROK)" || { echo "ngrok nu e instalat (https://ngrok.com/download)"; exit 1; }
+	$(NGROK) http $(if $(NGROK_DOMAIN),--url=$(NGROK_DOMAIN)) 3000
 
 ## Dă rolul admin unui cont existent: make admin email=ana@exemplu.ro
 ## Rolurile și permisiunile vin din migrații (000054), iar înregistrarea dă mereu viewer.
